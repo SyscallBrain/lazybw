@@ -38,8 +38,11 @@ fn readme_screenshots_exist() {
         let text = std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("missing {path}"));
         assert!(text.contains("<svg"), "{path} is not an SVG");
     }
+    let demo = format!("{}/../../book/src/images/demo.gif", env!("CARGO_MANIFEST_DIR"));
+    let bytes = std::fs::read(&demo).unwrap_or_else(|_| panic!("missing {demo}"));
+    assert!(bytes.starts_with(b"GIF89a"), "{demo} is not a GIF");
     let readme = include_str!("../../../README.md");
-    assert!(readme.contains("assets/screenshots/vault.svg"));
+    assert!(readme.contains("book/src/images/demo.gif"));
     assert!(readme.contains("assets/screenshots/editor.svg"));
 }
 
