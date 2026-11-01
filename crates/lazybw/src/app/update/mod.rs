@@ -447,8 +447,13 @@ fn dispatch(state: &mut AppState, key: Key) -> Vec<Effect> {
             }
             Vec::new()
         }
-        crate::input::dispatcher::Dispatch::Unhandled(_) => Vec::new(),
-        crate::input::dispatcher::Dispatch::Discard => Vec::new(),
+        // A cancelled sequence (`Space` then `Esc`) leaves nothing pending;
+        // the statusline must not keep showing the keys.
+        crate::input::dispatcher::Dispatch::Unhandled(_)
+        | crate::input::dispatcher::Dispatch::Discard => {
+            state.showcmd = state.dispatcher.pending_display(&state.keymap);
+            Vec::new()
+        }
     }
 }
 fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
