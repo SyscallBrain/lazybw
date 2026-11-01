@@ -299,3 +299,14 @@ fn ctrl_o_logs_out_from_the_unlock_screen() {
     keys(&mut s, "<C-o>");
     assert!(s.confirm.is_some(), "Ctrl-o did not ask to log out");
 }
+
+#[test]
+fn cancelling_a_key_sequence_clears_the_statusline() {
+    let mut s = state();
+    s.screen = Screen::Vault;
+    s.session = SessionPhase::Ready;
+    keys(&mut s, " ");
+    assert_eq!(s.showcmd, "Space");
+    keys(&mut s, "<Esc>");
+    assert!(s.showcmd.is_empty(), "still showing {:?}", s.showcmd);
+}

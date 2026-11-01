@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Cancelling a key sequence with `Esc` (for example `Space` then `Esc`)
+  no longer leaves the keys shown in the statusline.
+
 ## [1.0.0] - 2026-11-01
 
 First public release.
@@ -75,4 +82,5 @@ First public release.
 - Drawing an item, listing cards and building the health report borrow the
   vault data instead of copying passwords, card numbers and notes.
 
+[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/SyscallBrain/lazybw/releases/tag/v1.0.0
