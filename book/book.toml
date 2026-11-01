@@ -1,0 +1,22 @@
+[book]
+title = "lazybw"
+description = "A keyboard-first terminal UI for the Bitwarden vault"
+authors = ["Tiago Correia"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "build"
+create-missing = false
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+site-url = "/lazybw/"
+git-repository-url = "https://github.com/SyscallBrain/lazybw"
+edit-url-template = "https://github.com/SyscallBrain/lazybw/edit/main/book/{path}"
+additional-css = ["theme/lazybw.css"]
+no-section-label = false
+
+[output.html.search]
+limit-results = 20

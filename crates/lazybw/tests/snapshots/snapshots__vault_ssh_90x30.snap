@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ Hetzner deploy key ─────────────────────────────────────────────────────────── SSH key ╮
+│  Hetzner deploy key                                                                   │
+│ SSH key                                                                                │
+│ PUBLIC KEY                                                                             │
+│▌ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAQx9 deploy                                 yy copy │
+│ FINGERPRINT                                                                            │
+│ SHA256:Qx9hY2f7A                                                                       │
+│ PRIVATE KEY                                                                            │
+│ -----BEGIN OPENSSH PRIVATE KEY----- ••••                                               │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created                                                                                │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Hetzner deploy key       2 min ago │  locks 14:15 │  4/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:f44f19d4df8f6ecc
+02:c0cb7a8e1cff9ed3
+03:ad1253f63550970d
+04:07fbc5eedec46ff3
+05:48ebbc280defcf11
+06:121652b1117172d5
+07:2a1d18d45ca4384a
+08:121652b1117172d5
+09:66c90fb4c17c46cc
+10:2d1b323c259dc87c
+11:28505eee7ca45171
+12:2a1d18d45ca4384a
+13:2a1d18d45ca4384a
+14:2a1d18d45ca4384a
+15:2a1d18d45ca4384a
+16:2a1d18d45ca4384a
+17:2a1d18d45ca4384a
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:5f5e7d306c5ae01e
+29:35507918efb144e4

@@ -1,0 +1,71 @@
+name: Docker
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths: [Dockerfile, .dockerignore, .github/workflows/docker.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/syscallbrain/lazybw
+
+jobs:
+  # One native build per architecture; no emulation and no third-party actions.
+  image:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build --pull -t "lazybw:${{ matrix.arch }}" .
+      - name: Smoke-test the image
+        run: |
+          docker run --rm "lazybw:${{ matrix.arch }}" --version
+          docker run --rm --entrypoint bw "lazybw:${{ matrix.arch }}" --version
+      - name: Push the architecture image
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker tag "lazybw:${{ matrix.arch }}" "$IMAGE:${TAG#v}-${{ matrix.arch }}"
+          docker push "$IMAGE:${TAG#v}-${{ matrix.arch }}"
+
+  manifest:
+    if: github.ref_type == 'tag'
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - name: Publish the multi-architecture tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          version=${TAG#v}
+          docker buildx imagetools create \
+            -t "$IMAGE:$version" -t "$IMAGE:latest" \
+            "$IMAGE:$version-amd64" "$IMAGE:$version-arm64"

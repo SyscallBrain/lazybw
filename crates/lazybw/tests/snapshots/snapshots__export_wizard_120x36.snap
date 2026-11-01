@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example╭ Export vault ─────────────────────────────────────────────────────── 1/2 ╮                     │
+│  ││    Jane Example│ FORMAT                                                                   │                     │
+│ ─ ││   Personal vis│▌◉ JSON                                             readable, every field │                     │
+│  ││    Visa •••• 42│ ○ JSON encrypted with a password                             for backups │                     │
+│   ││   Router notes│ ○ JSON encrypted with your account                     this account only │                     │
+│   ││    admin / hunt│ ○ CSV                                              logins and notes only │                     │
+│   ││                │ DESTINATION                                                              │                     │
+│   ││                │ File      ~/bitwarden_export_20261030140000.json                         │                     │
+│   ││                │ ⚠ This file will contain every password in plain text. Keep it on an     │                     │
+│   ││                │   encrypted disk and delete it when you no longer need it.               │                     │
+│   ││                │ j k format · Tab field / complete path · Enter next · Esc cancel         │                     │
+│   ││                │                                                                          │                     │
+│   ││                │                                                                          │                     │
+│   ││                │                                                                          │                     │
+│   ││                │                                                                          │                     │
+│   ││                ╰──────────────────────────────────────────────────────────────────────────╯                     │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:d6c77edac0009191
+02:82c6460e037a35de
+03:4c5a580c437673b9
+04:1c14e5de547b7b36
+05:65fab971459cc425
+06:a8ee8a401cacd6b7
+07:a691a1f44e7022c8
+08:50aa7ceef9eaced1
+09:882bf8cf1e863d4d
+10:19aee7f50cd84289
+11:2e964e50264847d7
+12:355986d28f837c13
+13:8d297b74775589fa
+14:5d62e985e78896c0
+15:06c56261f8f2fa62
+16:6bd450f6af8ec1ba
+17:06ab66e08cc6b1ec
+18:9334bc09a9690ecc
+19:78323b0d40b4564a
+20:f7c43eaf113ad00c
+21:42ddec25cd00b094
+22:42ddec25cd00b094
+23:42ddec25cd00b094
+24:42ddec25cd00b094
+25:79a37ebc4eae20d3
+26:7718885bc5cf709e
+27:4da64e164b90dc76
+28:4da64e164b90dc76
+29:4da64e164b90dc76
+30:4da64e164b90dc76
+31:4da64e164b90dc76
+32:4da64e164b90dc76
+33:ca65c4a6a048ac94
+34:617e01864e5f4dc7
+35:ad0696d4f8ac6d6b

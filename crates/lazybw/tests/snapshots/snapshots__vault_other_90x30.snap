@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ Bank account ─────────────────────────────────────────────────────────────── Read-only ╮
+│  Bank account                                                                         │
+│ Bank account                                                                           │
+│ This item type (Bank account) is shown read-only.                                      │
+│ BANK NAME                                                                              │
+│▌Example Bank                                                                   yy copy │
+│ ACCOUNT NUMBER                                                                         │
+│ •••••••••••••••••••                                                                    │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created                                                                                │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Bank account             2 min ago │  locks 14:15 │  1/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:cdf21b938b12fe92
+02:de568980afb9f240
+03:f57747c135c6e6fd
+04:27fd1fff6fed8ffc
+05:429926be130e4db7
+06:48ebbc280defcf11
+07:d9d4cccd951ae84a
+08:408c7666661584b3
+09:2d1b323c259dc87c
+10:28505eee7ca45171
+11:2a1d18d45ca4384a
+12:2a1d18d45ca4384a
+13:2a1d18d45ca4384a
+14:2a1d18d45ca4384a
+15:2a1d18d45ca4384a
+16:2a1d18d45ca4384a
+17:2a1d18d45ca4384a
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:addb83c7afa4bd82
+29:35507918efb144e4

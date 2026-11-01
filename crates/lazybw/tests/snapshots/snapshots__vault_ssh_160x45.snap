@@ -1,0 +1,95 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                                    you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────────────── name ↓ ╮╭ Hetzner deploy key ────────────────────────────────────────────────── SSH key ╮
+│   All items         7 ││   Bank account                                   ││  Hetzner deploy key                                                          │
+│   Favorites         1 ││                                                   ││ SSH key                                                                       │
+│ TYPES                  ││   GitHub                                       ││ PUBLIC KEY                                                                    │
+│   Logins            2 ││    dev-example                                    ││▌ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAQx9 deploy                        yy copy │
+│   Cards             1 ││   Gmail                                          ││ FINGERPRINT                                                                   │
+│   Identities        1 ││    personal@example.com                           ││ SHA256:Qx9hY2f7A                                                              │
+│   Secure notes      1 ││   Hetzner deploy key                             ││ PRIVATE KEY                                                                   │
+│   SSH keys          1 ││    SHA256:Qx9hY2f7A                               ││ -----BEGIN OPENSSH PRIVATE KEY----- ••••                                      │
+│ FOLDERS                ││   Jane Example                                   ││ ───────────────────────────────────────────────────────────────────────────── │
+│  ▾ Personal         1 ││    Jane Example                                   ││ created                                                                       │
+│      Banking        0 ││   Personal visa                                  ││                                                                               │
+│    Work             0 ││    Visa •••• 4242                                 ││                                                                               │
+│    No folder        6 ││   Router notes                                   ││                                                                               │
+│ ────────────────────── ││    admin / hunter2                                ││                                                                               │
+│   Trash             0 ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Hetzner deploy key                                                                             2 min ago │  locks 14:15 │  4/7 
+                                                                                                                                                                
+styles:
+00:c8690fcc12e10c1a
+01:5f5991da3b13b303
+02:f4a92e9dc25a7cd0
+03:f23caff93bf166a5
+04:690719bdb9ac3007
+05:93bdd317ea476fb9
+06:85518729a7ce98e7
+07:e8cd64b3f1afb768
+08:732f86fc743775da
+09:f740c425a0b69636
+10:061e1094506035c6
+11:b1f353c9b25f2f57
+12:4bf1058a16afd0ae
+13:826fca29bb78a378
+14:621a8f91db47149d
+15:7413224c15054519
+16:3faa346ba6bda3a3
+17:bfe139ebc10dc66c
+18:bfe139ebc10dc66c
+19:bfe139ebc10dc66c
+20:bfe139ebc10dc66c
+21:bfe139ebc10dc66c
+22:bfe139ebc10dc66c
+23:bfe139ebc10dc66c
+24:bfe139ebc10dc66c
+25:bfe139ebc10dc66c
+26:bfe139ebc10dc66c
+27:bfe139ebc10dc66c
+28:bfe139ebc10dc66c
+29:bfe139ebc10dc66c
+30:bfe139ebc10dc66c
+31:bfe139ebc10dc66c
+32:bfe139ebc10dc66c
+33:bfe139ebc10dc66c
+34:bfe139ebc10dc66c
+35:bfe139ebc10dc66c
+36:bfe139ebc10dc66c
+37:bfe139ebc10dc66c
+38:bfe139ebc10dc66c
+39:bfe139ebc10dc66c
+40:bfe139ebc10dc66c
+41:bfe139ebc10dc66c
+42:9311dad2d6b027cf
+43:acaceec9e7550d9c
+44:810502b98c661ba7

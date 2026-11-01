@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ Router notes ─────────────────────────────────────────────────── Secure note ╮
+│  Router notes                                                               │
+│ Secure note                                                                  │
+│▌ 1 admin / hunter2                                                   yy copy │
+│ ──────────────────────────────────────────────────────────────────────────── │
+│ created                                                                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Router notes   2 min ago │  locks 14:15 │  7/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:bf0c0ad62ca9c52a
+02:bdfd6cec1d018d1a
+03:ddaa53c4ad216749
+04:318642bb381618d4
+05:e49bcd068489b901
+06:d4dcfee15f8d3b40
+07:ec31fbea254bb9ea
+08:ec31fbea254bb9ea
+09:ec31fbea254bb9ea
+10:ec31fbea254bb9ea
+11:ec31fbea254bb9ea
+12:ec31fbea254bb9ea
+13:ec31fbea254bb9ea
+14:ec31fbea254bb9ea
+15:ec31fbea254bb9ea
+16:ec31fbea254bb9ea
+17:ec31fbea254bb9ea
+18:ec31fbea254bb9ea
+19:ec31fbea254bb9ea
+20:ec31fbea254bb9ea
+21:3d7b3d8d4262dcae
+22:4dfb69943e5865db
+23:864cdd2311874b6a

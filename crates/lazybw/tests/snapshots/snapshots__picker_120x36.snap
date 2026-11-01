@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
+│ ─ ││   Personal visa                           ││                                                                   │
+│  ││    Visa •••• 4242                          ││                                                                   │
+│   ││   Router notes                  ╭ New item ────────────────────────────╮                                       │
+│   ││    admin / hunter2               │▌l login                              │                                       │
+│   ││                                  │ n secure note                        │                                       │
+│   ││                                  │ c card                               │                                       │
+│   ││                                  │                                      │                                       │
+│   ││                                  │                                      │                                       │
+│   ││                                  ╰──────────────────────────────────────╯                                       │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:3b4f6f22b48d63d6
+02:49d02361bd9477fd
+03:19fb7b11c80c0f30
+04:e857c71b88e9ee65
+05:f18d9587041ca145
+06:e857c71b88e9ee65
+07:1196e60b996ccf8a
+08:e857c71b88e9ee65
+09:e857c71b88e9ee65
+10:e857c71b88e9ee65
+11:e857c71b88e9ee65
+12:e857c71b88e9ee65
+13:e857c71b88e9ee65
+14:7166f6d945dabc47
+15:9613e5abaddd2470
+16:18d67bab96ede969
+17:18d67bab96ede969
+18:fed11c1a4aa11ffd
+19:fed11c1a4aa11ffd
+20:598cf59f5dcf6a64
+21:5361d518d0fa2047
+22:83ec379c873aca7b
+23:83ec379c873aca7b
+24:83ec379c873aca7b
+25:83ec379c873aca7b
+26:83ec379c873aca7b
+27:83ec379c873aca7b
+28:83ec379c873aca7b
+29:83ec379c873aca7b
+30:83ec379c873aca7b
+31:83ec379c873aca7b
+32:83ec379c873aca7b
+33:83ec379c873aca7b
+34:617e01864e5f4dc7
+35:ad0696d4f8ac6d6b

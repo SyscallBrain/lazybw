@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256.00 256.00" role="img" aria-label="lazybw">
+  <title>lazybw</title>
+  <rect width="256" height="256" rx="56.32" fill="#1a1b26"/>
+
+  <g transform="translate(32,26)">
+    <!-- shackle -->
+    <path d="M60.0,90.0 V60.0 a36.0,36.0 0 0 1 72.0,0 V90.0"
+          fill="none" stroke="#7aa2f7" stroke-width="18.0" stroke-linecap="round"/>
+    <!-- body: a terminal window -->
+    <rect x="24.0" y="84.0" width="144.0" height="96.0" rx="18.0"
+          fill="#24283b" stroke="#7aa2f7" stroke-width="9.0"/>
+    <!-- title bar dots -->
+    <circle cx="45.0" cy="102.0" r="4.8" fill="#414868"/>
+    <circle cx="61.5" cy="102.0" r="4.8" fill="#414868"/>
+    <circle cx="78.0" cy="102.0" r="4.8" fill="#414868"/>
+    <!-- prompt chevron -->
+    <path d="M48.0,123.0 L69.0,138.0 L48.0,153.0"
+          fill="none" stroke="#9ece6a" stroke-width="10.2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- block cursor -->
+    <rect x="84.0" y="144.0" width="36.0" height="12.0" rx="3.0" fill="#7dcfff"/>
+  </g>
+</svg>

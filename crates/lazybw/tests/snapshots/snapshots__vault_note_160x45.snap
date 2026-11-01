@@ -1,0 +1,95 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                                    you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────────────── name ↓ ╮╭ Router notes ──────────────────────────────────────────────────── Secure note ╮
+│   All items         7 ││   Bank account                                   ││  Router notes                                                                │
+│   Favorites         1 ││                                                   ││ Secure note                                                                   │
+│ TYPES                  ││   GitHub                                       ││▌ 1 admin / hunter2                                                    yy copy │
+│   Logins            2 ││    dev-example                                    ││ ───────────────────────────────────────────────────────────────────────────── │
+│   Cards             1 ││   Gmail                                          ││ created                                                                       │
+│   Identities        1 ││    personal@example.com                           ││                                                                               │
+│   Secure notes      1 ││   Hetzner deploy key                             ││                                                                               │
+│   SSH keys          1 ││    SHA256:Qx9hY2f7A                               ││                                                                               │
+│ FOLDERS                ││   Jane Example                                   ││                                                                               │
+│  ▾ Personal         1 ││    Jane Example                                   ││                                                                               │
+│      Banking        0 ││   Personal visa                                  ││                                                                               │
+│    Work             0 ││    Visa •••• 4242                                 ││                                                                               │
+│    No folder        6 ││   Router notes                                   ││                                                                               │
+│ ────────────────────── ││    admin / hunter2                                ││                                                                               │
+│   Trash             0 ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Router notes                                                                                   2 min ago │  locks 14:15 │  7/7 
+                                                                                                                                                                
+styles:
+00:c8690fcc12e10c1a
+01:768c7e51d6924afe
+02:09550e9a5bf7b7e9
+03:2e35dacc9a23bd00
+04:d96eef7596178eef
+05:adc87fa3f79ac5f3
+06:223270d7bd57949e
+07:e8cd64b3f1afb768
+08:d469872926a232d2
+09:308f85d59dd25565
+10:af41ad3b3c12f24a
+11:c8f98fd5d1f35baf
+12:4bf1058a16afd0ae
+13:826fca29bb78a378
+14:a66f2286cbd824fe
+15:ef38d9c45eb0640e
+16:3faa346ba6bda3a3
+17:bfe139ebc10dc66c
+18:bfe139ebc10dc66c
+19:bfe139ebc10dc66c
+20:bfe139ebc10dc66c
+21:bfe139ebc10dc66c
+22:bfe139ebc10dc66c
+23:bfe139ebc10dc66c
+24:bfe139ebc10dc66c
+25:bfe139ebc10dc66c
+26:bfe139ebc10dc66c
+27:bfe139ebc10dc66c
+28:bfe139ebc10dc66c
+29:bfe139ebc10dc66c
+30:bfe139ebc10dc66c
+31:bfe139ebc10dc66c
+32:bfe139ebc10dc66c
+33:bfe139ebc10dc66c
+34:bfe139ebc10dc66c
+35:bfe139ebc10dc66c
+36:bfe139ebc10dc66c
+37:bfe139ebc10dc66c
+38:bfe139ebc10dc66c
+39:bfe139ebc10dc66c
+40:bfe139ebc10dc66c
+41:bfe139ebc10dc66c
+42:9311dad2d6b027cf
+43:c6e40478bedf9380
+44:810502b98c661ba7

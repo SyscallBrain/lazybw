@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ GitHub ──────────────────────────────────────────────────── Login ╮
+│▌ ││   Bank account                            ││  GitHub                                                favorite │
+│  ││                                            ││ Login · Personal · edited 3 days ago                              │
+│ ─ ││   GitHub                                ││ USERNAME                                                          │
+│  ││    dev-example                             ││▌dev-example                                               yy copy │
+│  ││   Gmail                                   ││ PASSWORD                                                          │
+│  ││    personal@example.com                    ││ ••••••••••••••••••••                                              │
+│  ││   Hetzner deploy key                      ││ ▰▰▰▰▰▰▰▰▰▰ very strong · changed 3 years ago                      │
+│  ││    SHA256:Qx9hY2f7A                        ││ VERIFICATION CODE                                                 │
+│ ─ ││   Jane Example                            ││ 023 232                                                           │
+│  ││    Jane Example                            ││ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  30s  │
+│ ─ ││   Personal visa                           ││ WEBSITES                                                          │
+│  ││    Visa •••• 4242                          ││ https://github.com  default                                       │
+│   ││   Router notes                            ││ CUSTOM FIELDS                                                     │
+│   ││    admin / hunter2                         ││ Recovery token  ••••••  hidden                                    │
+│   ││                                            ││ 2FA enabled     ☑ yes  boolean                                    │
+│   ││                                            ││ NOTES                                                             │
+│   ││                                            ││ Recovery codes are in the safe, drawer 2.                         │
+│   ││                                            ││ ───────────────────────────────────────────────────────────────── │
+│   ││                                            ││ created 12 Mar 2023                      password history (0) gh  │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › GitHub                                                 2 min ago │  locks 14:15 │  2/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:6d8f494721095071
+02:0c7638649860267f
+03:89ca64b0295ab4c1
+04:9ad4ed15563b0ad6
+05:1a1d2ea0992b8e87
+06:c1c50b897be2c2c5
+07:a086866aaa90394c
+08:273b1050d2cee6c2
+09:312393fe2e4a7504
+10:0c929b8bf35c0f43
+11:057bb5261c005d01
+12:c653abfa7287ae39
+13:0d520433f783d288
+14:24d392d4c36ef03d
+15:a6b82596b4550e11
+16:88c190493d2d3f0d
+17:ff72122697311f47
+18:8f9c21557c53efca
+19:d64934aafafc174b
+20:85627f2649563606
+21:8f9c21557c53efca
+22:8f9c21557c53efca
+23:8f9c21557c53efca
+24:8f9c21557c53efca
+25:8f9c21557c53efca
+26:8f9c21557c53efca
+27:8f9c21557c53efca
+28:8f9c21557c53efca
+29:8f9c21557c53efca
+30:8f9c21557c53efca
+31:8f9c21557c53efca
+32:8f9c21557c53efca
+33:2005a5d698610726
+34:c87d5bd395e88a5c
+35:ad0696d4f8ac6d6b

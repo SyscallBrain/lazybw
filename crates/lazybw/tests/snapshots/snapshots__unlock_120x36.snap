@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                              you@example.com │ vault.bitwarden.eu │  locked 
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                       ╻  ┏━┓╺━┓╻ ╻┏┓ ╻ ╻                                               
+                                                    ◆  ┃  ┣━┫┏━┛┗┳┛┣┻┓┃╻┃                                               
+                                                       ┗━╸╹ ╹┗━╸ ╹ ┗━┛┗┻┛                                               
+                                                                                                                        
+                                                      Vault locked                                                      
+                                          you@example.com · vault.bitwarden.eu                                          
+                                  ╭ Master password ─────────────────────────────────╮                                  
+                                  │ ●●●●●●▏                                          │                                  
+                                  ╰──────────────────────────────────────────────────╯                                  
+                                                   last sync 2 min ago                                                  
+                                                                                                                        
+                                      Enter unlock    Ctrl-o log out    Ctrl-c quit                                     
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ LOCKED  Locked                                                                                            2 min ago 
+                                                                                                                        
+styles:
+00:adba85378a47c209
+01:ad0696d4f8ac6d6b
+02:ad0696d4f8ac6d6b
+03:ad0696d4f8ac6d6b
+04:ad0696d4f8ac6d6b
+05:ad0696d4f8ac6d6b
+06:ad0696d4f8ac6d6b
+07:ad0696d4f8ac6d6b
+08:ad0696d4f8ac6d6b
+09:ad0696d4f8ac6d6b
+10:c1160e33490aaf44
+11:ba82cccb2ad508b3
+12:c1160e33490aaf44
+13:ad0696d4f8ac6d6b
+14:0d58d45b786240eb
+15:aa7200d6df4cfd45
+16:8906896b9b9aadb6
+17:daaebc40755033b2
+18:9edd6b13d02b8393
+19:ba4f4bd02fbd1ba8
+20:ad0696d4f8ac6d6b
+21:5edaf295cf59d4d1
+22:ad0696d4f8ac6d6b
+23:ad0696d4f8ac6d6b
+24:ad0696d4f8ac6d6b
+25:ad0696d4f8ac6d6b
+26:ad0696d4f8ac6d6b
+27:ad0696d4f8ac6d6b
+28:ad0696d4f8ac6d6b
+29:ad0696d4f8ac6d6b
+30:ad0696d4f8ac6d6b
+31:ad0696d4f8ac6d6b
+32:ad0696d4f8ac6d6b
+33:ad0696d4f8ac6d6b
+34:50d773ba322742df
+35:ad0696d4f8ac6d6b

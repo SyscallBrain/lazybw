@@ -1,0 +1,129 @@
+{
+  "items": [
+    {
+      "object": "item",
+      "id": "item-1",
+      "folderId": "folder-work",
+      "type": 1,
+      "name": "GitHub",
+      "favorite": true,
+      "reprompt": 0,
+      "login": {
+        "uris": [
+          {
+            "uri": "https://github.com",
+            "match": null
+          }
+        ],
+        "username": "dev-example",
+        "password": "fixture-password",
+        "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+        "passwordRevisionDate": "2026-06-01T00:00:00.000Z",
+        "fido2Credentials": [
+          {
+            "rpId": "github.com",
+            "userName": "dev-example",
+            "creationDate": "2025-03-12T10:00:00.000Z"
+          }
+        ],
+        "futureLoginField": 7
+      },
+      "revisionDate": "2026-10-01T12:00:00.000Z",
+      "creationDate": "2026-01-01T00:00:00.000Z",
+      "futureTopLevel": {
+        "a": [
+          1,
+          2
+        ],
+        "nested": {
+          "k": "v"
+        }
+      }
+    },
+    {
+      "object": "item",
+      "id": "item-2",
+      "folderId": null,
+      "type": 1,
+      "name": "Gmail",
+      "favorite": false,
+      "reprompt": 0,
+      "login": {
+        "uris": [
+          {
+            "uri": "https://mail.google.com",
+            "match": null
+          }
+        ],
+        "username": "personal@example.com",
+        "password": "another-password"
+      },
+      "revisionDate": "2026-09-20T12:00:00.000Z",
+      "creationDate": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "object": "item",
+      "id": "item-3",
+      "folderId": "folder-work",
+      "type": 2,
+      "name": "Router notes",
+      "favorite": false,
+      "reprompt": 0,
+      "secureNote": {
+        "type": 0
+      },
+      "notes": "admin / hunter2\nRecovery codes are in the safe.",
+      "revisionDate": "2026-08-20T12:00:00.000Z",
+      "creationDate": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "object": "item",
+      "id": "item-4",
+      "folderId": null,
+      "type": 3,
+      "name": "Personal visa",
+      "favorite": false,
+      "reprompt": 0,
+      "card": {
+        "cardholderName": "Jane Example",
+        "brand": "Visa",
+        "number": "4242424242424242",
+        "expMonth": "4",
+        "expYear": "2028",
+        "code": "123"
+      },
+      "revisionDate": "2026-07-20T12:00:00.000Z",
+      "creationDate": "2023-01-01T00:00:00.000Z"
+    },
+    {
+      "object": "item",
+      "id": "item-5",
+      "folderId": null,
+      "type": 4,
+      "name": "Passport",
+      "favorite": false,
+      "reprompt": 1,
+      "identity": {
+        "title": "Ms",
+        "firstName": "Jane",
+        "lastName": "Example",
+        "email": "jane@example.com",
+        "passportNumber": "X1234567"
+      },
+      "revisionDate": "2026-06-20T12:00:00.000Z",
+      "creationDate": "2023-06-01T00:00:00.000Z"
+    }
+  ],
+  "folders": [
+    {
+      "object": "folder",
+      "id": "folder-work",
+      "name": "Work"
+    },
+    {
+      "object": "folder",
+      "id": "folder-projects",
+      "name": "Work/Projects"
+    }
+  ]
+}

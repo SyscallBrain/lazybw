@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ Bank account ───────────────────────────────────────────────────── Read-only ╮
+│  Bank account                                                               │
+│ Bank account                                                                 │
+│ This item type (Bank account) is shown read-only.                            │
+│ BANK NAME                                                                    │
+│▌Example Bank                                                         yy copy │
+│ ACCOUNT NUMBER                                                               │
+│ •••••••••••••••••••                                                          │
+│ ──────────────────────────────────────────────────────────────────────────── │
+│ created                                                                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Bank account   2 min ago │  locks 14:15 │  1/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:d0ddab92c25567fa
+02:127502f9404dd39b
+03:fb19663f272b1a42
+04:f586f9b162a80702
+05:b0902c3c1fa0f94a
+06:6438a0f404b65744
+07:9872ce6c54bdbc08
+08:c8254abc976e4dcb
+09:e49bcd068489b901
+10:d4dcfee15f8d3b40
+11:ec31fbea254bb9ea
+12:ec31fbea254bb9ea
+13:ec31fbea254bb9ea
+14:ec31fbea254bb9ea
+15:ec31fbea254bb9ea
+16:ec31fbea254bb9ea
+17:ec31fbea254bb9ea
+18:ec31fbea254bb9ea
+19:ec31fbea254bb9ea
+20:ec31fbea254bb9ea
+21:3d7b3d8d4262dcae
+22:4dfb69943e5865db
+23:864cdd2311874b6a

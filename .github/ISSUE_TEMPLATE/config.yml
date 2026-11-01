@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/SyscallBrain/lazybw/security/advisories/new
+    about: Please report security problems privately.
+  - name: User guide
+    url: https://syscallbrain.github.io/lazybw/
+    about: Installation, keys, configuration and troubleshooting.

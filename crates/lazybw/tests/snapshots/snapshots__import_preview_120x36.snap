@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9╭ Import · Preview ─────────────────────────────────────────────────────── 3/3 ╮────────────────── │
+│ ─ ││   Jane Examp│ ~/Downloads/bitwarden_export_20260101.json                                   │                   │
+│  ││    Jane Examp│ Bitwarden JSON · not encrypted                                               │                   │
+│ ─ ││   Personal v│                                                                              │                   │
+│  ││    Visa •••• │ 248 items                                                                    │                   │
+│   ││   Router not│ 0 folders  none new                                                          │                   │
+│   ││    admin / hu│                                                                              │                   │
+│   ││              │ POSSIBLE DUPLICATES (3) · ☑ = skipped                 x skip or keep · a all │                   │
+│   ││              │▌☑  GitHub                      dev-example                                  │                   │
+│   ││              │ ☑  Gmail                       personal@example.com                         │                   │
+│   ││              │ ☑  Router notes                admin / hunter2                              │                   │
+│   ││              │                                                                              │                   │
+│   ││              │ ☐ Skipping is off: every item is imported   s toggles                        │                   │
+│   ││              │                                              [ Back ]   [ Import 248 items ] │                   │
+│   ││              │                                                                              │                   │
+│   ││              │                                                                              │                   │
+│   ││              ╰──────────────────────────────────────────────────────────────────────────────╯                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:d6c77edac0009191
+02:82c6460e037a35de
+03:4c5a580c437673b9
+04:1c14e5de547b7b36
+05:65fab971459cc425
+06:a8ee8a401cacd6b7
+07:a691a1f44e7022c8
+08:50aa7ceef9eaced1
+09:f158d4f1ed886ef6
+10:411861a1ead30e4c
+11:11c3f661cb6ec1fc
+12:5532050aeeea077b
+13:6b9c33d6bed3f8d1
+14:049fa48140517591
+15:593f7a9a73f3aff7
+16:3420fe0a31235e84
+17:8eb2beb39d4661e2
+18:1d6c18f0ca687ff4
+19:b19432241e63018e
+20:c3815836da7aa0e1
+21:fc304399b59092d7
+22:6e80417905b99183
+23:c3815836da7aa0e1
+24:c3815836da7aa0e1
+25:5b1bf61460005f33
+26:7c7bc4b3f63ce3a1
+27:4da64e164b90dc76
+28:4da64e164b90dc76
+29:4da64e164b90dc76
+30:4da64e164b90dc76
+31:4da64e164b90dc76
+32:4da64e164b90dc76
+33:ca65c4a6a048ac94
+34:617e01864e5f4dc7
+35:ad0696d4f8ac6d6b

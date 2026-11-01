@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Generator ─────────────────────────────────────────────────────────────╮╭ This session ──────────────────────────────╮
+│ [ Password ]   Passphrase                                          Tab ││ Rv8%qTn!Ze3wLx&p6MuJ#c2yB              now │
+│╭──────────────────────────────────────────────────────────────────────╮││ anchor-marble-crisp-velvet-7           now │
+││ Rv8%qTn!Ze3wLx&p6MuJ#c2yB                            r new · yy copy │││ ────────────────────────────────────────── │
+│╰──────────────────────────────────────────────────────────────────────╯││ Kept in memory only. Cleared on lock.      │
+│ ▰▰▰▰▰▰▰▰▰▰ very strong · 25 characters                                 ││                                            │
+│                                                                        ││                                            │
+│▌ Length              24   ━━━●────────────────────  5–128              ││                                            │
+│  Uppercase           ☑ A-Z                                             ││                                            │
+│  Lowercase           ☑ a-z                                             ││                                            │
+│  Numbers             ☑ 0-9                                             ││                                            │
+│  Special             ☑ !@#$%^&*                                        ││                                            │
+│  Minimum numbers     ‹ 1 ›                                             ││                                            │
+│  Minimum special     ‹ 1 ›                                             ││                                            │
+│  Avoid ambiguous     ☐ l 1 I O 0                                       ││                                            │
+│                                                                        ││                                            │
+│ j k option · h l change · x toggle · r new · yy copy                   ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+│                                                                        ││                                            │
+╰────────────────────────────────────────────────────────────────────────╯╰────────────────────────────────────────────╯
+ NORMAL  Generator                                                                         2 min ago │  locks 14:15 
+                                                                                                                        
+styles:
+00:98b8db813f1b6492
+01:0cf32315aba6b35e
+02:0d302e4e1d750b8a
+03:173a46a5ca176ca5
+04:e7ece84536536295
+05:a4566726b45a09e6
+06:65d21967b1ba0cfd
+07:4dbadd16ed1ec811
+08:188d22b7f96d6577
+09:27dedfbe0ed93c72
+10:27dedfbe0ed93c72
+11:27dedfbe0ed93c72
+12:27dedfbe0ed93c72
+13:ddfcd85d82fc10aa
+14:ddfcd85d82fc10aa
+15:bf25ebe241bccf75
+16:4dbadd16ed1ec811
+17:f60cba7fbacb828f
+18:4dbadd16ed1ec811
+19:4dbadd16ed1ec811
+20:4dbadd16ed1ec811
+21:4dbadd16ed1ec811
+22:4dbadd16ed1ec811
+23:4dbadd16ed1ec811
+24:4dbadd16ed1ec811
+25:4dbadd16ed1ec811
+26:4dbadd16ed1ec811
+27:4dbadd16ed1ec811
+28:4dbadd16ed1ec811
+29:4dbadd16ed1ec811
+30:4dbadd16ed1ec811
+31:4dbadd16ed1ec811
+32:4dbadd16ed1ec811
+33:85edc034e70023ef
+34:4c381f07c50be94f
+35:ad0696d4f8ac6d6b

@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │ logged out 
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                       ╻  ┏━┓╺━┓╻ ╻┏┓ ╻ ╻                                               
+                                                    ◆  ┃  ┣━┫┏━┛┗┳┛┣┻┓┃╻┃                                               
+                                                       ┗━╸╹ ╹┗━╸ ╹ ┗━┛┗┻┛                                               
+                                                   Log in to Bitwarden                                                  
+                                                                                                                        
+                                ╭ Server ──────────────────────────────────────────────╮                                
+                                │▌ bitwarden.com                   United States       │                                
+                                │  bitwarden.eu                    European Union      │                                
+                                │  Self-hosted…                    your server URL     │                                
+                                ╰──────────────────────────────────────────────────────╯                                
+                                ╭ Method ──────────────────────────────────────────────╮                                
+                                │▌ Email and password              two-step login      │                                
+                                │  Single sign-on                  opens a browser     │                                
+                                │  API key                         id and secret       │                                
+                                ╰──────────────────────────────────────────────────────╯                                
+                                   Enter continue · j k move · Tab switch box · q quit                                  
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ NORMAL  Login                                                                                             2 min ago 
+                                                                                                                        
+styles:
+00:e6e427217b9fe89f
+01:ad0696d4f8ac6d6b
+02:ad0696d4f8ac6d6b
+03:ad0696d4f8ac6d6b
+04:ad0696d4f8ac6d6b
+05:ad0696d4f8ac6d6b
+06:ad0696d4f8ac6d6b
+07:ad0696d4f8ac6d6b
+08:c1160e33490aaf44
+09:ba82cccb2ad508b3
+10:c1160e33490aaf44
+11:311bda65ebd0d19e
+12:ad0696d4f8ac6d6b
+13:479046f88b436826
+14:555328392fc87708
+15:1ea25e0758bb667f
+16:1ea25e0758bb667f
+17:997dfa9b979e0991
+18:dec511871e972ffc
+19:b94dfc622cca240d
+20:3117a95f731a045c
+21:3117a95f731a045c
+22:ee051c432d8530a8
+23:731b8a326145edc1
+24:ad0696d4f8ac6d6b
+25:ad0696d4f8ac6d6b
+26:ad0696d4f8ac6d6b
+27:ad0696d4f8ac6d6b
+28:ad0696d4f8ac6d6b
+29:ad0696d4f8ac6d6b
+30:ad0696d4f8ac6d6b
+31:ad0696d4f8ac6d6b
+32:ad0696d4f8ac6d6b
+33:ad0696d4f8ac6d6b
+34:d99cdb7ae1edaa13
+35:ad0696d4f8ac6d6b

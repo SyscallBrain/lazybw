@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Keybindings ─────────────────────────────────────────────────────────────────────────────────── context ‹ list › Tab ╮
+│  DESCRIPTION                      ACTION                    KEYS                                                     ┃
+│▌ A page down                     nav.page_down             PageDown                                                  ┃
+│  A page up                       nav.page_up               Ctrl-b                                                    ┃
+│  A page up                       nav.page_up               PageUp                                                    ┃
+│  Add to or remove from favorites item.favorite             *                                                         ┃
+│  Bottom of the screen            nav.screen_bottom         L                                                         ┃
+│  Copy item for cloning           item.yank                 Y                                                         ┃
+│  Copy notes                      item.copy notes           yn                                                        ┃
+│  Copy password                   item.copy password        yp                                                        ┃
+│  Copy primary                    item.copy primary         yy                                                        ┃
+│  Copy totp                       item.copy totp            yt                                                        ┃
+│  Copy uri                  ╭ Rebind “item.favorite” · list ─────────────────────────────╮                            ┃
+│  Copy username             │Press the new keys:   g f▏                                  │                            ┃
+│  Delete permanently        │⚠ gf is used by “Go to this item's folder”. Replace it? y / │                            ┃
+│  Edit as JSON in $EDITOR   │                                                            │                            ┃
+│  Edit item                 │Enter confirm · Backspace remove last key · Esc cancel      │                            ┃
+│  Edit item                 │To bind Enter, Backspace or Escape, edit config.toml.       │                            ┃
+│  Empty the trash           │                                                            │                            ┃
+│  Generate and save a new pa│                                                            │                            ┃
+│  Go to the first row       ╰────────────────────────────────────────────────────────────╯                            │
+│  Go to the last row              nav.bottom                G                                                         │
+│  Go to this item's folder        item.goto_folder          gf                                                        │
+│  Half a page down                nav.half_down             Ctrl-d                                                    │
+│  Half a page up                  nav.half_up               Ctrl-u                                                    │
+│  Hide all fields                 item.hide_all             zM                                                        │
+│  Item details                    item.info                 K                                                         │
+│  Mark or unmark                  mark.toggle               x                                                         │
+│  Middle of the screen            nav.screen_middle         M                                                         │
+│  Move down                       nav.down                  j                                                         │
+│  Move down                       nav.down                  Down                                                      │
+│  Move to folder                  item.move                 m                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Keybindings                                                                       2 min ago │  locks 14:15 
+                                                                                                                        
+styles:
+00:ea608195bd6e6fb7
+01:b89607c6e2ccec85
+02:71ad90e1a186d1aa
+03:b4711072aea45c5a
+04:60d311244b9a004d
+05:60d311244b9a004d
+06:67048df4d253d218
+07:67048df4d253d218
+08:67048df4d253d218
+09:53c775d91e08ab43
+10:53c775d91e08ab43
+11:53c775d91e08ab43
+12:53c775d91e08ab43
+13:81bbc6d5f1e2a068
+14:da6e239d05d3293d
+15:d42cc017d22c83b9
+16:afb947e403c66ec0
+17:a73a54c9a37c4bea
+18:1d7ed47a25f67936
+19:afb947e403c66ec0
+20:afb947e403c66ec0
+21:dc36bbd3d0f6389d
+22:4bfa387a5ac451e0
+23:79bd39f29d98e3d1
+24:47cfec8a34f518ca
+25:47cfec8a34f518ca
+26:79bd39f29d98e3d1
+27:b24e42505efe3b84
+28:b24e42505efe3b84
+29:b24e42505efe3b84
+30:b24e42505efe3b84
+31:c2277746f15f7611
+32:b24e42505efe3b84
+33:f86dfdf534e2740f
+34:41139f14e071055d
+35:ad0696d4f8ac6d6b

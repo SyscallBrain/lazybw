@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ Jane Example ────────────────────────────────────────────────────── Identity ╮
+│  Jane Example                                                               │
+│ Identity                                                                     │
+│ NAME                                                                         │
+│▌Jane Example                                                         yy copy │
+│ CONTACT                                                                      │
+│ Email       jane@example.com                                                 │
+│ Phone       +351 900 000 000                                                 │
+│ ADDRESS                                                                      │
+│ Lisbon                                                                       │
+│ Portugal                                                                     │
+│ IDENTIFIERS                                                                  │
+│ SSN               —                                                          │
+│ Passport number   —                                                          │
+│ Licence number    —                                                          │
+│ ──────────────────────────────────────────────────────────────────────────── │
+│ created                                                                      │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Jane Example   2 min ago │  locks 14:15 │  5/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:9b67aa207b0d1748
+02:1561c73be8cb42f7
+03:7bbeefc1897a015a
+04:6ad9478801150145
+05:6438a0f404b65744
+06:bcc527bea05cc074
+07:fb19663f272b1a42
+08:fb19663f272b1a42
+09:bcc527bea05cc074
+10:ec31fbea254bb9ea
+11:ec31fbea254bb9ea
+12:ec60bd0fffee965b
+13:7d3cca4ed3c0e966
+14:7d3cca4ed3c0e966
+15:7d3cca4ed3c0e966
+16:e49bcd068489b901
+17:d4dcfee15f8d3b40
+18:ec31fbea254bb9ea
+19:ec31fbea254bb9ea
+20:ec31fbea254bb9ea
+21:3d7b3d8d4262dcae
+22:4dfb69943e5865db
+23:864cdd2311874b6a

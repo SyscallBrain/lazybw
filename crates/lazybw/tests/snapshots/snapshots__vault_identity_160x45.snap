@@ -1,0 +1,95 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                                    you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────────────── name ↓ ╮╭ Jane Example ─────────────────────────────────────────────────────── Identity ╮
+│   All items         7 ││   Bank account                                   ││  Jane Example                                                                │
+│   Favorites         1 ││                                                   ││ Identity                                                                      │
+│ TYPES                  ││   GitHub                                       ││ NAME                                                                          │
+│   Logins            2 ││    dev-example                                    ││▌Jane Example                                                          yy copy │
+│   Cards             1 ││   Gmail                                          ││ CONTACT                                                                       │
+│   Identities        1 ││    personal@example.com                           ││ Email       jane@example.com                                                  │
+│   Secure notes      1 ││   Hetzner deploy key                             ││ Phone       +351 900 000 000                                                  │
+│   SSH keys          1 ││    SHA256:Qx9hY2f7A                               ││ ADDRESS                                                                       │
+│ FOLDERS                ││   Jane Example                                   ││ Lisbon                                                                        │
+│  ▾ Personal         1 ││    Jane Example                                   ││ Portugal                                                                      │
+│      Banking        0 ││   Personal visa                                  ││ IDENTIFIERS                                                                   │
+│    Work             0 ││    Visa •••• 4242                                 ││ SSN               —                                                           │
+│    No folder        6 ││   Router notes                                   ││ Passport number   —                                                           │
+│ ────────────────────── ││    admin / hunter2                                ││ Licence number    —                                                           │
+│   Trash             0 ││                                                   ││ ───────────────────────────────────────────────────────────────────────────── │
+│                        ││                                                   ││ created                                                                       │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Jane Example                                                                                   2 min ago │  locks 14:15 │  5/7 
+                                                                                                                                                                
+styles:
+00:c8690fcc12e10c1a
+01:a6149596abb13a44
+02:d8d20aa7fb83d535
+03:65b8ae88eecf9a15
+04:dcb0524ab9f35435
+05:93bdd317ea476fb9
+06:b39ce7b2f111f2d3
+07:0ff5a98407e3c31d
+08:36a2a3e284577416
+09:8ce03029a9522c49
+10:451b1bf789750b5d
+11:58e119ec1d1787ef
+12:08786de7813adcd7
+13:57299ea009ede433
+14:4fdc559155a47954
+15:53264d3e70ce634a
+16:1fbac379a6606dad
+17:4a195a99de51fcaf
+18:bfe139ebc10dc66c
+19:bfe139ebc10dc66c
+20:bfe139ebc10dc66c
+21:bfe139ebc10dc66c
+22:bfe139ebc10dc66c
+23:bfe139ebc10dc66c
+24:bfe139ebc10dc66c
+25:bfe139ebc10dc66c
+26:bfe139ebc10dc66c
+27:bfe139ebc10dc66c
+28:bfe139ebc10dc66c
+29:bfe139ebc10dc66c
+30:bfe139ebc10dc66c
+31:bfe139ebc10dc66c
+32:bfe139ebc10dc66c
+33:bfe139ebc10dc66c
+34:bfe139ebc10dc66c
+35:bfe139ebc10dc66c
+36:bfe139ebc10dc66c
+37:bfe139ebc10dc66c
+38:bfe139ebc10dc66c
+39:bfe139ebc10dc66c
+40:bfe139ebc10dc66c
+41:bfe139ebc10dc66c
+42:9311dad2d6b027cf
+43:c6e40478bedf9380
+44:810502b98c661ba7

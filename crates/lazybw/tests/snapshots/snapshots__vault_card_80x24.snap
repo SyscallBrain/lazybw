@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ Personal visa ───────────────────────────────────────────────────────── Card ╮
+│  Personal visa                                                              │
+│ Card · edited 3 months ago                                                   │
+│ CARDHOLDER NAME                                                              │
+│▌Jane Example                                                         yy copy │
+│ NUMBER                                                                       │
+│ •••• •••• •••• 4242   Visa                                                   │
+│ EXPIRATION                                                                   │
+│ 04 / 2028                                                                    │
+│ SECURITY CODE                                                                │
+│ —                                                                            │
+│ ──────────────────────────────────────────────────────────────────────────── │
+│ created 1 Jan 2023                                                           │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Personal visa  2 min ago │  locks 14:15 │  6/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:a852bc34e3abc5b4
+02:ccc5e49c73104c47
+03:b9736d8d8fa080d9
+04:beb19c2f9d05d842
+05:6438a0f404b65744
+06:2c50e7f5a55ce2f4
+07:04646b31d80c1b26
+08:10d9a9dc41821cd7
+09:ec31fbea254bb9ea
+10:dae239089ba7422b
+11:9c7099e0f846a5c6
+12:e49bcd068489b901
+13:9afd6e6e8e661d1f
+14:ec31fbea254bb9ea
+15:ec31fbea254bb9ea
+16:ec31fbea254bb9ea
+17:ec31fbea254bb9ea
+18:ec31fbea254bb9ea
+19:ec31fbea254bb9ea
+20:ec31fbea254bb9ea
+21:3d7b3d8d4262dcae
+22:64749dd18117f3bb
+23:864cdd2311874b6a
