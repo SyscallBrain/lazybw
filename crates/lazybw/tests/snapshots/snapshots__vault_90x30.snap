@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 90, 30)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ All items 7 ─────────────────────────────────────────────────────────────────── name ↓ ╮
+│▌  Bank account                                                                        │
+│▌                                                                                       │
+│   GitHub                                                                            │
+│    dev-example                                                                         │
+│   Gmail                                                                               │
+│    personal@example.com                                                                │
+│   Hetzner deploy key                                                                  │
+│    SHA256:Qx9hY2f7A                                                                    │
+│   Jane Example                                                                        │
+│    Jane Example                                                                        │
+│   Personal visa                                                                       │
+│    Visa •••• 4242                                                                      │
+│   Router notes                                                                        │
+│    admin / hunter2                                                                     │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                            2 min ago │  locks 14:15 │  1/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:18f97681f3396f38
+02:70fe38427124a55d
+03:dede1a9d8bcc4636
+04:1fd2e2fafe5d0d06
+05:f48eae6759b4005c
+06:da1c43e99e047639
+07:dff75700fcdc03e2
+08:77401881b1b19488
+09:08049e7dd1f26d54
+10:a9b741efdabb030a
+11:21dde546b3f910ba
+12:14b377f11606cf20
+13:36c8b5f5b16d63ac
+14:8fe0ff8d8fefb155
+15:1b04cda482f0dfa7
+16:2a1d18d45ca4384a
+17:2a1d18d45ca4384a
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:62ea32b409b56193
+29:35507918efb144e4

@@ -1,0 +1,5 @@
+---
+source: crates/lazybw/tests/cli.rs
+expression: "run(&[\"keys\", \"--defaults\", \"--check\"])"
+---
+Keymap OK.

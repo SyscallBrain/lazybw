@@ -1,0 +1,54 @@
+---
+source: crates/lazybw/tests/cli.rs
+expression: "run(&[\"keys\", \"--context\", \"list\", \"--defaults\"])"
+---
+CONTEXT          KEYS               ACTION                       DESCRIPTION                              SOURCE
+list             *                  item.favorite                Add to or remove from favorites          Default
+list             Ctrl-b             nav.page_up                  A page up                                Default
+list             Ctrl-d             nav.half_down                Half a page down                         Default
+list             Ctrl-r             redo                         Redo                                     Default
+list             Ctrl-u             nav.half_up                  Half a page up                           Default
+list             D                  item.delete                  Delete permanently                       Default
+list             Down               nav.down                     Move down                                Default
+list             Enter              item.open                    Open item                                Default
+list             G                  nav.bottom                   Go to the last row                       Default
+list             H                  nav.screen_top               Top of the screen                        Default
+list             K                  item.info                    Item details                             Default
+list             L                  nav.screen_bottom            Bottom of the screen                     Default
+list             M                  nav.screen_middle            Middle of the screen                     Default
+list             PageDown           nav.page_down                A page down                              Default
+list             PageUp             nav.page_up                  A page up                                Default
+list             Up                 nav.up                       Move up                                  Default
+list             V                  visual.start                 Select a range                           Default
+list             X                  trash.empty                  Empty the trash                          Default
+list             Y                  item.yank                    Copy item for cloning                    Default
+list             a                  item.new                     New item                                 Default
+list             dd                 item.trash                   Move to trash                            Default
+list             e                  item.edit                    Edit item                                Default
+list             gE                 item.edit_json               Edit as JSON in $EDITOR                  Default
+list             gf                 item.goto_folder             Go to this item's folder                 Default
+list             gg                 nav.top                      Go to the first row                      Default
+list             gh                 item.history                 Password history                         Default
+list             gp                 item.generate_password       Generate and save a new password         Default
+list             gx                 item.open_uri                Open website                             Default
+list             i                  item.edit                    Edit item                                Default
+list             j                  nav.down                     Move down                                Default
+list             k                  nav.up                       Move up                                  Default
+list             l                  item.open                    Open item                                Default
+list             m                  item.move                    Move to folder                           Default
+list             p                  item.paste_clone             Paste a clone here                       Default
+list             r                  item.restore                 Restore from trash                       Default
+list             u                  undo                         Undo                                     Default
+list             x                  mark.toggle                  Mark or unmark                           Default
+list             yU                 item.copy                    Copy …                                   Default
+list             yn                 item.copy                    Copy …                                   Default
+list             yp                 item.copy                    Copy …                                   Default
+list             yt                 item.copy                    Copy …                                   Default
+list             yu                 item.copy                    Copy …                                   Default
+list             yy                 item.copy                    Copy …                                   Default
+list             zM                 item.hide_all                Hide all fields                          Default
+list             zR                 item.reveal_all              Show all fields                          Default
+list             za                 item.reveal_toggle           Show or hide this field                  Default
+list             zb                 view.bottom                  Scroll so the cursor is at the bottom    Default
+list             zt                 view.top                     Scroll so the cursor is at the top       Default
+list             zz                 view.center                  Scroll so the cursor is centred          Default

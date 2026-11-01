@@ -1,0 +1,95 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                                    you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────────────── name ↓ ╮╭ Personal visa ────────────────────────────────────────────────────────── Card ╮
+│   All items         7 ││   Bank account                                   ││  Personal visa                                                               │
+│   Favorites         1 ││                                                   ││ Card · edited 3 months ago                                                    │
+│ TYPES                  ││   GitHub                                       ││ CARDHOLDER NAME                                                               │
+│   Logins            2 ││    dev-example                                    ││▌Jane Example                                                          yy copy │
+│   Cards             1 ││   Gmail                                          ││ NUMBER                                                                        │
+│   Identities        1 ││    personal@example.com                           ││ •••• •••• •••• 4242   Visa                                                    │
+│   Secure notes      1 ││   Hetzner deploy key                             ││ EXPIRATION                                                                    │
+│   SSH keys          1 ││    SHA256:Qx9hY2f7A                               ││ 04 / 2028                                                                     │
+│ FOLDERS                ││   Jane Example                                   ││ SECURITY CODE                                                                 │
+│  ▾ Personal         1 ││    Jane Example                                   ││ —                                                                             │
+│      Banking        0 ││   Personal visa                                  ││ ───────────────────────────────────────────────────────────────────────────── │
+│    Work             0 ││    Visa •••• 4242                                 ││ created 1 Jan 2023                                                            │
+│    No folder        6 ││   Router notes                                   ││                                                                               │
+│ ────────────────────── ││    admin / hunter2                                ││                                                                               │
+│   Trash             0 ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+│                        ││                                                   ││                                                                               │
+╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Personal visa                                                                                  2 min ago │  locks 14:15 │  6/7 
+                                                                                                                                                                
+styles:
+00:c8690fcc12e10c1a
+01:1c5908256c8bbca6
+02:22a7b3c44f3c7fb8
+03:47b34af8d80f5deb
+04:9a5bf07765119b8b
+05:93bdd317ea476fb9
+06:6cb26e69fbf84ba0
+07:30dda7c693f7b1c2
+08:244fd04590ea9d48
+09:308f85d59dd25565
+10:bdf44181a9e677c9
+11:3acac16c5f28638a
+12:c1cf8b630b9d1688
+13:ba0bffdccdbd2c2c
+14:621a8f91db47149d
+15:7413224c15054519
+16:3faa346ba6bda3a3
+17:bfe139ebc10dc66c
+18:bfe139ebc10dc66c
+19:bfe139ebc10dc66c
+20:bfe139ebc10dc66c
+21:bfe139ebc10dc66c
+22:bfe139ebc10dc66c
+23:bfe139ebc10dc66c
+24:bfe139ebc10dc66c
+25:bfe139ebc10dc66c
+26:bfe139ebc10dc66c
+27:bfe139ebc10dc66c
+28:bfe139ebc10dc66c
+29:bfe139ebc10dc66c
+30:bfe139ebc10dc66c
+31:bfe139ebc10dc66c
+32:bfe139ebc10dc66c
+33:bfe139ebc10dc66c
+34:bfe139ebc10dc66c
+35:bfe139ebc10dc66c
+36:bfe139ebc10dc66c
+37:bfe139ebc10dc66c
+38:bfe139ebc10dc66c
+39:bfe139ebc10dc66c
+40:bfe139ebc10dc66c
+41:bfe139ebc10dc66c
+42:9311dad2d6b027cf
+43:b315ad2b7f0d532e
+44:810502b98c661ba7

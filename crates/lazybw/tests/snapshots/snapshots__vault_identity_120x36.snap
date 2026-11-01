@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Jane Example ─────────────────────────────────────────── Identity ╮
+│▌ ││   Bank account                            ││  Jane Example                                                    │
+│  ││                                            ││ Identity                                                          │
+│ ─ ││   GitHub                                ││ NAME                                                              │
+│  ││    dev-example                             ││▌Jane Example                                              yy copy │
+│  ││   Gmail                                   ││ CONTACT                                                           │
+│  ││    personal@example.com                    ││ Email       jane@example.com                                      │
+│  ││   Hetzner deploy key                      ││ Phone       +351 900 000 000                                      │
+│  ││    SHA256:Qx9hY2f7A                        ││ ADDRESS                                                           │
+│ ─ ││   Jane Example                            ││ Lisbon                                                            │
+│  ││    Jane Example                            ││ Portugal                                                          │
+│ ─ ││   Personal visa                           ││ IDENTIFIERS                                                       │
+│  ││    Visa •••• 4242                          ││ SSN               —                                               │
+│   ││   Router notes                            ││ Passport number   —                                               │
+│   ││    admin / hunter2                         ││ Licence number    —                                               │
+│   ││                                            ││ ───────────────────────────────────────────────────────────────── │
+│   ││                                            ││ created                                                           │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Jane Example                                           2 min ago │  locks 14:15 │  5/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:f7fc81d4dde41843
+02:43d298b71936df0b
+03:3c5691e8fee7a798
+04:8d0a35de41387bf0
+05:48afe56aa4b3432c
+06:ddc07cb9bd38c986
+07:b6eb1af69ae0629f
+08:c8647437e27aa221
+09:aa37dd0cb42e3c1b
+10:154dfcba9433d049
+11:f98cfbd987cb9829
+12:bd90e8b74f683e77
+13:45ef4bf8890a3c83
+14:464529e8879447e2
+15:06caf92a37c23084
+16:d64934aafafc174b
+17:b060d096006216a0
+18:8f9c21557c53efca
+19:8f9c21557c53efca
+20:8f9c21557c53efca
+21:8f9c21557c53efca
+22:8f9c21557c53efca
+23:8f9c21557c53efca
+24:8f9c21557c53efca
+25:8f9c21557c53efca
+26:8f9c21557c53efca
+27:8f9c21557c53efca
+28:8f9c21557c53efca
+29:8f9c21557c53efca
+30:8f9c21557c53efca
+31:8f9c21557c53efca
+32:8f9c21557c53efca
+33:2005a5d698610726
+34:f700c0736f663590
+35:ad0696d4f8ac6d6b

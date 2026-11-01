@@ -1,0 +1,23 @@
+# Maintainer: Tiago Correia
+# Template for the release packages: scripts/arch-package.sh fills in the
+# version, the archive and its checksum. packaging/PKGBUILD builds from source.
+pkgname=lazybw
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="A keyboard-first terminal UI for the Bitwarden vault"
+arch=('x86_64' 'aarch64')
+url="https://github.com/SyscallBrain/lazybw"
+license=('MIT')
+depends_x86_64=('bitwarden-cli')
+optdepends_aarch64=('bitwarden-cli: the Bitwarden CLI that lazybw drives (or npm i -g @bitwarden/cli)')
+options=('!strip' '!debug')
+source=("@TARBALL@")
+sha256sums=('@SHA256@')
+
+package() {
+  cd "${source[0]%.tar.gz}"
+  install -Dm755 lazybw "$pkgdir/usr/bin/lazybw"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 CHANGELOG.md "$pkgdir/usr/share/doc/$pkgname/CHANGELOG.md"
+}

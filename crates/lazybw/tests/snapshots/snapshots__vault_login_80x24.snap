@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ GitHub ─────────────────────────────────────────────────────────────── Login ╮
+│  GitHub                                                           favorite │
+│ Login · Personal · edited 3 days ago                                         │
+│ USERNAME                                                                     │
+│▌dev-example                                                          yy copy │
+│ PASSWORD                                                                     │
+│ ••••••••••••••••••••                                                         │
+│ ▰▰▰▰▰▰▰▰▰▰ very strong · changed 3 years ago                                 │
+│ VERIFICATION CODE                                                            │
+│ 023 232                                                                      │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  30s            │
+│ WEBSITES                                                                     │
+│ https://github.com  default                                                  │
+│ CUSTOM FIELDS                                                                │
+│ Recovery token  ••••••  hidden                                               │
+│ 2FA enabled     ☑ yes  boolean                                               │
+│ NOTES                                                                        │
+│ Recovery codes are in the safe, drawer 2.                                    │
+│ ──────────────────────────────────────────────────────────────────────────── │
+│ created 12 Mar 2023                                 password history (0) gh  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › GitHub         2 min ago │  locks 14:15 │  2/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:085114815f496513
+02:cfdce6ee45ffda1b
+03:8317061b0c518533
+04:5d1825ad44a35924
+05:6438a0f404b65744
+06:5d1825ad44a35924
+07:54ea14c822c8444d
+08:cc43538a80f72ca4
+09:bc688139412e579a
+10:14216c4f01d5c71c
+11:5a0431a64a7d4b8c
+12:5d1825ad44a35924
+13:e0fad78519a46012
+14:dae239089ba7422b
+15:3ea1d04772cffe21
+16:c187d015577b6cf9
+17:a792aac2c2858c3d
+18:ec31fbea254bb9ea
+19:e49bcd068489b901
+20:873341e26b91f679
+21:3d7b3d8d4262dcae
+22:981b9c1b56c02e58
+23:864cdd2311874b6a

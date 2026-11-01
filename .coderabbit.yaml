@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit AI review settings: https://docs.coderabbit.ai/reference/configuration
+language: en-US
+tone_instructions: >-
+  Be concise and concrete. Prefer a few high-signal findings about correctness,
+  security and user-facing behaviour over style nitpicks that rustfmt or clippy
+  already enforce.
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!Cargo.lock"
+    - "!crates/lazybw/tests/snapshots/**"
+    - "!crates/lazybw/assets/screenshots/**"
+    - "!book/src/images/**"
+    - "!book/build/**"
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        lazybw is a terminal UI for the Bitwarden vault that drives the
+        official Bitwarden CLI. Project rules:
+        - Code, comments, messages, tests and docs are in English.
+        - lazybw never implements Bitwarden cryptography and never opens
+          network connections itself; everything goes through `bw`.
+        - Secrets (master password, session key, decrypted values) never go
+          into process arguments, logs, panics or Debug output. Decrypted
+          values use `Sensitive`; typed secrets use `SecretInput`.
+        - Files that may hold secrets are written with mode 0600; temporary
+          files live in the private runtime directory and are shredded.
+        - Folder names and other vault data are never written to disk.
+    - path: "crates/lazybw/src/**/*.rs"
+      instructions: |
+        - The app follows The Elm Architecture: `update` mutates `AppState`
+          and returns effects; it must not block, sleep or do terminal I/O.
+          Drawing in `ui/` reads state and never changes it.
+        - Every request built with `request(...)` must be returned as an
+          effect; a dropped effect means the change never reaches `bw`.
+        - Actions on items marked for master password re-prompt must go
+          through the re-prompt before revealing, copying or changing secrets.
+        - Lock and logout must drop every copy of vault data
+          (`AppState::drop_secrets`).
+        - Terminal changes must restore raw mode, the cursor, the alternate
+          screen and stderr on every exit path, including panics and
+          suspension for `$EDITOR` or `bw login`.
+        - Lists must keep the cursor visible when they scroll.
+    - path: "crates/lazybw/tests/**"
+      instructions: |
+        Tests run against `crates/fake-bw` and temporary directories. They
+        must never use a real `bw`, a real vault or the user's clipboard.
+        UI changes come with updated insta snapshots.
+    - path: "book/src/**/*.md"
+      instructions: |
+        This is the mdBook user guide. Check that keys, commands and options
+        match the code and docs/keymap.md, that relative links resolve, and
+        that descriptions match tested behaviour rather than intentions.
+        Prose is plain and direct, without filler.
+    - path: "docs/**"
+      instructions: |
+        docs/keymap.md and docs/configuration.md are included in the book and
+        kept in sync with the code by tests; flag changes to bindings or
+        defaults that are not reflected there.
+    - path: ".github/workflows/**"
+      instructions: |
+        Third-party actions are pinned by full commit SHA with a version
+        comment; keep it that way. Use least-privilege, job-scoped permissions
+        and never print or persist credentials.
+    - path: "{Dockerfile,scripts/dist.sh,scripts/arch-package.sh,packaging/**}"
+      instructions: |
+        Release binaries are static (musl) for x86_64 and aarch64. Packages
+        must install only the binary, the licence and docs, and the image
+        must run as a non-root user.
+chat:
+  auto_reply: true

@@ -1,0 +1,53 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 80, 24)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health      vault.bitwarden.eu │  unlocked 
+╭ All items 7 ───────────────────────────────────────────────────────── name ↓ ╮
+│▌  Bank account                                                              │
+│   GitHub                                                                  │
+│   Gmail                                                                     │
+│   Hetzner deploy key                                                        │
+│   Jane Example                                                              │
+│   Personal visa                                                             │
+│   Router notes                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                  2 min ago │  locks 14:15 │  1/7 
+                                                                                
+styles:
+00:05fd8a4e6ab511ca
+01:52aecc2a72f2a233
+02:cb4a08d9f81ba9b2
+03:b4a7c870911b8542
+04:ddac7bd171e823a4
+05:aa2925568201a037
+06:a36cac188fd53012
+07:4fd1edaec81c0c84
+08:dd1d72691404fbf1
+09:ec31fbea254bb9ea
+10:ec31fbea254bb9ea
+11:ec31fbea254bb9ea
+12:ec31fbea254bb9ea
+13:ec31fbea254bb9ea
+14:ec31fbea254bb9ea
+15:ec31fbea254bb9ea
+16:ec31fbea254bb9ea
+17:ec31fbea254bb9ea
+18:ec31fbea254bb9ea
+19:ec31fbea254bb9ea
+20:ec31fbea254bb9ea
+21:3d7b3d8d4262dcae
+22:3fa76bdcd6a92304
+23:864cdd2311874b6a

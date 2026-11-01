@@ -1,0 +1,8 @@
+target
+book/build
+.git
+.github
+PLAN.md
+.superpowers
+.cache
+**/*.snap.new

@@ -1,0 +1,85 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 140, 40)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│   All items         7 ││▌  Bank account                           ││  Bank account                                                    │
+│   Favorites         1 ││▌                                          ││ Bank account                                                      │
+│ TYPES                  ││   GitHub                               ││ This item type (Bank account) is shown read-only.                 │
+│   Logins            2 ││    dev-example                            ││ BANK NAME                                                         │
+│   Cards             1 ││   Gmail                                  ││ Example Bank                                                      │
+│   Identities        1 ││    personal@example.com                   ││ ACCOUNT NUMBER                                                    │
+│   Secure notes      1 ││   Hetzner deploy key                     ││ •••••••••••••••••••                                               │
+│   SSH keys          1 ││    SHA256:Qx9hY2f7A                       ││ ───────────────────────────────────────────────────────────────── │
+│ FOLDERS                ││   Jane Example                           ││ created                                                           │
+│  ▾ Personal         1 ││    Jane Example                           ││                                                                   │
+│      Banking        0 ││   Personal visa                          ││                                                                   │
+│    Work             0 ││    Visa •••• 4242                         ││                                                                   │
+│    No folder        6 ││   Router notes                           ││                                                                   │
+│ ────────────────────── ││    admin / hunter2                        ││                                                                   │
+│   Trash             0 ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+╰────────────────────────╯╰───────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                                              2 min ago │  locks 14:15 │  1/7 
+                                                                                                                                            
+styles:
+00:b2d62d035956180f
+01:be8d0d699ae77e32
+02:7ae4e34a6ef1bfd1
+03:a6ff2ac865311594
+04:19c5ef501ee2e6d4
+05:cdc9828695b32d20
+06:dc5ed76e102efe99
+07:68b7300d4a91f04f
+08:923d6bdf35caff85
+09:4e0b61b01bcf4e49
+10:3ba164528eacb036
+11:3667d6186d808216
+12:632ce6e937475bc9
+13:3c18903735bb9e93
+14:46de9a8dde40e46a
+15:cd61b63791aca679
+16:18e22190594d4d31
+17:601d1bbe4ba8f25a
+18:601d1bbe4ba8f25a
+19:601d1bbe4ba8f25a
+20:601d1bbe4ba8f25a
+21:601d1bbe4ba8f25a
+22:601d1bbe4ba8f25a
+23:601d1bbe4ba8f25a
+24:601d1bbe4ba8f25a
+25:601d1bbe4ba8f25a
+26:601d1bbe4ba8f25a
+27:601d1bbe4ba8f25a
+28:601d1bbe4ba8f25a
+29:601d1bbe4ba8f25a
+30:601d1bbe4ba8f25a
+31:601d1bbe4ba8f25a
+32:601d1bbe4ba8f25a
+33:601d1bbe4ba8f25a
+34:601d1bbe4ba8f25a
+35:601d1bbe4ba8f25a
+36:601d1bbe4ba8f25a
+37:58e06c7b2f8e3e93
+38:4453ca2ef037c48e
+39:da5ddcda30aa5c16

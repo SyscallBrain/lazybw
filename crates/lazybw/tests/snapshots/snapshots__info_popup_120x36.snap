@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
+│ ─ ││   Personal visa                           ││                                                                   │
+│  ││    Visa •••• 4242╭ Item details ────────────────────────────────────────────────────────╮                       │
+│   ││   Router notes  │ Name              GitHub                                             │                       │
+│   ││    admin / hunter│ Type              login                                              │                       │
+│   ││                  │ Folder            Personal                                           │                       │
+│   ││                  │ Created           2023-03-12T09:30:00Z                               │                       │
+│   ││                  │ Edited            2026-10-27T09:30:00Z                               │                       │
+│   ││                  │ Master password   not required                                       │                       │
+│   ││                  │ Id                id-github                                          │                       │
+│   ││                  │                                                                      │                       │
+│   ││                  ╰──────────────────────────────────────────────────────────────────────╯                       │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:3b4f6f22b48d63d6
+02:49d02361bd9477fd
+03:19fb7b11c80c0f30
+04:e857c71b88e9ee65
+05:f18d9587041ca145
+06:e857c71b88e9ee65
+07:1196e60b996ccf8a
+08:e857c71b88e9ee65
+09:e857c71b88e9ee65
+10:e857c71b88e9ee65
+11:e857c71b88e9ee65
+12:e857c71b88e9ee65
+13:ae6d8d572315784f
+14:86bf2e2d1e85fc7e
+15:485fa1de06fea24a
+16:bf8956d88bdd834d
+17:749c56deedafc518
+18:749c56deedafc518
+19:7deb8e32829f25d4
+20:dcbb8636f6b983bb
+21:6600ddffc85a24a8
+22:1e56af6eb54cda46
+23:9163ffdc21b4b567
+24:83ec379c873aca7b
+25:83ec379c873aca7b
+26:83ec379c873aca7b
+27:83ec379c873aca7b
+28:83ec379c873aca7b
+29:83ec379c873aca7b
+30:83ec379c873aca7b
+31:83ec379c873aca7b
+32:83ec379c873aca7b
+33:83ec379c873aca7b
+34:617e01864e5f4dc7
+35:ad0696d4f8ac6d6b

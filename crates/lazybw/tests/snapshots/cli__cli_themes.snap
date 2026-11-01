@@ -1,0 +1,14 @@
+---
+source: crates/lazybw/tests/cli.rs
+expression: "run(&[\"themes\"])"
+---
+tokyonight-night     dark
+tokyonight-storm     dark
+tokyonight-moon      dark
+tokyonight-day       light
+catppuccin-mocha     dark
+gruvbox-dark         dark
+nord                 dark
+rose-pine            dark
+kanagawa-wave        dark
+terminal             dark

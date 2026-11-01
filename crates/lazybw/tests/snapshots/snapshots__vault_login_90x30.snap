@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ GitHub ───────────────────────────────────────────────────────────────────────── Login ╮
+│  GitHub                                                                     favorite │
+│ Login · Personal · edited 3 days ago                                                   │
+│ USERNAME                                                                               │
+│▌dev-example                                                                    yy copy │
+│ PASSWORD                                                                               │
+│ ••••••••••••••••••••                                                                   │
+│ ▰▰▰▰▰▰▰▰▰▰ very strong · changed 3 years ago                                           │
+│ VERIFICATION CODE                                                                      │
+│ 023 232                                                                                │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  30s                      │
+│ WEBSITES                                                                               │
+│ https://github.com  default                                                            │
+│ CUSTOM FIELDS                                                                          │
+│ Recovery token  ••••••  hidden                                                         │
+│ 2FA enabled     ☑ yes  boolean                                                         │
+│ NOTES                                                                                  │
+│ Recovery codes are in the safe, drawer 2.                                              │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created 12 Mar 2023                                           password history (0) gh  │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › GitHub                   2 min ago │  locks 14:15 │  2/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:8b55292524294e5a
+02:914795b9e6ff0217
+03:565137e8512e3f61
+04:febbd180188734a6
+05:48ebbc280defcf11
+06:febbd180188734a6
+07:5f1393bfca25b5ff
+08:d3257fea02dcb3a3
+09:644777ee89c7e84e
+10:9cb05a15f65e8d65
+11:5b0a69706f35594e
+12:febbd180188734a6
+13:c15d37b0af51373b
+14:508567bf265449a4
+15:f41e8d46431cdf78
+16:7a343fe214f88e1e
+17:eeed1834f3f36d3e
+18:2a1d18d45ca4384a
+19:2d1b323c259dc87c
+20:dd0fd604f1699f86
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:9f71256c05589973
+29:35507918efb144e4

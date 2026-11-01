@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
+│ ─ ││   Personal visa     ╭ Password history ────────────────────────────────────────────╮                           │
+│  ││    Visa •••• 4242    │current   ••••••••••••••••                                    │                           │
+│   ││   Router notes      │▌ ••••••••••••••            used until 1 Mar 2026             │                           │
+│   ││    admin / hunter2   │  ••••••••••••••            used until 1 Jan 2025             │                           │
+│   ││                      │za reveal · yy copy · Esc close                               │                           │
+│   ││                      │                                                              │                           │
+│   ││                      │                                                              │                           │
+│   ││                      │                                                              │                           │
+│   ││                      │                                                              │                           │
+│   ││                      │                                                              │                           │
+│   ││                      │                                                              │                           │
+│   ││                      ╰──────────────────────────────────────────────────────────────╯                           │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:3b4f6f22b48d63d6
+02:49d02361bd9477fd
+03:19fb7b11c80c0f30
+04:e857c71b88e9ee65
+05:f18d9587041ca145
+06:e857c71b88e9ee65
+07:1196e60b996ccf8a
+08:e857c71b88e9ee65
+09:e857c71b88e9ee65
+10:e857c71b88e9ee65
+11:e857c71b88e9ee65
+12:f980cfc4b8632598
+13:c76f441e296dbc62
+14:df7fa49e2c1b8ea9
+15:d4da35724ac03952
+16:ec93b11b18a2d7cf
+17:64659bee9278cc7a
+18:64659bee9278cc7a
+19:64659bee9278cc7a
+20:64659bee9278cc7a
+21:64659bee9278cc7a
+22:64659bee9278cc7a
+23:2a6316c900f4e0be
+24:a4fe494f67ea4c4e
+25:83ec379c873aca7b
+26:83ec379c873aca7b
+27:83ec379c873aca7b
+28:83ec379c873aca7b
+29:83ec379c873aca7b
+30:83ec379c873aca7b
+31:83ec379c873aca7b
+32:83ec379c873aca7b
+33:83ec379c873aca7b
+34:617e01864e5f4dc7
+35:ad0696d4f8ac6d6b

@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Edit login · GitHub ───────────────────────────────────────────────────────────────────────── Ctrl-s save · :q close ╮
+│ CREDENTIALS                                                      │  NOTES                                            │
+│  Name                  GitHub                                    │   Notes           1 line                          │
+│  Username              dev-example                               │     1 Recovery codes are in the safe, drawer 2.   │
+│▌ Password              ••••••••••••••••••••      Ctrl-g generate │                                                   │
+│                        ▰▰▰▰▰▰▰▰▰▰ very strong                    │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+│                                                                  │                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Edit › GitHub                                                                     2 min ago │  locks 14:15 
+                                                                                                                        
+styles:
+00:ea608195bd6e6fb7
+01:790660320551f36c
+02:cb7749c46963ab7e
+03:a9666a2424907eea
+04:5661d69dc811ac27
+05:1b314fa5cfafc988
+06:1543339a71023d2a
+07:6de4bd0dc2147615
+08:6de4bd0dc2147615
+09:6de4bd0dc2147615
+10:6de4bd0dc2147615
+11:6de4bd0dc2147615
+12:6de4bd0dc2147615
+13:6de4bd0dc2147615
+14:6de4bd0dc2147615
+15:6de4bd0dc2147615
+16:6de4bd0dc2147615
+17:6de4bd0dc2147615
+18:6de4bd0dc2147615
+19:6de4bd0dc2147615
+20:6de4bd0dc2147615
+21:6de4bd0dc2147615
+22:6de4bd0dc2147615
+23:6de4bd0dc2147615
+24:6de4bd0dc2147615
+25:6de4bd0dc2147615
+26:6de4bd0dc2147615
+27:6de4bd0dc2147615
+28:6de4bd0dc2147615
+29:6de4bd0dc2147615
+30:6de4bd0dc2147615
+31:6de4bd0dc2147615
+32:6de4bd0dc2147615
+33:f86dfdf534e2740f
+34:c7e6694e4832f6b3
+35:ad0696d4f8ac6d6b

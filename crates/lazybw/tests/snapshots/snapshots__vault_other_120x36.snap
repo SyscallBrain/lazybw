@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││   Bank account                            ││  Bank account                                                    │
+│  ││                                            ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││▌Example Bank                                              yy copy │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
+│ ─ ││   Personal visa                           ││                                                                   │
+│  ││    Visa •••• 4242                          ││                                                                   │
+│   ││   Router notes                            ││                                                                   │
+│   ││    admin / hunter2                         ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Bank account                                           2 min ago │  locks 14:15 │  1/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:a739e74dfc19cf68
+02:ccb33290c70de062
+03:8bdf1bab56e6f604
+04:925e2bb740ba18a6
+05:ccb6e41294a032f7
+06:54a5eec22c38a745
+07:e5b4198a1f242f20
+08:7d41d75274696265
+09:e9f59259d0323c0c
+10:965c6dbc4da0957f
+11:2c38e74139193912
+12:d512fe337b69c813
+13:1d8ae12a0d12aa88
+14:0eeddbd673d777b2
+15:33aaf7ddca25b47a
+16:8f9c21557c53efca
+17:8f9c21557c53efca
+18:8f9c21557c53efca
+19:8f9c21557c53efca
+20:8f9c21557c53efca
+21:8f9c21557c53efca
+22:8f9c21557c53efca
+23:8f9c21557c53efca
+24:8f9c21557c53efca
+25:8f9c21557c53efca
+26:8f9c21557c53efca
+27:8f9c21557c53efca
+28:8f9c21557c53efca
+29:8f9c21557c53efca
+30:8f9c21557c53efca
+31:8f9c21557c53efca
+32:8f9c21557c53efca
+33:2005a5d698610726
+34:f700c0736f663590
+35:ad0696d4f8ac6d6b

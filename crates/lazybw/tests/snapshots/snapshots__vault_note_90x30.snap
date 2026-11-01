@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ Router notes ───────────────────────────────────────────────────────────── Secure note ╮
+│  Router notes                                                                         │
+│ Secure note                                                                            │
+│▌ 1 admin / hunter2                                                             yy copy │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created                                                                                │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Router notes             2 min ago │  locks 14:15 │  7/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:d97b1219befc1db8
+02:4a79cb72887ad8a5
+03:618c82016eca3f16
+04:1eeebe8e42eca9f6
+05:2d1b323c259dc87c
+06:28505eee7ca45171
+07:2a1d18d45ca4384a
+08:2a1d18d45ca4384a
+09:2a1d18d45ca4384a
+10:2a1d18d45ca4384a
+11:2a1d18d45ca4384a
+12:2a1d18d45ca4384a
+13:2a1d18d45ca4384a
+14:2a1d18d45ca4384a
+15:2a1d18d45ca4384a
+16:2a1d18d45ca4384a
+17:2a1d18d45ca4384a
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:addb83c7afa4bd82
+29:35507918efb144e4

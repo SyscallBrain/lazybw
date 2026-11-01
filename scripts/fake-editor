@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Scripted $EDITOR for the lazybw tests.
+
+JSON buffers are parsed and the item name gets a marker; plain text gets a
+trailing marker line. The real $EDITOR semantics (argv path, exit 0) are kept.
+"""
+import json
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+try:
+    value = json.loads(text)
+except Exception:
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write("\n# edited by fake-editor\n")
+else:
+    if isinstance(value, dict) and "type" in value:
+        value["name"] = str(value.get("name", "")) + " (edited by fake-editor)"
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(value, handle)
+    else:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write("\n# edited by fake-editor\n")

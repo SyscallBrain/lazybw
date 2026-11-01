@@ -1,0 +1,85 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 140, 40)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                                                you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Filters ───────────────╮╭ All items 7 ────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│   All items         7 ││▌  Bank account                           ││  Bank account                                                    │
+│   Favorites         1 ││▌                                          ││ Bank account                                                      │
+│ TYPES                  ││   GitHub                               ││ This item type (Bank account) is shown read-only.                 │
+│   Logins            2 ││    dev-example                            ││ BANK NAME                                                         │
+│   Cards ╭ Find ──────────────────────────────────────────────────────────────────────────────────────────────────── 7 items ╮           │
+│   Identi│❯ git▏                                                   2 / 7 ╭ Preview ─────────────────────────────────────────╮│           │
+│   Secure│───────────────────────────────────────────────────────────────│ GitHub                                 favorite││           │
+│   SSH ke│▌ GitHub                                             Personal │Login · Personal · edited 3 days ago              ││────────── │
+│ FOLDERS  │  Gmail                                                       │USERNAME                                          ││           │
+│  ▾ Perso│                                                               │dev-example                                       ││           │
+│      Ban│                                                               │PASSWORD                                          ││           │
+│    Work │                                                               │••••••••••••••••••••                              ││           │
+│    No fo│                                                               │▰▰▰▰▰▰▰▰▰▰ very strong · changed 3 years ago      ││           │
+│ ─────────│                                                               │VERIFICATION CODE                                 ││           │
+│   Trash │                                                               │023 232                                           ││           │
+│          │                                                               │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  30s ││           │
+│          │                                                               │WEBSITES                                          ││           │
+│          │                                                               │https://github.com  default                       ││           │
+│          │                                                               │CUSTOM FIELDS                                     ││           │
+│          │                                                               │Recovery token  ••••••  hidden                    ││           │
+│          │                                                               │2FA enabled     ☑ yes  boolean                    ││           │
+│          │                                                               │NOTES                                             ││           │
+│          │                                                               │Recovery codes are in the safe, drawer 2.         ││           │
+│          │                                                               │──────────────────────────────────────────────────││           │
+│          │                                                               │created 12 Mar 2023       password history (0) gh ││           │
+│          │                                                               │                                                  ││           │
+│          │                                                               │                                                  ││           │
+│          │                                                               │                                                  ││           │
+│          │                                                               │                                                  ││           │
+│          │                                                               ╰──────────────────────────────────────────────────╯│           │
+│          │ Enter open  Ctrl-y password  Ctrl-u username  Ctrl-t code  Ctrl-e edit  Esc close                                 │           │
+│          ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯           │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+│                        ││                                           ││                                                                   │
+╰────────────────────────╯╰───────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ SEARCH  Vault › All items                                                                              2 min ago │  locks 14:15 │  1/7 
+                                                                                                                                            
+styles:
+00:3391e37c17eae5db
+01:2eb5282ca3131ae1
+02:cd8a563b0f9caf4d
+03:991087a8742cad36
+04:1dece583dfd656ed
+05:060eac5373d2892e
+06:1ce349a5b7646297
+07:0d1237587a5b1117
+08:8edc6a02e0e73544
+09:663cf7b16db9976e
+10:171331c4ba7647df
+11:0e289caec9b56dcf
+12:b500014c7f4920c7
+13:54a99cde9542dc99
+14:266ec21d5d866dca
+15:222563f0d5140d09
+16:784fe7253e48a2a7
+17:b32338c15082f4d0
+18:f09d32529710b785
+19:ce691454d3e3baf1
+20:fdc6b252e1903ecd
+21:c6df9f153acb05ff
+22:7941c011c215ae0b
+23:e2e5f40ff8015f12
+24:68749b1126c80119
+25:d242f6e6870e63fd
+26:67fa83981cf8ccca
+27:356f8842b07f17a6
+28:356f8842b07f17a6
+29:356f8842b07f17a6
+30:356f8842b07f17a6
+31:d242f6e6870e63fd
+32:7ba643bdf8dea807
+33:59aea0f30c0a1dab
+34:cfad60daea25d7ec
+35:2d6d35531eb4b90e
+36:2d6d35531eb4b90e
+37:2d6d35531eb4b90e
+38:64f49b73cd601f3c
+39:8d34595e9b222460

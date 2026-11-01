@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ Personal visa ─────────────────────────────────────────────────────────────────── Card ╮
+│  Personal visa                                                                        │
+│ Card · edited 3 months ago                                                             │
+│ CARDHOLDER NAME                                                                        │
+│▌Jane Example                                                                   yy copy │
+│ NUMBER                                                                                 │
+│ •••• •••• •••• 4242   Visa                                                             │
+│ EXPIRATION                                                                             │
+│ 04 / 2028                                                                              │
+│ SECURITY CODE                                                                          │
+│ —                                                                                      │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created 1 Jan 2023                                                                     │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Personal visa            2 min ago │  locks 14:15 │  6/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:4b416663af2e43d5
+02:61e5ac480e76e45e
+03:336b8dddce52e7d3
+04:1ef45310db5c1979
+05:48ebbc280defcf11
+06:7c2098de703a2fdf
+07:22aafcce7f7a2627
+08:07fbc5eedec46ff3
+09:2a1d18d45ca4384a
+10:508567bf265449a4
+11:3eb0a6746404776b
+12:2d1b323c259dc87c
+13:70107c5442ffd56c
+14:2a1d18d45ca4384a
+15:2a1d18d45ca4384a
+16:2a1d18d45ca4384a
+17:2a1d18d45ca4384a
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:b4feaf77d42d966a
+29:35507918efb144e4

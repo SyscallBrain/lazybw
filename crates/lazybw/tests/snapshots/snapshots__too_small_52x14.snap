@@ -1,0 +1,33 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 52, 14)"
+---
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+    lazybw needs at least 60×16. Current: 52×14.    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+                                                    
+styles:
+00:0cebb2313015c894
+01:0cebb2313015c894
+02:0cebb2313015c894
+03:0cebb2313015c894
+04:0cebb2313015c894
+05:0cebb2313015c894
+06:6e33f72e46a601ab
+07:0cebb2313015c894
+08:0cebb2313015c894
+09:0cebb2313015c894
+10:0cebb2313015c894
+11:0cebb2313015c894
+12:0cebb2313015c894
+13:0cebb2313015c894

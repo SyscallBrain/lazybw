@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Personal visa ────────────────────────────────────────────── Card ╮
+│▌ ││   Bank account                            ││  Personal visa                                                   │
+│  ││                                            ││ Card · edited 3 months ago                                        │
+│ ─ ││   GitHub                                ││ CARDHOLDER NAME                                                   │
+│  ││    dev-example                             ││▌Jane Example                                              yy copy │
+│  ││   Gmail                                   ││ NUMBER                                                            │
+│  ││    personal@example.com                    ││ •••• •••• •••• 4242   Visa                                        │
+│  ││   Hetzner deploy key                      ││ EXPIRATION                                                        │
+│  ││    SHA256:Qx9hY2f7A                        ││ 04 / 2028                                                         │
+│ ─ ││   Jane Example                            ││ SECURITY CODE                                                     │
+│  ││    Jane Example                            ││ —                                                                 │
+│ ─ ││   Personal visa                           ││ ───────────────────────────────────────────────────────────────── │
+│  ││    Visa •••• 4242                          ││ created 1 Jan 2023                                                │
+│   ││   Router notes                            ││                                                                   │
+│   ││    admin / hunter2                         ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Personal visa                                          2 min ago │  locks 14:15 │  6/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:185958f249654f01
+02:7455daa9f13d7d4b
+03:efc0873519bbb69b
+04:a0816637c3ac4e0f
+05:48afe56aa4b3432c
+06:0fd0421fe3df4a32
+07:b59c8f266ba19ead
+08:3ef32401838c4915
+09:f4a6022bdc530988
+10:7f9e2d8c083513e2
+11:95be3188dcf8ae88
+12:f001dd02a1cde15f
+13:6867378db2ebaf31
+14:0eeddbd673d777b2
+15:33aaf7ddca25b47a
+16:8f9c21557c53efca
+17:8f9c21557c53efca
+18:8f9c21557c53efca
+19:8f9c21557c53efca
+20:8f9c21557c53efca
+21:8f9c21557c53efca
+22:8f9c21557c53efca
+23:8f9c21557c53efca
+24:8f9c21557c53efca
+25:8f9c21557c53efca
+26:8f9c21557c53efca
+27:8f9c21557c53efca
+28:8f9c21557c53efca
+29:8f9c21557c53efca
+30:8f9c21557c53efca
+31:8f9c21557c53efca
+32:8f9c21557c53efca
+33:2005a5d698610726
+34:ff880ce255e7ae47
+35:ad0696d4f8ac6d6b

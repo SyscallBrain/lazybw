@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Settings ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ APPEARANCE                                                                                                           ┃
+│▌ Theme                       ‹ tokyonight-night ›                                                         Enter pick ┃
+│  Transparent background      ☐                                                                                       ┃
+│  Icons                       ‹ nerdfont ›                                                                            ┃
+│ ●Animations                  ☐                                                                                       ┃
+│  List density                ‹ comfortable ›                                                                         ┃
+│  Statusline separators       ‹ arrow ›                                                                               ┃
+│  Key hints                   ☑                                                                                       ┃
+│  Date format                 ‹ relative ›                                                                            ┃
+│  Mouse                       ☑                                                                                       ┃
+│                                                                                                                      ┃
+│ SECURITY                                                                                                             ┃
+│  Clear clipboard after       30s                                                                                     ┃
+│  Lock after inactivity       15m                                                                                     ┃
+│  Hide revealed fields after  20s                                                                                     ┃
+│  Hide on focus lost          ☑                                                                                       ┃
+│  Show TOTP codes             ☑                                                                                       ┃
+│  Clear clipboard on exit     ☑                                                                                       │
+│  Re-prompt stays valid for   0s  ask every time                                                                      │
+│                                                                                                                      │
+│ VAULT                                                                                                                │
+│  Sync interval               10m                                                                                     │
+│  Sort                        ‹ name ›                                                                                │
+│  Search notes                ☐                                                                                       │
+│  Show empty types            ☐                                                                                       │
+│  Confirm trash               ☐                                                                                       │
+│                                                                                                                      │
+│ GENERATOR                                                                                                            │
+│                                                                                                                      │
+│ Colours of the whole interface; Enter previews each theme.                                                           │
+│ ● changed · h l change · r reset · Esc close · changes are saved to /tmp/lazybw-test/config/config.toml              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Settings                                                                          2 min ago │  locks 14:15 
+                                                                                                                        
+styles:
+00:ea608195bd6e6fb7
+01:2a29cf71ac7150fd
+02:36b37da08ef270e1
+03:50edf38976b1f07f
+04:4ed8a30359827eaa
+05:f72d1ae2fa8daa4d
+06:4ed8a30359827eaa
+07:060dfe6746a2afeb
+08:0eea03b854b24465
+09:42ef6bc517d0bfe8
+10:f72d1ae2fa8daa4d
+11:42ef6bc517d0bfe8
+12:6115ac58ff37136e
+13:758e35c1586b3962
+14:f0c2035f728784d2
+15:f0c2035f728784d2
+16:f0c2035f728784d2
+17:42ef6bc517d0bfe8
+18:42ef6bc517d0bfe8
+19:ffb2e10cd2746e19
+20:c3658f53afac5f78
+21:c9574322a9eb86c4
+22:bb74c08c7dd138aa
+23:fee3ddccfb60f2a6
+24:5bce4fec595a1bfd
+25:3eba187b1077640e
+26:3eba187b1077640e
+27:3eba187b1077640e
+28:c9574322a9eb86c4
+29:7d7e244c18b8cfc8
+30:c9574322a9eb86c4
+31:388d9b0fbb3bc6c2
+32:269fa655b71174e0
+33:f86dfdf534e2740f
+34:334fd0eac0b414ec
+35:ad0696d4f8ac6d6b

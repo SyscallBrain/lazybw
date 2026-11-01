@@ -1,0 +1,106 @@
+[package]
+name = "lazybw"
+description = "A keyboard-first terminal UI for the Bitwarden vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+repository.workspace = true
+homepage = "https://syscallbrain.github.io/lazybw/"
+documentation = "https://syscallbrain.github.io/lazybw/"
+rust-version.workspace = true
+keywords = ["bitwarden", "tui", "password-manager", "ratatui"]
+categories = ["command-line-utilities"]
+exclude = ["tests/snapshots/*.snap.new"]
+
+[[bin]]
+name = "lazybw"
+path = "src/main.rs"
+
+[lib]
+name = "lazybw"
+path = "src/lib.rs"
+
+[dependencies]
+bytes.workspace = true
+chrono.workspace = true
+clap.workspace = true
+color-eyre.workspace = true
+command-fds.workspace = true
+crossterm.workspace = true
+directories.workspace = true
+edtui.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+libc.workspace = true
+notify.workspace = true
+nucleo-matcher.workspace = true
+open.workspace = true
+portable-pty.workspace = true
+psl.workspace = true
+ratatui.workspace = true
+rustix.workspace = true
+secrecy.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ssh-key.workspace = true
+tachyonfx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+toml.workspace = true
+toml_edit.workspace = true
+totp-rs.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+unicode-segmentation.workspace = true
+unicode-width.workspace = true
+url.workspace = true
+which.workspace = true
+zeroize.workspace = true
+zxcvbn.workspace = true
+arboard = "3.7"
+
+[dev-dependencies]
+assert_fs.workspace = true
+insta.workspace = true
+pretty_assertions.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+fake-bw = { path = "../fake-bw" }
+
+# `cargo deb` (Debian, Ubuntu). The release binaries are static (musl), so
+# the package has no library dependencies. The Bitwarden CLI is not packaged
+# by Debian; install it with npm or snap.
+[package.metadata.deb]
+maintainer = "Tiago Correia"
+copyright = "2026, Tiago Correia"
+license-file = ["../../LICENSE", "0"]
+section = "utils"
+priority = "optional"
+depends = ""
+extended-description = """\
+lazybw lets you browse, search, copy and edit Bitwarden items from the \
+terminal with Vim-style keys. It drives the official Bitwarden CLI (bw), \
+which must be installed separately (2025.9.0 or newer)."""
+assets = [
+    ["target/release/lazybw", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/lazybw/README.md", "644"],
+    ["../../CHANGELOG.md", "usr/share/doc/lazybw/CHANGELOG.md", "644"],
+]
+
+# `cargo generate-rpm` (Fedora, openSUSE, RHEL).
+[package.metadata.generate-rpm]
+summary = "A keyboard-first terminal UI for the Bitwarden vault"
+license = "MIT"
+assets = [
+    { source = "target/release/lazybw", dest = "/usr/bin/lazybw", mode = "755" },
+    { source = "../../LICENSE", dest = "/usr/share/licenses/lazybw/LICENSE", mode = "644", doc = true },
+    { source = "../../README.md", dest = "/usr/share/doc/lazybw/README.md", mode = "644", doc = true },
+]
+
+[lints]
+workspace = true

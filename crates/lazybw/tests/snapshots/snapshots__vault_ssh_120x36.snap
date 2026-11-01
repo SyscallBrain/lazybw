@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Hetzner deploy key ────────────────────────────────────── SSH key ╮
+│▌ ││   Bank account                            ││  Hetzner deploy key                                              │
+│  ││                                            ││ SSH key                                                           │
+│ ─ ││   GitHub                                ││ PUBLIC KEY                                                        │
+│  ││    dev-example                             ││▌ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAQx9 deploy            yy copy │
+│  ││   Gmail                                   ││ FINGERPRINT                                                       │
+│  ││    personal@example.com                    ││ SHA256:Qx9hY2f7A                                                  │
+│  ││   Hetzner deploy key                      ││ PRIVATE KEY                                                       │
+│  ││    SHA256:Qx9hY2f7A                        ││ -----BEGIN OPENSSH PRIVATE KEY----- ••••                          │
+│ ─ ││   Jane Example                            ││ ───────────────────────────────────────────────────────────────── │
+│  ││    Jane Example                            ││ created                                                           │
+│ ─ ││   Personal visa                           ││                                                                   │
+│  ││    Visa •••• 4242                          ││                                                                   │
+│   ││   Router notes                            ││                                                                   │
+│   ││    admin / hunter2                         ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Hetzner deploy key                                     2 min ago │  locks 14:15 │  4/7 
+                                                                                                                        
+styles:
+00:1d541463eb53f564
+01:1ee3da1105f0759e
+02:ecd41ed91b8f107a
+03:3d2c45c477fb85a3
+04:94d6fbc236c5a945
+05:48afe56aa4b3432c
+06:81db71269f0c62d1
+07:fd7bf5f157e2855a
+08:602da6eccfa68640
+09:5f35a56937ebb192
+10:dfa58b95cc6bc4d0
+11:d28ce19724b17162
+12:d512fe337b69c813
+13:1d8ae12a0d12aa88
+14:0eeddbd673d777b2
+15:33aaf7ddca25b47a
+16:8f9c21557c53efca
+17:8f9c21557c53efca
+18:8f9c21557c53efca
+19:8f9c21557c53efca
+20:8f9c21557c53efca
+21:8f9c21557c53efca
+22:8f9c21557c53efca
+23:8f9c21557c53efca
+24:8f9c21557c53efca
+25:8f9c21557c53efca
+26:8f9c21557c53efca
+27:8f9c21557c53efca
+28:8f9c21557c53efca
+29:8f9c21557c53efca
+30:8f9c21557c53efca
+31:8f9c21557c53efca
+32:8f9c21557c53efca
+33:2005a5d698610726
+34:9a33eceaecfa2b0c
+35:ad0696d4f8ac6d6b

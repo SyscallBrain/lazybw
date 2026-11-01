@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭ Help ──────────────────────────────────────────────────────────────────────────────────────────── / search · q close ╮
+│ ❯ press / to search                                                                                                  ┃
+│                                                                                                                      ┃
+│ GLOBAL                                                                                                               ┃
+│  Ctrl-c  Esc         Cancel                                                                               app.cancel ┃
+│  Space t             Choose a theme                                                                       theme.pick ┃
+│  Space f d           Delete folder                                                                     folder.delete ┃
+│  Space k             Edit keybindings                                                                     app.keymap ┃
+│  Space e             Export the vault                                                                   vault.export ┃
+│  Space /  Ctrl-p     Find any item                                                                        quick_open ┃
+│  Tab                 Focus the next pane                                                                  focus.next ┃
+│  h  Ctrl-w h  Left   Focus the pane on the left                                                           focus.left ┃
+│  l  Ctrl-w l  Right  Focus the pane on the right                                                         focus.right ┃
+│  Shift-Tab           Focus the previous pane                                                              focus.prev ┃
+│  Space f f           Go to folder                                                                        folder.jump ┃
+│  Space 1             Go to tab (1)                                                                        tab.goto 1 ┃
+│  Space 2             Go to tab (2)                                                                        tab.goto 2 ┃
+│  Space 3             Go to tab (3)                                                                        tab.goto 3 ┃
+│  Space i             Import into the vault                                                              vault.import ┃
+│  Ctrl-o              Jump back                                                                             jump.back ┃
+│  Ctrl-i              Jump forward                                                                       jump.forward ┃
+│  Space l             Lock the vault                                                                       vault.lock ┃
+│  Space f n           New folder                                                                           folder.new │
+│  Space n             New item                                                                               item.new │
+│  n                   Next match                                                                          search.next │
+│  gt                  Next tab                                                                               tab.next │
+│  Space ,             Open settings                                                                      app.settings │
+│  :                   Open the command line                                                              cmdline.open │
+│  Space g             Open the generator                                                               generator.open │
+│  Space h             Open vault health                                                                   health.open │
+│  N                   Previous match                                                                      search.prev │
+│  gT                  Previous tab                                                                           tab.prev │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Help                                                                              2 min ago │  locks 14:15 
+                                                                                                                        
+styles:
+00:ea608195bd6e6fb7
+01:ab4a109c60bea0c7
+02:06e0758ec8e4260c
+03:6115ac58ff37136e
+04:a92aafb697112a25
+05:6cb32c9d95a6e0ef
+06:6cb32c9d95a6e0ef
+07:bfc1402696a4e901
+08:6cb32c9d95a6e0ef
+09:cf42ed732fdfb25e
+10:6cb32c9d95a6e0ef
+11:6cb32c9d95a6e0ef
+12:6cb32c9d95a6e0ef
+13:70e2d4a0a02a564c
+14:6cb32c9d95a6e0ef
+15:70e2d4a0a02a564c
+16:6cb32c9d95a6e0ef
+17:6cb32c9d95a6e0ef
+18:6cb32c9d95a6e0ef
+19:cf42ed732fdfb25e
+20:560c8275e23aca97
+21:cf42ed732fdfb25e
+22:6cb32c9d95a6e0ef
+23:9455ad1c7f70aef2
+24:8993fd994eaf7fe5
+25:f064a7880ac1dd35
+26:8993fd994eaf7fe5
+27:7509b7f285fea53a
+28:7509b7f285fea53a
+29:6fe796d5adbce1df
+30:f064a7880ac1dd35
+31:f064a7880ac1dd35
+32:8993fd994eaf7fe5
+33:f86dfdf534e2740f
+34:29061a57020b8721
+35:ad0696d4f8ac6d6b

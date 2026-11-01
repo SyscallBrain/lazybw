@@ -1,0 +1,65 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, width, height)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                vault.bitwarden.eu │  unlocked 
+╭ Jane Example ──────────────────────────────────────────────────────────────── Identity ╮
+│  Jane Example                                                                         │
+│ Identity                                                                               │
+│ NAME                                                                                   │
+│▌Jane Example                                                                   yy copy │
+│ CONTACT                                                                                │
+│ Email       jane@example.com                                                           │
+│ Phone       +351 900 000 000                                                           │
+│ ADDRESS                                                                                │
+│ Lisbon                                                                                 │
+│ Portugal                                                                               │
+│ IDENTIFIERS                                                                            │
+│ SSN               —                                                                    │
+│ Passport number   —                                                                    │
+│ Licence number    —                                                                    │
+│ ────────────────────────────────────────────────────────────────────────────────────── │
+│ created                                                                                │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+│                                                                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ NORMAL  Vault › All items › Jane Example             2 min ago │  locks 14:15 │  5/7 
+                                                                                          
+styles:
+00:f7be698e18ae852c
+01:816ff20228fdeca4
+02:e7ed8d324e51d1a7
+03:5acf39faf3826257
+04:c4a2facfae2946f8
+05:48ebbc280defcf11
+06:c5a4559be1221a14
+07:f57747c135c6e6fd
+08:f57747c135c6e6fd
+09:c5a4559be1221a14
+10:2a1d18d45ca4384a
+11:2a1d18d45ca4384a
+12:121652b1117172d5
+13:34e0ff94f71d85a1
+14:34e0ff94f71d85a1
+15:34e0ff94f71d85a1
+16:2d1b323c259dc87c
+17:28505eee7ca45171
+18:2a1d18d45ca4384a
+19:2a1d18d45ca4384a
+20:2a1d18d45ca4384a
+21:2a1d18d45ca4384a
+22:2a1d18d45ca4384a
+23:2a1d18d45ca4384a
+24:2a1d18d45ca4384a
+25:2a1d18d45ca4384a
+26:2a1d18d45ca4384a
+27:074e5aaf9d1674cb
+28:addb83c7afa4bd82
+29:35507918efb144e4

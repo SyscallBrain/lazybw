@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
+╭───╮╭ All items 7 ─────────────────────── name ↓ ╮╭ Bank account ────────────────────────────────────────── Read-only ╮
+│▌ ││▌  Bank account                            ││  Bank account                                                    │
+│  ││▌                                           ││ Bank account                                                      │
+│ ─ ││   GitHub                                ││ This item type (Bank account) is shown read-only.                 │
+│  ││    dev-example                             ││ BANK NAME                                                         │
+│  ││   Gmail                                   ││ Example Bank                                                      │
+│  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
+│  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
+│  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
+│ ─ ││   Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
+│ ─ ││   Personal visa                           ││                                                                   │
+│  ││    Visa •••• 4242                          ││                                                                   │
+│   ││   Router notes                            ││                                                                   │
+│   ││    admin / hunter2                         ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│   ││                                            ││                                                                   │
+│╭────────────────────╮                           ││                                                                   │
+││ tokyonight-night   │                           ││                                                                   │
+││ tokyonight-storm   │                           ││                                                                   │
+││ tokyonight-moon    │                           ││                                                                   │
+││ tokyonight-day     │                           ││                                                                   │
+╰╰────────────────────╯───────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ COMMAND  Vault › All items                                                         2 min ago │  locks 14:15 │  1/7 
+:theme tok                                                                                                              
+styles:
+00:1d541463eb53f564
+01:3b4f6f22b48d63d6
+02:49d02361bd9477fd
+03:19fb7b11c80c0f30
+04:e857c71b88e9ee65
+05:f18d9587041ca145
+06:e857c71b88e9ee65
+07:1196e60b996ccf8a
+08:e857c71b88e9ee65
+09:e857c71b88e9ee65
+10:e857c71b88e9ee65
+11:e857c71b88e9ee65
+12:e857c71b88e9ee65
+13:e857c71b88e9ee65
+14:762882792fc19ca3
+15:762882792fc19ca3
+16:83ec379c873aca7b
+17:83ec379c873aca7b
+18:83ec379c873aca7b
+19:83ec379c873aca7b
+20:83ec379c873aca7b
+21:83ec379c873aca7b
+22:83ec379c873aca7b
+23:83ec379c873aca7b
+24:83ec379c873aca7b
+25:83ec379c873aca7b
+26:83ec379c873aca7b
+27:83ec379c873aca7b
+28:75a08becd6267589
+29:19c4fddc2819f712
+30:494c6cc929a53213
+31:20ebe3afc50bcb25
+32:c5a8a251dbcf6169
+33:75a08becd6267589
+34:415cfa9708205717
+35:34f2da7b135cabda

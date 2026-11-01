@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+.superpowers/
+.cache/
+*.snap.new
+/book/build
+/PLAN.md
+/dist
+.worktrees

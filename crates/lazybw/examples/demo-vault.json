@@ -1,0 +1,473 @@
+{
+ "folders": [
+  {
+   "object": "folder",
+   "id": "f-personal",
+   "name": "Personal"
+  },
+  {
+   "object": "folder",
+   "id": "f-banking",
+   "name": "Personal/Banking"
+  },
+  {
+   "object": "folder",
+   "id": "f-work",
+   "name": "Work"
+  },
+  {
+   "object": "folder",
+   "id": "f-clients",
+   "name": "Work/Clients"
+  },
+  {
+   "object": "folder",
+   "id": "f-servers",
+   "name": "Servers"
+  }
+ ],
+ "items": [
+  {
+   "object": "item",
+   "id": "demo-01",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Amazon",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://www.amazon.com",
+      "match": null
+     }
+    ],
+    "username": "shop@example.com",
+    "password": "Summer2019!",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-02",
+   "folderId": "f-work",
+   "type": 1,
+   "name": "Cloudflare",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://dash.cloudflare.com",
+      "match": null
+     }
+    ],
+    "username": "ops@example.com",
+    "password": "r7#Kq2!vZt9@Lm4$Wx8e",
+    "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-03",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Dropbox",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://www.dropbox.com",
+      "match": null
+     }
+    ],
+    "username": "jane@example.com",
+    "password": "Summer2019!",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-04",
+   "folderId": "f-banking",
+   "type": 1,
+   "name": "Example Bank",
+   "favorite": false,
+   "reprompt": 1,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://bank.example.com",
+      "match": null
+     }
+    ],
+    "username": "jane.example",
+    "password": "b4nk-Vault-Quiet-Harbor-7",
+    "totp": null,
+    "passwordRevisionDate": "2023-04-02T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-05",
+   "folderId": "f-work",
+   "type": 1,
+   "name": "GitHub",
+   "favorite": true,
+   "reprompt": 0,
+   "notes": "Recovery codes are in the safe, drawer 2.",
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://github.com",
+      "match": null
+     }
+    ],
+    "username": "dev-example",
+    "password": "k7#Qm!vR2x@Lp9$Wn4eT",
+    "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z",
+    "fido2Credentials": [
+     {
+      "rpId": "github.com",
+      "userName": "dev-example",
+      "creationDate": "2025-03-12T10:00:00.000Z"
+     }
+    ]
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-06",
+   "folderId": "f-work",
+   "type": 1,
+   "name": "GitLab",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://gitlab.com",
+      "match": null
+     }
+    ],
+    "username": "dev@example.com",
+    "password": "Gl-9!fQz@2mPx#7Lw",
+    "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-07",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Gmail",
+   "favorite": true,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://mail.google.com",
+      "match": null
+     }
+    ],
+    "username": "personal@example.com",
+    "password": "orbit-tundra-plaza-quiver-4",
+    "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-08",
+   "folderId": "f-servers",
+   "type": 1,
+   "name": "Hetzner Cloud",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://console.hetzner.cloud",
+      "match": null
+     }
+    ],
+    "username": "admin@example.com",
+    "password": "Summer2019!",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-09",
+   "folderId": "f-servers",
+   "type": 1,
+   "name": "Home router",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "http://192.168.1.1",
+      "match": null
+     }
+    ],
+    "username": "admin",
+    "password": "admin1234",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-10",
+   "folderId": "f-clients",
+   "type": 1,
+   "name": "Client portal",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://portal.client.example",
+      "match": null
+     }
+    ],
+    "username": "jane@client.example",
+    "password": "Welcome2022",
+    "totp": null,
+    "passwordRevisionDate": "2022-11-20T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-11",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Netflix",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://www.netflix.com",
+      "match": null
+     }
+    ],
+    "username": "home@example.com",
+    "password": "netflix1",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-12",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Proton Mail",
+   "favorite": true,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://mail.proton.me",
+      "match": null
+     }
+    ],
+    "username": "me@example.com",
+    "password": "anchor-marble-crisp-velvet-7",
+    "totp": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-13",
+   "folderId": "f-personal",
+   "type": 1,
+   "name": "Reddit",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "login": {
+    "uris": [
+     {
+      "uri": "https://www.reddit.com",
+      "match": null
+     }
+    ],
+    "username": "u/example",
+    "password": "password123",
+    "totp": null,
+    "passwordRevisionDate": "2026-05-01T00:00:00.000Z"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-14",
+   "folderId": "f-banking",
+   "type": 3,
+   "name": "Personal Visa",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "card": {
+    "cardholderName": "Jane Example",
+    "brand": "Visa",
+    "number": "4111111111114242",
+    "expMonth": "8",
+    "expYear": "2029",
+    "code": "123"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-15",
+   "folderId": "f-personal",
+   "type": 4,
+   "name": "Jane Example",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "identity": {
+    "title": "Ms",
+    "firstName": "Jane",
+    "lastName": "Example",
+    "email": "jane@example.com",
+    "phone": "+1 555 0100",
+    "address1": "1 Example Street",
+    "city": "Springfield",
+    "postalCode": "12345",
+    "country": "US"
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-16",
+   "folderId": "f-personal",
+   "type": 2,
+   "name": "Wi-Fi at home",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": "Network: example-home\nPassword: sunny-otter-42\nGuest: example-guest",
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "secureNote": {
+    "type": 0
+   }
+  },
+  {
+   "object": "item",
+   "id": "demo-17",
+   "folderId": "f-servers",
+   "type": 5,
+   "name": "Hetzner deploy key",
+   "favorite": false,
+   "reprompt": 0,
+   "notes": null,
+   "creationDate": "2025-02-10T09:00:00.000Z",
+   "revisionDate": "2026-09-20T10:00:00.000Z",
+   "sshKey": {
+    "privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nexample\n-----END OPENSSH PRIVATE KEY-----",
+    "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleExampleExampleExampleExample deploy@example",
+    "keyFingerprint": "SHA256:Qx9hY2f7AexampleExampleExampleExample7fA"
+   }
+  }
+ ],
+ "health": [
+  {
+   "id": "demo-13",
+   "name": "Reddit",
+   "passwordStrength": 0,
+   "exposed": true,
+   "exposedCount": 23117
+  },
+  {
+   "id": "demo-11",
+   "name": "Netflix",
+   "passwordStrength": 0,
+   "exposed": true,
+   "exposedCount": 1204
+  },
+  {
+   "id": "demo-09",
+   "name": "Home router",
+   "passwordStrength": 1,
+   "exposed": true,
+   "exposedCount": 88
+  },
+  {
+   "id": "demo-01",
+   "name": "Amazon",
+   "passwordStrength": 1,
+   "reuseCount": 3,
+   "exposed": true,
+   "exposedCount": 512
+  },
+  {
+   "id": "demo-03",
+   "name": "Dropbox",
+   "passwordStrength": 1,
+   "reuseCount": 3
+  },
+  {
+   "id": "demo-08",
+   "name": "Hetzner Cloud",
+   "passwordStrength": 1,
+   "reuseCount": 3
+  },
+  {
+   "id": "demo-10",
+   "name": "Client portal",
+   "passwordStrength": 2
+  }
+ ]
+}
