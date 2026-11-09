@@ -1,7 +1,8 @@
 # Contributing
 
 Bug reports, ideas and pull requests are welcome on
-[GitHub](https://github.com/SyscallBrain/lazybw).
+[GitHub](https://github.com/SyscallBrain/lazybw). Questions go to
+[Discussions](https://github.com/SyscallBrain/lazybw/discussions).
 
 ## Building and testing
 

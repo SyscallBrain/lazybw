@@ -2,6 +2,11 @@ name: Feature request
 description: An idea for lazybw
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the [existing issues](https://github.com/SyscallBrain/lazybw/issues?q=is%3Aissue) first; if the idea is
+        already there, a 👍 on it tells us more than a new issue.
   - type: textarea
     id: problem
     attributes:
@@ -13,3 +18,9 @@ body:
     id: idea
     attributes:
       label: How could lazybw help?
+      description: A key, a command, an option … whatever you have in mind.
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today instead?
+      description: The workaround you use now, if any, for example a `bw` command.

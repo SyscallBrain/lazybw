@@ -1,7 +1,9 @@
 # Contributing to lazybw
 
-Bug reports, ideas and pull requests are welcome. For security problems,
-please follow [SECURITY.md](SECURITY.md) instead of opening an issue.
+Bug reports, ideas and pull requests are welcome. Questions go to
+[Discussions](https://github.com/SyscallBrain/lazybw/discussions). For
+security problems, please follow [SECURITY.md](SECURITY.md) instead of
+opening an issue.
 
 ## Setting up
 
