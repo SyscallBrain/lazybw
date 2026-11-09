@@ -177,6 +177,7 @@ impl BwClient {
             timeouts::UNLOCK,
         )
         .await
+        .map_err(unlock_error)
     }
 
     /// `POST /lock`.
@@ -334,8 +335,35 @@ fn urlencode(value: &str) -> String {
     out
 }
 
+/// Reads an unlock failure. bw 2026.10.1 no longer answers a wrong master
+/// password with "Invalid master password." but with "Cryptography error,
+/// The decryption operation failed": the key derived from the password cannot
+/// decrypt the account key. On `POST /unlock` that can only mean a wrong
+/// password; elsewhere the same message means something else, so the mapping
+/// stays here rather than in [`BwError::from_message`].
+fn unlock_error(err: BwError) -> BwError {
+    match err {
+        BwError::Other(message)
+            if message.to_ascii_lowercase().contains("decryption operation failed") =>
+        {
+            BwError::InvalidPassword
+        }
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_failed_decryption_on_unlock_is_a_wrong_password() {
+        let modern = BwError::from_message("Cryptography error, The decryption operation failed");
+        assert!(matches!(unlock_error(modern), BwError::InvalidPassword));
+        let older = BwError::from_message("Invalid master password.");
+        assert!(matches!(unlock_error(older), BwError::InvalidPassword));
+        let other = BwError::from_message("Something else.");
+        assert!(matches!(unlock_error(other), BwError::Other(_)));
+    }
     use super::*;
 
     #[test]

@@ -1,0 +1,77 @@
+---
+source: crates/lazybw/tests/snapshots.rs
+expression: "render(&state, 120, 36)"
+---
+ 󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │ ⠋ starting 
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                       ╻  ┏━┓╺━┓╻ ╻┏┓ ╻ ╻                                               
+                                                    ◆  ┃  ┣━┫┏━┛┗┳┛┣┻┓┃╻┃                                               
+                                                       ┗━╸╹ ╹┗━╸ ╹ ┗━┛┗┻┛                                               
+                                                                                                                        
+                                                ⠋ Starting Bitwarden CLI…                                               
+                                               bw 2026.10.1 · /usr/bin/bw                                               
+                                                                                                                        
+                                            ●●●●●●  Enter unlocks when ready                                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ NORMAL  Starting                                                                                          2 min ago 
+                                                                                                                        
+styles:
+00:ed007fa470bf420f
+01:ad0696d4f8ac6d6b
+02:ad0696d4f8ac6d6b
+03:ad0696d4f8ac6d6b
+04:ad0696d4f8ac6d6b
+05:ad0696d4f8ac6d6b
+06:ad0696d4f8ac6d6b
+07:ad0696d4f8ac6d6b
+08:ad0696d4f8ac6d6b
+09:ad0696d4f8ac6d6b
+10:ad0696d4f8ac6d6b
+11:ad0696d4f8ac6d6b
+12:ad0696d4f8ac6d6b
+13:c1160e33490aaf44
+14:ba82cccb2ad508b3
+15:c1160e33490aaf44
+16:ad0696d4f8ac6d6b
+17:ad0696d4f8ac6d6b
+18:ebba5484c0097c70
+19:ad0696d4f8ac6d6b
+20:bc60b4a44c0ba77f
+21:ad0696d4f8ac6d6b
+22:ad0696d4f8ac6d6b
+23:ad0696d4f8ac6d6b
+24:ad0696d4f8ac6d6b
+25:ad0696d4f8ac6d6b
+26:ad0696d4f8ac6d6b
+27:ad0696d4f8ac6d6b
+28:ad0696d4f8ac6d6b
+29:ad0696d4f8ac6d6b
+30:ad0696d4f8ac6d6b
+31:ad0696d4f8ac6d6b
+32:ad0696d4f8ac6d6b
+33:ad0696d4f8ac6d6b
+34:936a701ccdcef2c3
+35:ad0696d4f8ac6d6b

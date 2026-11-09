@@ -25,6 +25,20 @@ pub(crate) fn draw_starting(frame: &mut Frame<'_>, area: Rect, state: &AppState)
         .map(|c| c.version.to_string())
         .unwrap_or_else(|| "?".to_owned());
     lines.push(Line::from(Span::styled(format!("bw {version} · {cli}"), theme.style("fg.muted"))));
+    // The master password typed ahead (`starting_key`), masked.
+    let typed = state.unlock.password.char_count();
+    if typed > 0 {
+        let hint = if state.unlock.submit_when_ready {
+            "unlocks when ready"
+        } else {
+            "Enter unlocks when ready"
+        };
+        lines.push(blank());
+        lines.push(Line::from(vec![
+            Span::styled(format!("{}  ", "●".repeat(typed.min(46))), theme.style("fg")),
+            Span::styled(hint, theme.style("fg.muted")),
+        ]));
+    }
     draw_centered(frame, area, lines, state);
 }
 
@@ -219,11 +233,20 @@ pub(crate) fn draw_unlock(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
 }
 
 pub(crate) fn draw_too_small(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
-    let text = format!("lazybw needs at least 60×16. Current: {}×{}.", area.width, area.height);
+    let need = "lazybw needs at least 60×16.";
+    let current = format!("Current: {}×{}.", area.width, area.height);
+    let line = format!("{need} {current}");
+    // Split in two rather than cut "Current: …" off in a narrow terminal.
+    let lines: Vec<Line<'_>> = if crate::util::text::width(&line) <= usize::from(area.width) {
+        vec![Line::from(line)]
+    } else {
+        vec![Line::from(need), Line::from(current)]
+    };
+    let height = (lines.len() as u16).min(area.height);
     frame.render_widget(
-        Paragraph::new(text)
+        Paragraph::new(lines)
             .style(Style::default().fg(state.theme.colour("fg.muted")))
             .alignment(Alignment::Center),
-        centered(area, area.width, 1),
+        centered(area, area.width, height),
     );
 }

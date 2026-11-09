@@ -39,6 +39,9 @@ pub fn draw(frame: &mut Frame<'_>, state: &AppState) {
     let plan = LayoutPlan::compute(area, state.sidebar_visible);
     if plan.too_small {
         draw_too_small(frame, area, state);
+        // Nothing animated is on screen, and an effect that is never
+        // processed never ends.
+        state.fx.borrow_mut().cancel();
         return;
     }
     let background = Style::default().bg(state.theme.colour("bg")).fg(state.theme.colour("fg"));

@@ -6,7 +6,7 @@
 use lazybw::app::state::{Pending, UndoOp};
 use lazybw::app::update::update;
 use lazybw::app::{AppState, Effect, Msg, Screen, SessionPhase};
-use lazybw::bw::models::{Item, ItemType, Login, LoginUri, Status};
+use lazybw::bw::models::{Item, ItemType, Login, LoginUri};
 use lazybw::bw::service::{BackendEvent, BwEvent, VaultSnapshot};
 use lazybw::config::{Config, Paths};
 use lazybw::vault::cache::Filter;
@@ -50,13 +50,7 @@ fn request_id(effects: &[Effect]) -> u64 {
 }
 
 fn snapshot(items: Vec<Item>) -> VaultSnapshot {
-    VaultSnapshot {
-        items,
-        folders: vec![],
-        trash: vec![],
-        archived: vec![],
-        status: Status { status: "unlocked".into(), ..Default::default() },
-    }
+    VaultSnapshot { items, folders: vec![], trash: vec![], archived: vec![] }
 }
 
 fn with_uri(state: &mut AppState, uri: &str) {
@@ -309,4 +303,72 @@ fn cancelling_a_key_sequence_clears_the_statusline() {
     assert_eq!(s.showcmd, "Space");
     keys(&mut s, "<Esc>");
     assert!(s.showcmd.is_empty(), "still showing {:?}", s.showcmd);
+}
+
+/// Draws frames 50 ms apart, as the main loop does while `animating()` holds,
+/// and returns how long the screen took to settle.
+fn settle(s: &mut AppState, width: u16, height: u16) -> std::time::Duration {
+    let mut terminal =
+        ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, height)).unwrap();
+    let start = std::time::Instant::now();
+    while s.animating() {
+        assert!(start.elapsed() < std::time::Duration::from_secs(2), "the animation never ends");
+        terminal.draw(|frame| lazybw::ui::draw(frame, s)).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    start.elapsed()
+}
+
+/// The main loop only redraws a moving screen while `animating()` says so.
+/// It used to rely on the 1 s tick instead, so the 250 ms sweep after
+/// unlocking took about two seconds and the right pane filled in late.
+#[test]
+fn the_sweep_after_unlocking_keeps_animating_until_it_has_run() {
+    let mut s = state();
+    s.fx = std::cell::RefCell::new(lazybw::ui::fx::Fx::new(true));
+    s.size = (120, 36);
+    s.enter_session(SessionPhase::Loading);
+    s.pending.insert(500, Pending::Load);
+    event(&mut s, 500, BwEvent::Vault(Ok(snapshot(vec![item("a"), item("b")]))));
+    assert!(s.animating(), "the sweep did not start");
+    let took = settle(&mut s, 120, 36);
+    assert!(took < std::time::Duration::from_millis(600), "the sweep took {took:?}");
+}
+
+/// The sweep belongs to opening the vault. A reload while it is open (the
+/// background sync every 10 minutes, a folder change) used to sweep the
+/// whole screen in again.
+#[test]
+fn a_reload_of_an_open_vault_does_not_sweep() {
+    let mut s = state();
+    s.fx = std::cell::RefCell::new(lazybw::ui::fx::Fx::new(true));
+    s.pending.insert(500, Pending::Load);
+    event(&mut s, 500, BwEvent::Vault(Ok(snapshot(vec![item("a"), item("b")]))));
+    assert_eq!(s.session, SessionPhase::Ready);
+    assert!(!s.animating(), "a reload swept the screen");
+}
+
+#[test]
+fn a_new_toast_animates_until_it_has_slid_in() {
+    let mut s = state();
+    s.fx = std::cell::RefCell::new(lazybw::ui::fx::Fx::new(true));
+    assert!(!s.animating());
+    s.toast(lazybw::app::state::MessageLevel::Ok, "Vault unlocked.");
+    assert!(s.animating());
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(!s.animating());
+}
+
+/// An effect only advances when a frame is drawn, and the "too small" screen
+/// draws none; the effect is dropped so the loop does not draw forever.
+#[test]
+fn a_too_small_terminal_drops_running_effects() {
+    let mut s = state();
+    s.fx = std::cell::RefCell::new(lazybw::ui::fx::Fx::new(true));
+    s.size = (40, 10);
+    s.enter_session(SessionPhase::Loading);
+    s.pending.insert(500, Pending::Load);
+    event(&mut s, 500, BwEvent::Vault(Ok(snapshot(vec![item("a")]))));
+    assert!(s.animating());
+    settle(&mut s, 40, 10);
 }

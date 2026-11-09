@@ -267,9 +267,6 @@ fn on_tick(state: &mut AppState) -> Vec<Effect> {
             state.last_totp_code = Some(code);
         }
     }
-    if state.fx.borrow().is_active() {
-        state.dirty = true;
-    }
     // Reveal timeout.
     if state.detail.hide_at.is_some_and(|at| Instant::now() >= at) {
         state.detail.revealed.clear();
@@ -372,7 +369,8 @@ fn on_key(state: &mut AppState, event: crossterm::event::KeyEvent) -> Vec<Effect
     match state.screen {
         Screen::Unlock => unlock_key(state, key),
         Screen::Login => login_key(state, key),
-        Screen::Starting | Screen::Error => error_key(state, key),
+        Screen::Starting => starting_key(state, key),
+        Screen::Error => error_key(state, key),
         Screen::Editor if state.editor.as_ref().is_some_and(|e| e.insert) => {
             editor_insert_key(state, key)
         }
@@ -489,6 +487,13 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
         // input; the paste must not reach the screen behind them either.
         Some(Overlay::Confirm(_) | Overlay::History(_) | Overlay::Info(_)) => return Vec::new(),
         None => {}
+    }
+    if state.screen == Screen::Starting {
+        // Typed ahead, like a key (`starting_key`). Nothing else takes it:
+        // the password must not reach a search or an editor field.
+        state.unlock.password.push_str(first_line);
+        state.unlock.submit_when_ready = false;
+        return Vec::new();
     }
     if state.screen == Screen::Unlock {
         state.unlock.password.push_str(first_line);

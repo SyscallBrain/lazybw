@@ -36,6 +36,12 @@ Security, Keys.
 When `bw` already knows your account but the vault is locked, lazybw shows
 the unlock screen. Type the master password and press `Enter`.
 
+You don't have to wait for it. `bw` takes most of a second to start, and
+anything you type on the "Starting Bitwarden CLI…" screen goes into the
+master password, shown as dots. Press `Enter` and the vault unlocks as soon
+as `bw` is ready. If it turns out there is no locked vault to open (you are
+logged out, or it is already unlocked), what you typed is thrown away.
+
 `Ctrl-o` logs out instead (after confirming), and `Ctrl-c` quits. `Ctrl-c`
 also quits from the login screen and from the start-up and error screens.
 

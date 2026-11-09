@@ -11,6 +11,7 @@ use lazybw::app::update::update;
 use lazybw::app::{AppState, Effect, Msg, Screen, SessionPhase};
 use lazybw::bw::models::{Item, ItemType, Login};
 use lazybw::config::{Config, Paths};
+use secrecy::ExposeSecret;
 
 fn state() -> AppState {
     let config = Config::default();
@@ -419,6 +420,81 @@ fn a_cli_that_fails_to_start_shows_an_error_instead_of_spinning() {
     assert!(s.error().is_some_and(|e| e.retry && e.lines.join(" ").contains("bw serve exited")));
 }
 
+/// The master password can be typed while `bw serve` starts; Enter unlocks
+/// as soon as the CLI reports a locked vault.
+#[test]
+fn a_password_typed_while_starting_unlocks_once_the_cli_is_ready() {
+    let mut s = starting();
+    s.pending.insert(1, lazybw::app::state::Pending::Starting);
+    let effects = keys(&mut s, "pq1<CR>");
+    assert!(effects.is_empty(), "{effects:?}");
+    assert!(!s.quit, "a q in the password quit lazybw");
+    assert_eq!(s.screen, Screen::Starting);
+    let effects = answer(&mut s, 1, lazybw::bw::service::BwEvent::Started(Ok(status("locked"))));
+    assert_eq!(s.session, SessionPhase::Locked);
+    let sent = effects.iter().find_map(|e| match e {
+        Effect::Backend { kind: lazybw::bw::service::CommandKind::Unlock(password), .. } => {
+            Some(password.expose_secret().to_owned())
+        }
+        _ => None,
+    });
+    assert_eq!(sent.as_deref(), Some("pq1"));
+    assert!(s.unlocking());
+}
+
+#[test]
+fn a_password_typed_while_starting_waits_for_enter() {
+    let mut s = starting();
+    s.pending.insert(1, lazybw::app::state::Pending::Starting);
+    keys(&mut s, "abc<CR><BS>");
+    let effects = answer(&mut s, 1, lazybw::bw::service::BwEvent::Started(Ok(status("locked"))));
+    assert!(backend_ids(&effects).is_empty(), "an edit after Enter still unlocked");
+    assert_eq!(s.screen, Screen::Unlock);
+    assert_eq!(s.unlock.password.expose(), "ab");
+}
+
+#[test]
+fn a_password_typed_while_starting_is_dropped_unless_the_vault_is_locked() {
+    for event in [
+        lazybw::bw::service::BwEvent::Started(Err(lazybw::bw::BwError::NotLoggedIn)),
+        lazybw::bw::service::BwEvent::Started(Ok(status("unauthenticated"))),
+        lazybw::bw::service::BwEvent::Started(Ok(status("unlocked"))),
+        lazybw::bw::service::BwEvent::Started(Err(lazybw::bw::BwError::Other("gone".into()))),
+    ] {
+        let mut s = starting();
+        s.pending.insert(1, lazybw::app::state::Pending::Starting);
+        keys(&mut s, "secret<CR>");
+        let effects = answer(&mut s, 1, event);
+        assert!(
+            !effects.iter().any(|e| matches!(
+                e,
+                Effect::Backend { kind: lazybw::bw::service::CommandKind::Unlock(_), .. }
+            )),
+            "unlocked from {:?}",
+            s.session
+        );
+        assert!(s.unlock.password.is_empty(), "kept the password on {:?}", s.screen);
+        assert!(!s.unlock.submit_when_ready);
+    }
+}
+
+#[test]
+fn a_paste_while_starting_goes_into_the_password_only() {
+    let mut s = starting();
+    s.search.active = true;
+    update(&mut s, Msg::Paste("secret\n".into()));
+    assert_eq!(s.unlock.password.expose(), "secret");
+    assert!(s.search.input.is_empty(), "the password reached the search");
+    assert!(!s.unlock.submit_when_ready, "a pasted newline must not submit");
+}
+
+#[test]
+fn ctrl_c_still_quits_while_starting() {
+    let mut s = starting();
+    keys(&mut s, "<C-c>");
+    assert!(s.quit);
+}
+
 #[test]
 fn starting_without_an_account_goes_to_the_login_screen() {
     let mut s = starting();
@@ -473,7 +549,7 @@ fn unlocking_opens_the_vault_while_it_loads() {
     assert!(s.unlocking());
     let effects = keys(&mut s, "<CR>");
     assert!(backend_ids(&effects).is_empty(), "a second unlock was sent");
-    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(status("unlocked"))));
+    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(())));
     assert!(!s.unlocking());
     assert_eq!(s.session, SessionPhase::Loading);
     assert_eq!(s.screen, Screen::Vault);
@@ -484,9 +560,12 @@ fn an_unlock_that_leaves_the_vault_locked_says_so() {
     let mut s = state();
     s.drop_secrets();
     let id = backend_ids(&keys(&mut s, "secret<CR>"))[0];
-    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(status("locked"))));
+    let load = backend_ids(&answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(()))))[0];
+    assert_eq!(s.session, SessionPhase::Loading);
+    // No status check follows the unlock; the load is what finds out.
+    answer(&mut s, load, lazybw::bw::service::BwEvent::Vault(Err(lazybw::bw::BwError::Locked)));
     assert_eq!(s.session, SessionPhase::Locked, "stuck in Loading with a locked vault");
-    assert!(s.unlock.error.is_some());
+    assert_eq!(s.screen, Screen::Unlock);
 }
 
 #[test]
@@ -575,7 +654,7 @@ fn the_reprompt_runs_its_action_after_the_right_password() {
     assert!(s.reprompt().is_some(), "copying a protected password asks first");
     let id = backend_ids(&keys(&mut s, "master<CR>"))[0];
     assert!(s.verifying_reprompt());
-    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(status("unlocked"))));
+    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(())));
     assert!(s.reprompt().is_none());
     assert_eq!(s.clipboard.last_copied(), Some("hunter2"));
 }
@@ -586,7 +665,7 @@ fn a_reprompt_answer_after_cancelling_does_nothing() {
     keys(&mut s, "yp");
     let id = backend_ids(&keys(&mut s, "master<CR>"))[0];
     keys(&mut s, "<Esc>");
-    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(status("unlocked"))));
+    answer(&mut s, id, lazybw::bw::service::BwEvent::Unlocked(Ok(())));
     assert_eq!(s.clipboard.last_copied(), None, "the cancelled action ran anyway");
     assert!(s.reprompt().is_none(), "the dialog came back after Esc");
 }
@@ -598,7 +677,7 @@ fn a_reprompt_answer_only_counts_for_its_own_dialog() {
     let first = backend_ids(&keys(&mut s, "master<CR>"))[0];
     keys(&mut s, "<Esc>yp");
     assert!(s.reprompt().is_some(), "a new dialog");
-    answer(&mut s, first, lazybw::bw::service::BwEvent::Unlocked(Ok(status("unlocked"))));
+    answer(&mut s, first, lazybw::bw::service::BwEvent::Unlocked(Ok(())));
     assert!(s.reprompt().is_some(), "the old answer closed the new dialog");
     assert_eq!(s.clipboard.last_copied(), None);
 }

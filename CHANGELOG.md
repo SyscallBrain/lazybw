@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The master password can be typed while "Starting Bitwarden CLI…" is on
+  screen. `Enter` unlocks as soon as `bw` is ready, instead of waiting for
+  the unlock screen first.
+
 ### Changed
+
+- Opening the vault after unlocking takes about a tenth of a second less:
+  lazybw no longer asks `bw` for its status after the unlock and after the
+  vault loads, where it learnt nothing new.
 
 - On the login screen, the API key form opens with `Enter` on "API key"
   and closes with `Esc`, and it marks the field being typed.
@@ -18,6 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- After unlocking, the panes took about two seconds to fill in, the right
+  one last, instead of a quarter of a second. Animations only moved when
+  something else redrew the screen, at worst once a second. The same delay
+  hit toasts, the wrong-password shake and the flash on copy.
+- A background sync, a manual sync or a folder change no longer sweeps the
+  whole screen in again. That animation is for opening the vault.
+- Typing `q` on the start-up screen quit lazybw, and whatever came next went
+  to the shell. Only `Ctrl-c` quits there now.
+- A wrong master password with `bw` 2026.10.1 showed "Bitwarden CLI error."
+  instead of "Invalid master password." and the shake. That version answers
+  with "Cryptography error, The decryption operation failed".
+- The "terminal too small" message no longer cuts off the current size in a
+  narrow terminal.
 - Starting lazybw with no Bitwarden account logged in shows the login
   screen. It used to stay on "Starting Bitwarden CLI…" with an error.
 - Cancelling a key sequence with `Esc` (for example `Space` then `Esc`)
