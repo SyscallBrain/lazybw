@@ -21,7 +21,7 @@
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-![lazybw in action: unlocking, the editor, vault health, search and copy, quick open and themes](book/src/images/demo.gif)
+![lazybw in action: unlocking, moving around, copying, search and quick open, the editor and generator, undo, the leader menu, vault health and themes](book/src/images/demo.gif)
 
 lazybw lets you browse, search, copy and edit your Bitwarden items without
 leaving the terminal, with Vim-style keys. It runs the official Bitwarden
