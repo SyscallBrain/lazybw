@@ -360,13 +360,27 @@ fn main() {
         let items = fixture_items();
         let now = chrono::DateTime::from_timestamp(NOW, 0).expect("timestamp");
         let mut state = state_with(items.clone());
-        state.health.report = Some(lazybw::vault::health::build(&items, &[], now, 365, false));
+        state.health.report = Some(lazybw::vault::health::build(&items, &[], now, 30, false));
+        state.health.category = lazybw::vault::health::HealthCategory::Old;
         state.screen = Screen::Health;
+        assert_eq!(state.health.report.as_ref().unwrap().len_in(state.health.category), ITEMS);
         let mut terminal = Terminal::new(TestBackend::new(160, 45)).expect("terminal");
-        h.case("frame draw 160x45 (health screen, 5000 items)", || {
+        h.case("frame draw 160x45 (health screen, 5000 flagged items)", || {
             terminal.draw(|frame| lazybw::ui::draw(frame, &state)).expect("draw");
         });
     }
+
+    h.case_with_setup(
+        "cache.remove (500 items from 5000)",
+        || state_with(fixture_items()).cache,
+        |mut cache| {
+            for index in 0..500 {
+                black_box(cache.remove(&format!("item-{index:05}")));
+            }
+            assert_eq!(cache.len(), ITEMS - 500);
+            cache
+        },
+    );
 
     {
         let mut state = state_with(fixture_items());

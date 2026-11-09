@@ -298,13 +298,16 @@ impl VaultCache {
     /// Removes an item from every list.
     pub fn remove(&mut self, id: &str) -> Option<Item> {
         self.rows.remove(id);
-        let removed = self
-            .active
-            .remove(id)
-            .or_else(|| self.trash.remove(id))
-            .or_else(|| self.archived.remove(id));
+        let removed = if let Some(item) = self.active.remove(id) {
+            count_subtract(&mut self.counts, &self.folder_paths, &item);
+            Some(item)
+        } else {
+            self.trash.remove(id).or_else(|| self.archived.remove(id))
+        };
         if removed.is_some() {
-            self.recount();
+            self.counts.trash = self.trash.len();
+            self.counts.archived = self.archived.len();
+            self.version += 1;
         }
         removed
     }
@@ -492,17 +495,6 @@ impl VaultCache {
         self.counts = counts;
     }
 
-    fn recount(&mut self) {
-        self.version += 1;
-        let mut counts = Counts::default();
-        for item in self.active.values() {
-            count_add(&mut counts, &self.folder_paths, item);
-        }
-        counts.trash = self.trash.len();
-        counts.archived = self.archived.len();
-        self.counts = counts;
-    }
-
     /// Recomputes the health flags on rows from a health report.
     pub fn apply_health(&mut self, report: &crate::vault::health::HealthReport) {
         self.version += 1;
@@ -638,16 +630,13 @@ fn count_subtract(counts: &mut Counts, folder_paths: &BTreeMap<String, String>, 
     match &item.folder_id {
         Some(folder) => {
             if let Some(path) = folder_paths.get(folder) {
-                let mut prefix = String::new();
-                for segment in path.split('/') {
-                    if !prefix.is_empty() {
-                        prefix.push('/');
-                    }
-                    prefix.push_str(segment);
-                    if let Some(count) = counts.by_folder.get_mut(&prefix) {
+                let ends = path.match_indices('/').map(|(at, _)| at).chain([path.len()]);
+                for end in ends {
+                    let prefix = &path[..end];
+                    if let Some(count) = counts.by_folder.get_mut(prefix) {
                         *count = count.saturating_sub(1);
                         if *count == 0 {
-                            counts.by_folder.remove(&prefix);
+                            counts.by_folder.remove(prefix);
                         }
                     }
                 }
@@ -679,6 +668,57 @@ pub fn synthetic_item(index: usize) -> Item {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn removing_items_keeps_all_counts_equal_to_a_reload() {
+        let mut cache = VaultCache::new();
+        let folders: Vec<_> = ["Work/Deep/Folder", "/Leading", "A//B", "尾/部"]
+            .into_iter()
+            .enumerate()
+            .map(|(n, name)| Folder {
+                id: Some(format!("f{n}")),
+                name: name.into(),
+                ..Default::default()
+            })
+            .collect();
+        let items: Vec<_> = (0..40)
+            .map(|n| {
+                let mut item = synthetic_item(n);
+                item.folder_id = if n % 6 == 0 { None } else { Some(format!("f{}", n % 5)) };
+                item.kind = if n % 4 == 0 { ItemType::SecureNote } else { ItemType::Login };
+                item
+            })
+            .collect();
+        let mut trash = synthetic_item(40);
+        trash.deleted_date = Some("2026-10-01T00:00:00Z".into());
+        let mut archive = synthetic_item(41);
+        archive.archived_date = Some("2026-10-01T00:00:00Z".into());
+        cache.load(items, folders.clone(), vec![trash], vec![archive]);
+        for n in (0..42).rev() {
+            let version = cache.version();
+            assert!(cache.remove(&format!("item-{n:05}")).is_some());
+            assert_eq!(cache.version(), version + 1);
+            let mut reloaded = VaultCache::new();
+            reloaded.load(
+                cache.active_items().cloned().collect(),
+                folders.clone(),
+                cache.trash_items().cloned().collect(),
+                cache.archived_items().cloned().collect(),
+            );
+            let a = cache.counts();
+            let b = reloaded.counts();
+            assert_eq!(
+                (a.all, a.favorites, a.no_folder, a.trash, a.archived),
+                (b.all, b.favorites, b.no_folder, b.trash, b.archived)
+            );
+            assert_eq!(a.by_type, b.by_type);
+            assert_eq!(a.by_folder, b.by_folder);
+        }
+        let version = cache.version();
+        assert!(cache.remove("missing").is_none());
+        assert_eq!(cache.version(), version);
+        assert!(cache.is_empty());
+    }
 
     #[test]
     fn upsert_keeps_health_marks_unless_the_password_changes() {

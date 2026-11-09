@@ -143,7 +143,7 @@ pub(crate) fn health_action(state: &mut AppState, action: Action) -> Vec<Effect>
         }
         "health.open_item" => {
             if let Some(report) = &state.health.report
-                && let Some(record) = report.items_in(state.health.category).get(state.health.index)
+                && let Some(record) = report.item_in(state.health.category, state.health.index)
             {
                 let id = record.id.clone();
                 select_item_by_id(state, &id);

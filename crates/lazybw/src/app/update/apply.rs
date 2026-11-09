@@ -916,8 +916,7 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             // never whatever happens to be selected in the vault list.
             let target = if state.screen == Screen::Health {
                 state.health.report.as_ref().and_then(|r| {
-                    r.items_in(state.health.category)
-                        .get(state.health.index)
+                    r.item_in(state.health.category, state.health.index)
                         .map(|record| record.id.clone())
                 })
             } else {

@@ -428,13 +428,14 @@ pub(crate) fn refresh_quick_open(state: &mut AppState) {
     let Some(Overlay::QuickOpen(quick)) = &mut state.overlay else { return };
     let query = Query::parse(&quick.input);
     let mut matcher = crate::vault::query::QueryMatcher::new(&query);
+    let health = state.health.report.as_ref().filter(|_| query.uses_health());
     let mut hits: Vec<(std::sync::Arc<crate::vault::cache::Row>, u32)> = state
         .cache
         .rows_matching(&Filter::All)
         .into_iter()
         .filter_map(|row| {
             let item = state.cache.item(&row.id)?;
-            let flags = state.health.report.as_ref().map(|r| r.flags(&row.id));
+            let flags = health.map(|r| r.flags(&row.id));
             let result =
                 matcher.matches(item, &row.folder_path, flags, state.config.vault.search_notes)?;
             Some((row, result.score))

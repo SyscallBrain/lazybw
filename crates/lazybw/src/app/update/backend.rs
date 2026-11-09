@@ -476,13 +476,13 @@ pub(crate) fn on_backend(
                     local,
                 );
                 state.health.raw = entries;
-                state.health.report = Some(report.clone());
                 state.cache.apply_health(&report);
                 state.health_epoch += 1;
                 let message = format!(
                     "Checked {} logins. {} exposed, {} reused, {} weak.",
                     report.checked, report.exposed, report.reused, report.weak
                 );
+                state.health.report = Some(report);
                 state.toast(MessageLevel::Ok, message);
             }
             Err(err) => {

@@ -198,15 +198,17 @@ pub(crate) fn draw_health(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         header.push_str(" · MOST SEVERE FIRST");
     }
     let mut lines = vec![section_label(theme, &format!(" {header}"))];
-    let items = report.items_in(state.health.category);
-    if items.is_empty() {
+    let count = report.len_in(state.health.category);
+    if count == 0 {
         lines.push(text_line(theme, "fg.muted", "  Nothing here."));
     }
     let visible = (list_area.height as usize).saturating_sub(1);
-    let offset = follow(state, "health", state.health.index, visible, items.len());
-    let name_width =
-        items.iter().map(|r| crate::util::text::width(&r.name)).max().unwrap_or(10).clamp(12, 36);
-    for (index, record) in items.iter().enumerate().skip(offset).take(visible) {
+    let offset = follow(state, "health", state.health.index, visible, count);
+    let name_width = report.name_width_in(state.health.category);
+    for (index, record) in
+        report.items_from(state.health.category, offset).take(visible).enumerate()
+    {
+        let index = index + offset;
         let selected = index == state.health.index;
         let row = if selected { theme.selected_row() } else { Style::default() };
         let detail = match state.health.category {
@@ -284,7 +286,7 @@ pub(crate) fn draw_health(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Rect { y: list_area.y, height: list_area.height + 1, ..area },
         offset,
         visible,
-        items.len(),
+        count,
         true,
         theme,
     );
