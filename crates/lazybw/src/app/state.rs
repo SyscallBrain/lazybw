@@ -1892,29 +1892,43 @@ impl AppState {
             search_notes: self.config.vault.search_notes,
             health_epoch: self.health_epoch,
         };
-        let rows: Vec<std::sync::Arc<crate::vault::cache::Row>> =
-            if let Some(query) = &self.search.query {
-                let mut matcher = crate::vault::query::QueryMatcher::new(query);
-                let hits: Vec<_> = self
-                    .cache
-                    .rows_matching(&self.filter)
-                    .into_iter()
-                    .filter_map(|row| {
-                        let item = self.cache.item(&row.id)?;
-                        let flags = self.health.report.as_ref().map(|report| report.flags(&row.id));
-                        let result = matcher.matches(
-                            item,
-                            &row.folder_path,
-                            flags,
-                            self.config.vault.search_notes,
-                        )?;
-                        Some((row, result))
-                    })
-                    .collect();
-                crate::vault::query::rank(hits).into_iter().map(|(row, _)| row).collect()
-            } else {
-                self.cache.rows_filtered(&self.filter, self.config.vault.sort, self.sort_reversed)
-            };
+        let rows: Vec<std::sync::Arc<crate::vault::cache::Row>> = if let Some(query) =
+            &self.search.query
+        {
+            let mut matcher = crate::vault::query::QueryMatcher::new(query);
+            let health = self.health.report.as_ref().filter(|_| query.uses_health());
+            let candidates = self.visible_cache.borrow().as_ref().and_then(|(cached, rows)| {
+                let previous = cached.query.as_ref()?;
+                (cached.is_current(
+                    cache_version,
+                    &self.filter,
+                    self.config.vault.sort,
+                    self.sort_reversed,
+                    Some(previous),
+                    self.config.vault.search_notes,
+                    self.health_epoch,
+                ) && query.narrows(previous))
+                .then(|| rows.to_vec())
+            });
+            let candidates = candidates.unwrap_or_else(|| self.cache.rows_matching(&self.filter));
+            let hits: Vec<_> = candidates
+                .into_iter()
+                .filter_map(|row| {
+                    let item = self.cache.item(&row.id)?;
+                    let flags = health.map(|report| report.flags(&row.id));
+                    let result = matcher.matches(
+                        item,
+                        &row.folder_path,
+                        flags,
+                        self.config.vault.search_notes,
+                    )?;
+                    Some((row, result))
+                })
+                .collect();
+            crate::vault::query::rank(hits).into_iter().map(|(row, _)| row).collect()
+        } else {
+            self.cache.rows_filtered(&self.filter, self.config.vault.sort, self.sort_reversed)
+        };
         let rows: VisibleRows = rows.into();
         *self.visible_cache.borrow_mut() = Some((key, rows.clone()));
         rows

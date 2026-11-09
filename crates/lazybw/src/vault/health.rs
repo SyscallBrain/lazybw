@@ -97,6 +97,8 @@ pub struct HealthReport {
     /// order. Worked out once by `build`: the health screen and the
     /// statusline ask for a category on every frame.
     ordered: [Vec<String>; 5],
+    /// Display width for each category's name column, computed once.
+    name_widths: [usize; 5],
 }
 
 impl HealthReport {
@@ -115,7 +117,29 @@ impl HealthReport {
     /// Items in a category, worst first.
     #[must_use]
     pub fn items_in(&self, category: HealthCategory) -> Vec<&HealthRecord> {
-        self.ordered[category as usize].iter().filter_map(|id| self.records.get(id)).collect()
+        self.items_from(category, 0).collect()
+    }
+
+    /// Records starting at a category offset. Skips ids before looking up
+    /// records, so drawing a scrolled window only visits visible items.
+    pub fn items_from(
+        &self,
+        category: HealthCategory,
+        offset: usize,
+    ) -> impl Iterator<Item = &HealthRecord> {
+        self.ordered[category as usize].iter().skip(offset).filter_map(|id| self.records.get(id))
+    }
+
+    /// The record at an index in a category, without allocating its list.
+    #[must_use]
+    pub fn item_in(&self, category: HealthCategory, index: usize) -> Option<&HealthRecord> {
+        self.ordered[category as usize].get(index).and_then(|id| self.records.get(id))
+    }
+
+    /// Width of the category's name column, in terminal columns (12–36).
+    #[must_use]
+    pub fn name_width_in(&self, category: HealthCategory) -> usize {
+        self.name_widths[category as usize].clamp(12, 36)
     }
 
     /// The number of items in a category.
@@ -137,11 +161,20 @@ fn in_category(record: &HealthRecord, category: HealthCategory) -> bool {
 }
 
 /// The ids of each category, most exposures first, then by name.
-fn order_by_category(records: &BTreeMap<String, HealthRecord>) -> [Vec<String>; 5] {
+fn order_by_category(records: &BTreeMap<String, HealthRecord>) -> ([Vec<String>; 5], [usize; 5]) {
+    let mut widths = [0; 5];
     let mut sorted: Vec<(&HealthRecord, String)> = records
         .values()
-        .filter(|record| HealthCategory::ALL.into_iter().any(|c| in_category(record, c)))
-        .map(|record| (record, record.name.to_lowercase()))
+        .filter(|record| record.flags.any())
+        .map(|record| {
+            let width = crate::util::text::width(&record.name);
+            for category in HealthCategory::ALL {
+                if in_category(record, category) {
+                    widths[category as usize] = widths[category as usize].max(width);
+                }
+            }
+            (record, record.name.to_lowercase())
+        })
         .collect();
     sorted.sort_by(|(a, a_name), (b, b_name)| {
         b.exposed_count
@@ -149,13 +182,14 @@ fn order_by_category(records: &BTreeMap<String, HealthRecord>) -> [Vec<String>; 
             .cmp(&a.exposed_count.unwrap_or(0))
             .then_with(|| a_name.cmp(b_name))
     });
-    HealthCategory::ALL.map(|category| {
+    let ordered = HealthCategory::ALL.map(|category| {
         sorted
             .iter()
             .filter(|(record, _)| in_category(record, category))
             .map(|(record, _)| record.id.clone())
             .collect()
-    })
+    });
+    (ordered, widths)
 }
 
 /// The five categories shown as cards.
@@ -238,6 +272,10 @@ pub fn build<T: std::borrow::Borrow<Item>>(
     let mut penalty_sum = 0.0;
     let mut potential_sum = 0.0;
     let mut has_exposed_data = false;
+    // Reused passwords need one zxcvbn evaluation per report. Keys borrow
+    // the existing Sensitive values; nothing is copied or retained after
+    // this call, and server scores still override each item's local score.
+    let mut local_strengths = HashMap::new();
 
     for item in &logins {
         let Some(id) = &item.id else { continue };
@@ -249,7 +287,13 @@ pub fn build<T: std::borrow::Borrow<Item>>(
 
         let strength = bw.map_or_else(
             || {
-                if local_fallback { local_strength(password.expose()) } else { 3 }
+                if local_fallback {
+                    *local_strengths
+                        .entry(password.expose())
+                        .or_insert_with(|| local_strength(password.expose()))
+                } else {
+                    3
+                }
             },
             |entry| entry.password_strength,
         );
@@ -315,10 +359,11 @@ pub fn build<T: std::borrow::Borrow<Item>>(
     let checked = logins.len();
     let score = score_from(penalty_sum, checked);
     let potential = score_from(potential_sum, checked);
-    let ordered = order_by_category(&records);
+    let (ordered, name_widths) = order_by_category(&records);
     HealthReport {
         records,
         ordered,
+        name_widths,
         exposed: totals.0,
         reused: totals.1,
         weak: totals.2,
@@ -409,6 +454,47 @@ mod tests {
         item.creation_date = Some("2024-01-01T00:00:00Z".into());
         item.login = Some(Login { password: Some(Sensitive::new(password)), ..Login::default() });
         item
+    }
+
+    #[test]
+    fn reused_password_strengths_stay_local_and_server_overrides_stay_per_item() {
+        let passwords = ["password", "Xk9#mQ2!vR7$pL4z", "abc", "another distinct phrase !42"];
+        let items: Vec<_> =
+            (0..20).map(|n| login(&n.to_string(), passwords[n % passwords.len()])).collect();
+        let entries = [HealthEntry { id: "0".into(), password_strength: 4, ..Default::default() }];
+        let report = build(&items, &entries, now(), 365, true);
+        for (n, item) in items.iter().enumerate() {
+            let record = &report.records[item.id.as_ref().unwrap()];
+            let expected =
+                if n == 0 { 4 } else { u8::from(zxcvbn::zxcvbn(passwords[n % 4], &[]).score()) };
+            assert_eq!(record.strength, expected, "item {n}");
+            assert_eq!(record.reuse_count, Some(5));
+        }
+        // A later analysis must recompute for the current password.
+        let changed = [login("0", "123")];
+        let fresh = build(&changed, &[], now(), 365, true);
+        assert_eq!(fresh.records["0"].strength, 0);
+        assert_eq!(fresh.records["0"].reuse_count, None);
+    }
+
+    #[test]
+    fn category_windows_and_widths_match_the_full_list() {
+        let mut items = vec![login("a", "123456"), login("b", "123456"), login("c", "password")];
+        items[0].name = "界界界界界界界".into(); // 14 terminal columns
+        items[1].name = "e\u{301}".repeat(18); // combining marks take no extra columns
+        let report = build(&items, &[], now(), 365, true);
+        assert_eq!(report.name_width_in(HealthCategory::Weak), 18);
+        assert_eq!(report.name_width_in(HealthCategory::Reused), 18);
+        assert_eq!(report.name_width_in(HealthCategory::Exposed), 12);
+        for category in HealthCategory::ALL {
+            let full = report.items_in(category);
+            for offset in 0..=full.len() + 1 {
+                let actual: Vec<_> = report.items_from(category, offset).take(2).collect();
+                let expected: Vec<_> = full.iter().copied().skip(offset).take(2).collect();
+                assert_eq!(actual, expected);
+                assert_eq!(report.item_in(category, offset), full.get(offset).copied());
+            }
+        }
     }
 
     #[test]

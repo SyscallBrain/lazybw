@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opening the vault after unlocking takes about a tenth of a second less:
   lazybw no longer asks `bw` for its status after the unlock and after the
   vault loads, where it learnt nothing new.
+- Search keeps up better in large vaults. Typing one more letter only
+  re-checks the items that already matched, which halves the work per key
+  with 5,000 items. The health screen draws only the rows on screen, and
+  the local password check scores a reused password once instead of once
+  per item.
 
 - On the login screen, the API key form opens with `Enter` on "API key"
   and closes with `Esc`, and it marks the field being typed.

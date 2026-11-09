@@ -9,6 +9,9 @@ use chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone, Utc};
 /// seconds and with `Z` or an offset).
 #[must_use]
 pub fn parse_iso(value: &str) -> Option<DateTime<Utc>> {
+    if let Some(date) = parse_canonical_utc(value) {
+        return Some(date);
+    }
     if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
         return Some(dt.with_timezone(&Utc));
     }
@@ -21,6 +24,44 @@ pub fn parse_iso(value: &str) -> Option<DateTime<Utc>> {
         return date.and_hms_opt(0, 0, 0).map(|n| Utc.from_utc_datetime(&n));
     }
     None
+}
+
+/// The canonical UTC form emitted by bw. Keep offsets, leap seconds and
+/// less common ISO forms on chrono's general parser.
+fn parse_canonical_utc(value: &str) -> Option<DateTime<Utc>> {
+    let b = value.as_bytes().strip_suffix(b"Z")?;
+    if !(19..=29).contains(&b.len())
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || b[10] != b'T'
+        || b[13] != b':'
+        || b[16] != b':'
+    {
+        return None;
+    }
+    fn digits(b: &[u8]) -> Option<u32> {
+        b.iter().try_fold(0, |n, b| b.is_ascii_digit().then(|| n * 10 + u32::from(b - b'0')))
+    }
+    let nanos = if b.len() == 19 {
+        0
+    } else {
+        if b[19] != b'.' || b.len() == 20 {
+            return None;
+        }
+        digits(&b[20..])? * 10u32.pow((29 - b.len()) as u32)
+    };
+    let date = chrono::NaiveDate::from_ymd_opt(
+        digits(&b[..4])? as i32,
+        digits(&b[5..7])?,
+        digits(&b[8..10])?,
+    )?;
+    let time = date.and_hms_nano_opt(
+        digits(&b[11..13])?,
+        digits(&b[14..16])?,
+        digits(&b[17..19])?,
+        nanos,
+    )?;
+    Some(time.and_utc())
 }
 
 /// Relative time, e.g. `just now`, `2 min ago`, `3 hours ago`, `yesterday`,
@@ -112,6 +153,37 @@ mod tests {
 
     fn at(days_ago: i64) -> DateTime<Utc> {
         test_now() - chrono::Duration::days(days_ago)
+    }
+
+    #[test]
+    fn canonical_utc_dates_agree_with_chrono() {
+        for value in [
+            "2026-03-01T10:00:00Z",
+            "2026-03-01T10:00:00.000Z",
+            "2000-02-29T23:59:59.123456789Z",
+            "0000-01-01T00:00:00.1Z",
+            "2026-12-31T23:59:59.123456Z",
+            "2026-02-29T10:00:00Z",
+            "2026-13-01T10:00:00Z",
+            "2026-03-01T24:00:00Z",
+            "2026-03-01T10:60:00Z",
+            "2026-03-01T10:00:61Z",
+            "2026-03-01T10:00:00.xZ",
+            "2026-03-01T10:00:00.Z",
+        ] {
+            let expected = DateTime::parse_from_rfc3339(value).ok().map(|d| d.with_timezone(&Utc));
+            assert_eq!(parse_canonical_utc(value), expected, "{value}");
+            assert_eq!(parse_iso(value), expected, "{value}");
+        }
+        for value in [
+            "2016-12-31T23:59:60Z",
+            "2026-03-01T10:00:00+05:30",
+            "2026-03-01t10:00:00z",
+            "2026-03-01T10:00:00.123456789123Z",
+        ] {
+            let expected = DateTime::parse_from_rfc3339(value).ok().map(|d| d.with_timezone(&Utc));
+            assert_eq!(parse_iso(value), expected, "fallback: {value}");
+        }
     }
 
     #[test]

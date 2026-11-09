@@ -84,11 +84,43 @@ impl Query {
         self.tokens.is_empty()
     }
 
+    /// True when every match of this query must also match `previous`.
+    /// Only extend a plain positive ASCII word: nucleo's operators, Unicode
+    /// normalization and negation can change what earlier characters mean.
+    #[must_use]
+    pub fn narrows(&self, previous: &Self) -> bool {
+        let Some((last, prefix)) = self.tokens.split_last() else { return false };
+        let Some((old, old_prefix)) = previous.tokens.split_last() else { return false };
+        if prefix != old_prefix || last.negated || old.negated {
+            return false;
+        }
+        let (TokenKind::Text(text), TokenKind::Text(old_text)) = (&last.kind, &old.kind) else {
+            return false;
+        };
+        !old_text.is_empty()
+            && text.len() > old_text.len()
+            && text.starts_with(old_text)
+            && text.bytes().all(|b| b.is_ascii_alphanumeric())
+    }
+
     /// The qualifiers in the query.
     pub fn qualifiers(&self) -> impl Iterator<Item = (&str, &str)> {
         self.tokens.iter().filter_map(|t| match &t.kind {
             TokenKind::Qualifier { name, value } => Some((name.as_str(), value.as_str())),
             TokenKind::Text(_) => None,
+        })
+    }
+
+    /// Whether matching needs flags from the health report. Ordinary text
+    /// searches must not look up a health record for every candidate.
+    #[must_use]
+    pub fn uses_health(&self) -> bool {
+        self.qualifiers().any(|(name, value)| {
+            name == "is"
+                && matches!(
+                    value.to_lowercase().as_str(),
+                    "weak" | "reused" | "exposed" | "old" | "insecure"
+                )
         })
     }
 }
@@ -141,7 +173,7 @@ impl std::fmt::Debug for PreparedToken {
 
 enum PreparedKind {
     /// Free text; `None` for an empty token, which matches everything.
-    Text(Option<Pattern>),
+    Text(Option<(Pattern, u32)>),
     Qualifier {
         /// Lowercase qualifier name.
         name: String,
@@ -164,7 +196,10 @@ impl QueryMatcher {
                     TokenKind::Text(text) => PreparedKind::Text(if text.is_empty() {
                         None
                     } else {
-                        Some(Pattern::parse(text, CaseMatching::Smart, Normalization::Smart))
+                        let pattern =
+                            Pattern::parse(text, CaseMatching::Smart, Normalization::Smart);
+                        let ceiling = pattern_score_ceiling(&pattern);
+                        Some((pattern, ceiling))
                     }),
                     TokenKind::Qualifier { name, value } => PreparedKind::Qualifier {
                         name: name.clone(),
@@ -225,16 +260,22 @@ impl QueryMatcher {
 
     fn match_text(
         &mut self,
-        pattern: Option<&Pattern>,
+        pattern: Option<&(Pattern, u32)>,
         item: &Item,
         search_notes: bool,
         result: &mut MatchResult,
     ) -> Option<bool> {
-        let Some(pattern) = pattern else { return Some(true) };
+        let Some((pattern, ceiling)) = pattern else { return Some(true) };
         let mut best = 0u32;
         let mut any = false;
 
         let mut field = |haystack: &str, weight: f32| -> bool {
+            // The result is the maximum weighted field score. Once a
+            // heavier field beats this field's best possible score, there
+            // is no reason to match (or even decode) this haystack.
+            if best > 0 && (*ceiling as f32 * weight) as u32 <= best {
+                return true;
+            }
             if haystack.is_empty() {
                 return false;
             }
@@ -371,6 +412,17 @@ impl QueryMatcher {
     }
 }
 
+/// Upper bound for nucleo 0.3 with `Config::DEFAULT`: 16 per matched
+/// character, at most 10 boundary bonus (doubled for the first character).
+/// Negative atoms contribute zero. Use the parsed needle lengths so escaped
+/// operators, spaces and Unicode are counted as nucleo counts them.
+fn pattern_score_ceiling(pattern: &Pattern) -> u32 {
+    pattern.atoms.iter().filter(|atom| !atom.negative).fold(0u32, |sum, atom| {
+        let len = atom.needle_text().len() as u32;
+        sum.saturating_add(26u32.saturating_mul(len).saturating_add(10))
+    })
+}
+
 /// Matches an item. `health` is `None` before the first health run.
 ///
 /// For many items, build a [`QueryMatcher`] once instead.
@@ -457,6 +509,150 @@ pub fn rank(
 
 #[cfg(test)]
 mod tests {
+
+    proptest::proptest! {
+        #[test]
+        fn plain_extensions_never_add_hits(
+            prefix in "[a-zA-Z0-9]{1,12}",
+            suffix in "[a-zA-Z0-9]{1,8}",
+            haystack in ".{0,100}",
+        ) {
+            let previous = Query::parse(&prefix);
+            let next = Query::parse(&format!("{prefix}{suffix}"));
+            let mut item = item();
+            item.name = haystack;
+            proptest::prop_assert!(next.narrows(&previous));
+            if matches(&next, &item, "", None, true).is_some() {
+                proptest::prop_assert!(matches(&previous, &item, "", None, true).is_some());
+            }
+        }
+
+        #[test]
+        fn score_ceiling_bounds_arbitrary_patterns(
+            text in "[a-zA-Z0-9 !^$'\\\\é界]{0,24}",
+            haystack in ".{0,100}",
+        ) {
+            let pattern = Pattern::parse(&text, CaseMatching::Smart, Normalization::Smart);
+            let mut matcher = Matcher::new(Config::DEFAULT);
+            let mut buf = Vec::new();
+            if let Some(score) = pattern.score(Utf32Str::new(&haystack, &mut buf), &mut matcher) {
+                proptest::prop_assert!(score <= pattern_score_ceiling(&pattern));
+            }
+        }
+    }
+
+    #[test]
+    fn only_health_qualifiers_need_report_lookups() {
+        for (text, expected) in [
+            ("item 12", false),
+            ("type:login is:fav", false),
+            ("has:totp", false),
+            ("is:weak", true),
+            ("-is:reused", true),
+            ("IS:EXPOSED item", true),
+            ("is:weaK", true),
+            ("is:old", true),
+            ("is:insecure", true),
+            ("name:is:weak", false),
+        ] {
+            assert_eq!(Query::parse(text).uses_health(), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn score_ceiling_bounds_nucleo_scores() {
+        for text in ["a", "ab", "Item", "foo bar", "!git", "^Git", "hub$", "'it", "é", "界", "\\!a"]
+        {
+            let pattern = Pattern::parse(text, CaseMatching::Smart, Normalization::Smart);
+            let ceiling = pattern_score_ceiling(&pattern);
+            let mut matcher = Matcher::new(Config::DEFAULT);
+            let mut buf = Vec::new();
+            for haystack in [
+                "a",
+                "ab",
+                "abc",
+                " foo bar",
+                "Item 00123",
+                "github",
+                "GitHub",
+                "界",
+                "é",
+                "!abc",
+                "a---b",
+                " a b",
+                "iTem",
+                " ＡＢＣ",
+            ] {
+                if let Some(score) = pattern.score(Utf32Str::new(haystack, &mut buf), &mut matcher)
+                {
+                    assert!(score <= ceiling, "{text:?} in {haystack:?}: {score} > {ceiling}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn skipping_lower_weight_fields_preserves_the_best_score() {
+        for name in ["Item", "i------t", "GitHub", "a", "Água", "unrelated"] {
+            let mut item = item();
+            item.name = name.into();
+            for text in [
+                "i", "it", "item", "git", "gthb", "dev", "rec", "work", "!git", "^Git", "git$",
+                "'it", "água",
+            ] {
+                let query = Query::parse(text);
+                let pattern = Pattern::parse(text, CaseMatching::Smart, Normalization::Smart);
+                let mut matcher = Matcher::new(Config::DEFAULT);
+                let mut buf = Vec::new();
+                let best = [
+                    (&*item.name, 1.0),
+                    ("dev-example", 0.7),
+                    ("github.com", 0.6),
+                    ("Recovery codes", 0.4),
+                    ("work account for git", 0.3),
+                ]
+                .into_iter()
+                .filter_map(|(haystack, weight)| {
+                    pattern
+                        .score(Utf32Str::new(haystack, &mut buf), &mut matcher)
+                        .map(|score| (score as f32 * weight) as u32)
+                })
+                .max();
+                assert_eq!(
+                    matches(&query, &item, "", None, true).map(|result| result.score),
+                    best,
+                    "{name:?} / {text:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn narrowing_requires_a_plain_positive_text_extension() {
+        for (old, new, expected) in [
+            ("item 12", "item 123", true),
+            ("type:login i", "type:login it", true),
+            ("i", "iT", true),
+            ("item", "ite", false),
+            ("item", "item 1", false),
+            ("-a", "-ab", false),
+            ("!a", "!ab", false),
+            ("a$", "a$b", false),
+            ("name:a", "name:ab", false),
+            ("type:login a", "type:note ab", false),
+            ("", "a", false),
+            ("a", "a", false),
+            ("é", "ét", false),
+            ("a", "aé", false),
+            ("\"a b\"", "\"a bc\"", false),
+        ] {
+            assert_eq!(
+                Query::parse(new).narrows(&Query::parse(old)),
+                expected,
+                "{old:?} -> {new:?}"
+            );
+        }
+    }
 
     #[test]
     fn qualifiers_ignore_case_beyond_ascii() {
