@@ -16,6 +16,7 @@ pub mod clipboard;
 pub mod config;
 pub mod external_editor;
 pub mod input;
+pub mod logging;
 pub mod security;
 pub mod theme;
 pub mod totp;

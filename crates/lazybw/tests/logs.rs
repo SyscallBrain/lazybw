@@ -4,18 +4,16 @@
 mod harness;
 
 use harness::TestApp;
-use std::io::Read;
+use std::os::unix::fs::PermissionsExt;
+use tracing::level_filters::LevelFilter;
 
+/// A whole session logged at `trace`, the most a user can ask for with
+/// `LAZYBW_LOG`, through the same set-up as the binary.
 #[tokio::test]
 async fn logs_never_contain_secrets() {
     let dir = tempfile::TempDir::new().unwrap();
-    let appender = tracing_appender::rolling::never(dir.path(), "lazybw.log");
-    let (writer, guard) = tracing_appender::non_blocking(appender);
-    let _ = tracing_subscriber::fmt()
-        .with_writer(writer)
-        .with_max_level(tracing::Level::DEBUG)
-        .with_ansi(false)
-        .try_init();
+    let path = dir.path().join("lazybw/lazybw.log");
+    let guard = lazybw::logging::init_with(&path, LevelFilter::TRACE).expect("log file");
     tracing::info!("log-grep-test marker");
 
     let mut app = TestApp::boot(true).await;
@@ -29,16 +27,66 @@ async fn logs_never_contain_secrets() {
     app.wait_idle().await;
     drop(guard);
 
-    let mut contents = String::new();
-    for entry in std::fs::read_dir(dir.path()).unwrap().flatten() {
-        let path = entry.path();
-        if path.file_name().is_some_and(|name| name == "lazybw.log") {
-            std::fs::File::open(&path).unwrap().read_to_string(&mut contents).unwrap();
-        }
-    }
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "the log must be private");
+    let contents = std::fs::read_to_string(&path).unwrap();
     assert!(contents.contains("log-grep-test marker"), "log file was not written");
     for secret in ["correct horse", "fixture-password", "fake-session", "GEZDGNBVGY3TQOJQ"] {
         assert!(!contents.contains(secret), "secret {secret:?} leaked into the log:\n{contents}");
     }
     assert!(!contents.contains("fido2Credentials"), "request bodies leaked into the log");
+}
+
+/// An error screen is the first thing a bug report needs: what it said goes
+/// into the log at `warn`, without the blank lines that space it on screen.
+#[test]
+fn error_screens_are_logged() {
+    use lazybw::app::state::{AppState, ErrorScreen, SessionPhase};
+    use lazybw::config::{Config, Paths, keymap::Keymap};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct Buffer(Arc<Mutex<Vec<u8>>>);
+    impl std::io::Write for Buffer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let buffer = Buffer::default();
+    let writer = buffer.clone();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(move || writer.clone())
+        .with_ansi(false)
+        .with_max_level(LevelFilter::INFO)
+        .finish();
+    tracing::subscriber::with_default(subscriber, || {
+        let config = Config::default();
+        let theme = lazybw::theme::builtin::by_name("tokyonight-night").unwrap();
+        let (keymap, _) = Keymap::build(&config.keys).unwrap();
+        let paths =
+            Paths { config_dir: "/tmp/logs/config".into(), state_dir: "/tmp/logs/state".into() };
+        let mut state = AppState::new(config, theme, keymap, paths);
+        state.enter_session(SessionPhase::Failed(Box::new(ErrorScreen {
+            title: "Bitwarden CLI stopped".to_owned(),
+            lines: vec![
+                "Lost the connection.".to_owned(),
+                String::new(),
+                "  Retry with r.".to_owned(),
+            ],
+            detail: Vec::new(),
+            actions: "r retry   q quit".to_owned(),
+            retry: true,
+            open_file: None,
+        })));
+    });
+
+    let text = String::from_utf8(buffer.0.lock().unwrap().clone()).unwrap();
+    assert!(text.contains(" WARN "), "logged at warn:\n{text}");
+    assert!(text.contains("error screen: Lost the connection. / Retry with r."), "{text}");
+    assert!(text.contains("title=Bitwarden CLI stopped"), "{text}");
 }

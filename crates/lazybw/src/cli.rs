@@ -322,8 +322,17 @@ fn futures_status(path: &std::path::Path) -> Result<crate::bw::models::Status, S
 // ---------------------------------------------------------------------------
 
 fn run_tui() -> color_eyre::Result<()> {
+    // Declared before the runtime so it is dropped after it: the log is
+    // flushed once every task has stopped writing to it.
+    let _log = crate::logging::init(&Paths::resolve().log_file());
+    tracing::info!(version = env!("CARGO_PKG_VERSION"), "lazybw started");
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
-    runtime.block_on(run_tui_async())
+    let result = runtime.block_on(run_tui_async());
+    match &result {
+        Ok(()) => tracing::info!("lazybw exited"),
+        Err(err) => tracing::error!(%err, "lazybw exited with an error"),
+    }
+    result
 }
 
 struct Startup {
@@ -433,6 +442,16 @@ async fn run_tui_async() -> color_eyre::Result<()> {
             Ok(location) => (Some(location), None),
             Err(err) => (None, Some(err)),
         };
+    match (&location, &locate_error) {
+        (Some(location), _) => tracing::info!(
+            path = %location.path.display(),
+            version = %location.capabilities.version,
+            transport = ?config.bw.transport,
+            "found bw"
+        ),
+        (None, Some(err)) => tracing::warn!(%err, "bw cannot be used"),
+        (None, None) => {}
+    }
     // A configuration error is shown first: fixing config.toml (which may
     // well be what sets bw.path) comes before installing the CLI.
     if let Some(error) = locate_error.filter(|_| app.state.error().is_none()) {

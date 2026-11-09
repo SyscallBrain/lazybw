@@ -53,7 +53,8 @@ channel.
   history files, so the editor does not keep its own copy of the text.
 - The folder state file stores folder ids, never names.
 - The log (`~/.local/state/lazybw/lazybw.log`) never contains requests,
-  responses or secret values.
+  responses or secret values, even with `LAZYBW_LOG=debug`. Only you can
+  read it.
 
 ## The terminal
 

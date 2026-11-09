@@ -45,6 +45,7 @@ lazybw config --check           validate config.toml; exit code 1 on errors
 | Variable | Effect |
 |---|---|
 | `LAZYBW_BW` | path to `bw`, used when `bw.path` is empty |
+| `LAZYBW_LOG` | how much goes into the log: `info` (the default), `debug`, `trace`, `warn`, `error` or `off` |
 | `BW_SESSION` | reused only with `bw.inherit_session = true` |
 | `BITWARDENCLI_APPDATA_DIR` | passed on to `bw` (its data directory) |
 | `VISUAL`, `EDITOR` | the editor for `Ctrl-e` and `gE`, unless `editor.command` is set |
