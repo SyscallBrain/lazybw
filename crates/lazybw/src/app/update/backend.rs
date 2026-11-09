@@ -551,7 +551,6 @@ pub(crate) fn on_backend(
 }
 
 pub(crate) fn on_suspended(state: &mut AppState, result: Suspended) -> Vec<Effect> {
-    state.suspended = false;
     match result {
         Suspended::Login(Some(key)) => vec![Effect::SetSession(key)],
         Suspended::Login(None) => {
