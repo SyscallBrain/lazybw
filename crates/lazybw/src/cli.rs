@@ -430,32 +430,12 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     let (location, locate_error) =
         match locate::locate_cached(&config.bw.path, Some(&paths.bw_version_file())) {
             Ok(location) => (Some(location), None),
-            Err(err) => (None, Some(err.to_string())),
+            Err(err) => (None, Some(err)),
         };
     // A configuration error is shown first: fixing config.toml (which may
     // well be what sets bw.path) comes before installing the CLI.
     if let Some(error) = locate_error.filter(|_| app.state.error().is_none()) {
-        app.state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
-            title: "Bitwarden CLI not found".to_owned(),
-            lines: vec![
-                "lazybw needs the official Bitwarden CLI (bw) 2025.9.0 or newer.".to_owned(),
-                String::new(),
-                "Install it with one of:".to_owned(),
-                "  npm install -g @bitwarden/cli".to_owned(),
-                "  your distribution's package (bitwarden-cli)".to_owned(),
-                String::new(),
-                "Searched: bw.path (unset) · $LAZYBW_BW (unset) · $PATH".to_string(),
-                error,
-                String::new(),
-                // lazybw looks for bw once, at start-up, so a retry here
-                // could only fail again.
-                "Then start lazybw again.".to_owned(),
-            ],
-            detail: Vec::new(),
-            actions: "q quit".to_owned(),
-            retry: false,
-            open_file: None,
-        })));
+        app.state.enter_session(SessionPhase::Failed(Box::new(locate_error_screen(&error))));
     }
     if let Some(location) = &location {
         app.state.bw_path = Some(location.path.clone());
@@ -912,4 +892,102 @@ fn run_suspended(task: SuspendTask, editor: &str) -> Suspended {
 fn locate_path() -> Option<PathBuf> {
     let config = Config::load(&Paths::resolve().config_file()).ok()?.0;
     locate::locate(&config.bw.path).ok().map(|location| location.path)
+}
+
+/// The start-up screen for a CLI that could not be found or used. lazybw
+/// looks for `bw` once, at start-up, so none of them offers a retry.
+fn locate_error_screen(error: &locate::LocateError) -> crate::app::state::ErrorScreen {
+    use locate::LocateError;
+    let needs =
+        format!("lazybw needs the official Bitwarden CLI (bw) {} or newer.", locate::MIN_VERSION);
+    let (title, mut lines) = match error {
+        LocateError::NotFound { configured, env } => {
+            let shown = |path: &Option<PathBuf>| {
+                path.as_ref().map_or_else(|| "unset".to_owned(), |p| p.display().to_string())
+            };
+            (
+                "Bitwarden CLI not found",
+                vec![
+                    needs,
+                    String::new(),
+                    "Install it with one of:".to_owned(),
+                    "  npm install -g @bitwarden/cli".to_owned(),
+                    "  your distribution's package (bitwarden-cli)".to_owned(),
+                    String::new(),
+                    format!(
+                        "Searched: bw.path ({}) · $LAZYBW_BW ({}) · $PATH",
+                        shown(configured),
+                        shown(env)
+                    ),
+                ],
+            )
+        }
+        LocateError::TooOld(version) => (
+            "Bitwarden CLI too old",
+            vec![
+                format!("Found bw {version}. lazybw needs {} or newer.", locate::MIN_VERSION),
+                String::new(),
+                "Update it with one of:".to_owned(),
+                "  npm update -g @bitwarden/cli".to_owned(),
+                "  your distribution's package (bitwarden-cli)".to_owned(),
+            ],
+        ),
+        LocateError::NotExecutable { .. } | LocateError::UnparseableVersion(_) => {
+            ("Bitwarden CLI not usable", vec![needs, String::new(), error.to_string()])
+        }
+    };
+    lines.extend([String::new(), "Then start lazybw again.".to_owned()]);
+    crate::app::state::ErrorScreen {
+        title: title.to_owned(),
+        lines,
+        detail: Vec::new(),
+        actions: "q quit".to_owned(),
+        retry: false,
+        open_file: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::locate_error_screen;
+    use crate::bw::locate::LocateError;
+    use std::path::PathBuf;
+
+    #[test]
+    fn a_missing_cli_lists_where_lazybw_looked() {
+        let screen = locate_error_screen(&LocateError::NotFound {
+            configured: Some(PathBuf::from("/opt/bw/bin/bw")),
+            env: None,
+        });
+        assert_eq!(screen.title, "Bitwarden CLI not found");
+        assert!(
+            screen.lines.contains(
+                &"Searched: bw.path (/opt/bw/bin/bw) · $LAZYBW_BW (unset) · $PATH".to_owned()
+            ),
+            "{:?}",
+            screen.lines
+        );
+        assert!(!screen.retry);
+    }
+
+    #[test]
+    fn an_old_cli_asks_for_an_update_not_an_install() {
+        let screen = locate_error_screen(&LocateError::TooOld(semver::Version::new(2025, 6, 0)));
+        assert_eq!(screen.title, "Bitwarden CLI too old");
+        let text = screen.lines.join("\n");
+        assert!(text.contains("Found bw 2025.6.0. lazybw needs"), "{text}");
+        assert!(text.contains("npm update -g @bitwarden/cli"), "{text}");
+        assert!(!text.contains("Searched:") && !text.contains("npm install"), "{text}");
+    }
+
+    #[test]
+    fn a_cli_that_cannot_run_shows_the_reason() {
+        let screen = locate_error_screen(&LocateError::NotExecutable {
+            path: PathBuf::from("/usr/bin/bw"),
+            message: "Permission denied".to_owned(),
+        });
+        assert_eq!(screen.title, "Bitwarden CLI not usable");
+        assert!(screen.lines.contains(&"Could not run /usr/bin/bw: Permission denied".to_owned()));
+        assert_eq!(screen.lines.last().map(String::as_str), Some("Then start lazybw again."));
+    }
 }

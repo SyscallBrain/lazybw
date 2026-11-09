@@ -116,12 +116,16 @@ Logo in `accent`, diamond in `type.note`. Shown at most until `bw serve` answers
 │                                                                  │
 │ Searched: bw.path (unset) · $LAZYBW_BW (unset) · $PATH           │
 │                                                                  │
-│ r retry   q quit                                                 │
+│ Then start lazybw again.                                         │
+│                                                                  │
+│ q quit                                                           │
 ╰──────────────────────────────────────────────────────────────────╯
 ```
-Variants: **bw too old** ("Found bw 2025.6.0. Update it with `npm update -g @bitwarden/cli`."),
-**config error** (path, line and column, message, `e` opens the config in `$EDITOR`, `r` retry),
-**serve keeps failing** (last 20 redacted stderr lines, log path).
+`bw.path` and `$LAZYBW_BW` show their values when set. lazybw looks for `bw` once, at start-up, so
+these screens have no retry. Variants: **bw too old** ("Found bw 2025.6.0. lazybw needs 2025.9.0 or
+newer.", then `npm update -g @bitwarden/cli`), **bw not usable** (it could not be run, or its version
+could not be read), **config error** (path, line and column, message, `e` opens the config in
+`$EDITOR`, `r` retry), **serve keeps failing** (last 20 redacted stderr lines, log path).
 
 ### 4.3 Login
 
