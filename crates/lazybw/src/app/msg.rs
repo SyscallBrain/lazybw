@@ -45,6 +45,9 @@ pub enum Msg {
     Resize(u16, u16),
     /// One-second tick.
     Tick,
+    /// A pending key sequence reached its deadline: which-key opens, or an
+    /// ambiguous sequence resolves after `timeoutlen`.
+    KeyTimer,
     /// A result from the backend.
     Backend(BackendEvent),
     /// The config or a theme changed on disk.

@@ -487,6 +487,7 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     let mut result: color_eyre::Result<()> = Ok(());
 
     'outer: loop {
+        let key_deadline = app.state.key_deadline();
         tokio::select! {
             maybe = input_rx.recv() => {
                 let Some(msg) = maybe else { break };
@@ -516,6 +517,17 @@ async fn run_tui_async() -> color_eyre::Result<()> {
                 let mut effects = effects;
                 effects.extend(pending);
                 pending = Vec::new();
+                if let Some(quit) = handle_suspended_effects(&mut app, &mut terminal, &config, &input_thread, &mut sigusr1, effects).await
+                    && quit {
+                        break 'outer;
+                    }
+                redraw_now(&mut app, &mut terminal)?;
+            }
+            () = tokio::time::sleep_until(tokio::time::Instant::from_std(
+                key_deadline.unwrap_or_else(std::time::Instant::now),
+            )), if key_deadline.is_some() => {
+                let mut effects = app.handle(Msg::KeyTimer).await;
+                effects.extend(std::mem::take(&mut pending));
                 if let Some(quit) = handle_suspended_effects(&mut app, &mut terminal, &config, &input_thread, &mut sigusr1, effects).await
                     && quit {
                         break 'outer;
