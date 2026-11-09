@@ -93,6 +93,10 @@ impl fmt::Display for TotpError {
 
 impl std::error::Error for TotpError {}
 
+/// The shortest key accepted: 80 bits, the length most sites issue, as
+/// Bitwarden accepts it. RFC 4226 asks for 128.
+const MIN_SECRET_BITS: usize = 80;
+
 /// Parses a stored authenticator key into a TOTP generator.
 pub fn parse(secret: &str) -> Result<Totp, TotpError> {
     let secret = secret.trim();
@@ -101,7 +105,20 @@ pub fn parse(secret: &str) -> Result<Totp, TotpError> {
     }
     let lower = secret.to_ascii_lowercase();
     if lower.starts_with("otpauth://") {
-        return Totp::from_url(secret).map_err(|e| TotpError::InvalidUrl(e.to_string()));
+        return match Totp::from_url(secret) {
+            // totp-rs wants the 128 bits of RFC 4226, but many sites issue
+            // 80-bit keys. Its other checks (digits, issuer) came first and
+            // passed; the period, checked after the length, is checked here.
+            Err(totp_rs::TotpError::SecretTooShort { bits }) if bits >= MIN_SECRET_BITS => {
+                let totp = Totp::from_url_unchecked(secret)
+                    .map_err(|e| TotpError::InvalidUrl(e.to_string()))?;
+                if totp.step() == 0 {
+                    return Err(TotpError::InvalidUrl("the period is 0".to_owned()));
+                }
+                Ok(totp)
+            }
+            result => result.map_err(|e| TotpError::InvalidUrl(e.to_string())),
+        };
     }
     let (raw, steam) = if let Some(rest) = lower.strip_prefix("steam://") {
         (rest.to_owned(), true)
@@ -109,7 +126,7 @@ pub fn parse(secret: &str) -> Result<Totp, TotpError> {
         (secret.to_owned(), false)
     };
     let bytes = decode_base32(&raw).map_err(TotpError::InvalidBase32)?;
-    if bytes.len() < 10 {
+    if bytes.len() * 8 < MIN_SECRET_BITS {
         return Err(TotpError::Invalid("secret too short".to_owned()));
     }
     let builder = if steam {
@@ -117,12 +134,14 @@ pub fn parse(secret: &str) -> Result<Totp, TotpError> {
     } else {
         Builder::new().with_secret(bytes).with_algorithm(Algorithm::SHA1).with_digits(6)
     };
-    builder
+    // The digits and the period are fixed above and valid, and the length
+    // was checked against our own minimum: totp-rs's 128-bit rule would
+    // refuse the 80-bit keys many sites issue.
+    Ok(builder
         .with_account_name(if steam { "steam" } else { "lazybw" })
         .with_step_duration(30)
         .with_skew(1)
-        .build()
-        .map_err(|e| TotpError::Invalid(e.to_string()))
+        .build_noncompliant())
 }
 
 /// Computes the code at `unix_time`.
@@ -261,6 +280,27 @@ mod tests {
         assert!(matches!(parse("not base32!"), Err(TotpError::InvalidBase32(_))));
         assert!(!is_valid("abc"));
         assert!(is_valid("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"));
+    }
+
+    /// Many sites issue 80-bit keys (16 Base32 characters), below the
+    /// 128 bits RFC 4226 asks for. The codes were checked with Python's
+    /// `hmac` against the RFC 6238 algorithm.
+    #[test]
+    fn an_80_bit_key_gives_the_right_codes() {
+        for (time, expected) in
+            [(59u64, "996554"), (1_111_111_109, "071271"), (2_000_000_000, "890699")]
+        {
+            assert_eq!(current("JBSWY3DPEHPK3PXP", time).unwrap().code, expected, "t={time}");
+        }
+        let url = "otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example";
+        assert_eq!(code_at(&parse(url).unwrap(), 59).code, "996554");
+    }
+
+    #[test]
+    fn keys_under_80_bits_and_a_zero_period_are_refused() {
+        assert!(parse("GEZDGNBVGY").is_err(), "48 bits");
+        assert!(parse("otpauth://totp/x?secret=GEZDGNBVGY").is_err(), "48 bits");
+        assert!(parse("otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=0").is_err());
     }
 
     #[test]

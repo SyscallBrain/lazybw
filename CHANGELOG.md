@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and errors; `LAZYBW_LOG=debug` adds the error output of `bw`. The file is
   readable only by you, and when it passes 1 MiB it is moved to
   `lazybw.log.1` at the next start.
+- Verification codes work for authenticator keys of 16 characters (80
+  bits), which many sites issue. lazybw refused them as too short, because
+  the TOTP library asks for 128 bits; keys under 80 bits are still refused.
 
 ## [1.1.0] - 2026-11-09
 
