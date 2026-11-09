@@ -5,13 +5,39 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please do not paste passwords, notes or other vault contents. For a
-        security problem, use a private advisory instead (see SECURITY.md).
+        Thanks for taking the time. A few things first:
+
+        - Please do not paste passwords, notes or other vault contents.
+        - For a security problem, use a [private advisory](https://github.com/SyscallBrain/lazybw/security/advisories/new) instead (see SECURITY.md).
+        - [Troubleshooting](https://syscallbrain.github.io/lazybw/troubleshooting.html) covers colours, icons, key combinations and the clipboard.
+  - type: input
+    id: version
+    attributes:
+      label: lazybw version
+      description: The output of `lazybw --version`.
+      placeholder: lazybw 1.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install lazybw?
+      options:
+        - AUR (lazybw or lazybw-bin)
+        - .deb package
+        - .rpm package
+        - Release tarball
+        - Docker image
+        - cargo install
+        - Built from a clone of the repository
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: What you did, what you expected, and what happened instead.
+      description: What you did, what you expected, and what happened instead. A screenshot helps with drawing problems.
     validations:
       required: true
   - type: textarea
@@ -25,8 +51,21 @@ body:
     id: doctor
     attributes:
       label: Output of `lazybw doctor`
-      description: Remove your email address if you prefer.
+      description: It includes your email address and server URL; remove them if you prefer.
       render: text
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Last lines of the log
+      description: From `~/.local/state/lazybw/lazybw.log` (the path is also in the `doctor` output). It holds no vault data.
+      render: text
+  - type: input
+    id: os
+    attributes:
+      label: Distribution
+      placeholder: Arch Linux, Ubuntu 24.04, Termux …
     validations:
       required: true
   - type: input
