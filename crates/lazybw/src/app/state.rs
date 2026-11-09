@@ -48,15 +48,11 @@ pub enum Screen {
 }
 
 impl Screen {
-    /// The statusline mode name.
+    /// True for the screens that belong to a session phase rather than to
+    /// the open vault: they come and go with [`SessionPhase`].
     #[must_use]
-    pub fn mode_name(self) -> &'static str {
-        match self {
-            Self::Starting | Self::Error | Self::Vault | Self::Generator | Self::Health => "NORMAL",
-            Self::Login | Self::Unlock => "NORMAL",
-            Self::Editor => "NORMAL",
-            Self::Settings | Self::KeymapEditor | Self::Help | Self::Messages => "NORMAL",
-        }
+    pub fn is_session_screen(self) -> bool {
+        matches!(self, Self::Starting | Self::Error | Self::Login | Self::Unlock)
     }
 
     /// True for the three tabs.
@@ -152,7 +148,17 @@ impl Focus {
     }
 }
 
-/// The session phase.
+/// The session lifecycle (`docs/bw-integration.md` §3).
+///
+/// ```text
+/// Starting ──▶ LoggedOut ──login──▶ Locked ──unlock──▶ Loading ──vault──▶ Ready
+///    │             ▲                 ▲  ▲                 │                 │
+///    │             └──── logout ─────┘  └───── lock, auto-lock, "locked" ───┘
+///    └──▶ Failed: start-up or fatal CLI error; `r` retries from Starting
+/// ```
+///
+/// Runtime code changes it with [`AppState::enter_session`], which keeps the
+/// screen and the decrypted data in memory in step with the phase.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionPhase {
     /// Connecting to `bw`.
@@ -165,8 +171,9 @@ pub enum SessionPhase {
     Loading,
     /// Unlocked and loaded.
     Ready,
-    /// A fatal error.
-    Failed(String),
+    /// Stopped on an error the user has to act on (retry, edit the config,
+    /// quit).
+    Failed(Box<ErrorScreen>),
 }
 
 impl SessionPhase {
@@ -174,6 +181,25 @@ impl SessionPhase {
     #[must_use]
     pub fn is_ready(&self) -> bool {
         matches!(self, Self::Ready)
+    }
+
+    /// True in the phases where decrypted vault data may be in memory.
+    #[must_use]
+    pub fn holds_vault_data(&self) -> bool {
+        matches!(self, Self::Loading | Self::Ready)
+    }
+
+    /// The screen that shows this phase. `None` while the vault is open,
+    /// where the user chooses the screen.
+    #[must_use]
+    pub fn screen(&self) -> Option<Screen> {
+        match self {
+            Self::Starting => Some(Screen::Starting),
+            Self::LoggedOut => Some(Screen::Login),
+            Self::Locked => Some(Screen::Unlock),
+            Self::Failed(_) => Some(Screen::Error),
+            Self::Loading | Self::Ready => None,
+        }
     }
 }
 
@@ -309,49 +335,129 @@ impl Action {
 pub struct UnlockState {
     /// The masked password.
     pub password: crate::input::secret::SecretInput,
-    /// Unlocking in progress.
-    pub busy: bool,
     /// Error message.
     pub error: Option<String>,
     /// Shake animation start.
     pub shake: Option<Instant>,
 }
 
+/// The server choices on the login screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LoginServer {
+    /// bitwarden.com.
+    #[default]
+    UnitedStates,
+    /// bitwarden.eu.
+    EuropeanUnion,
+    /// A server URL the user types.
+    SelfHosted,
+}
+
+impl LoginServer {
+    /// In screen order.
+    pub const ALL: [Self; 3] = [Self::UnitedStates, Self::EuropeanUnion, Self::SelfHosted];
+
+    /// The next choice down the list, wrapping.
+    #[must_use]
+    pub fn next(self) -> Self {
+        cycle(&Self::ALL, self, true)
+    }
+
+    /// The next choice up the list, wrapping.
+    #[must_use]
+    pub fn prev(self) -> Self {
+        cycle(&Self::ALL, self, false)
+    }
+}
+
+/// The login methods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LoginMethod {
+    /// Email and master password, through `bw login` in the terminal.
+    #[default]
+    Password,
+    /// Single sign-on, through `bw login --sso` in the terminal.
+    Sso,
+    /// A personal API key, typed into lazybw's own form.
+    ApiKey,
+}
+
+impl LoginMethod {
+    /// In screen order.
+    pub const ALL: [Self; 3] = [Self::Password, Self::Sso, Self::ApiKey];
+
+    /// The next choice down the list, wrapping.
+    #[must_use]
+    pub fn next(self) -> Self {
+        cycle(&Self::ALL, self, true)
+    }
+
+    /// The next choice up the list, wrapping.
+    #[must_use]
+    pub fn prev(self) -> Self {
+        cycle(&Self::ALL, self, false)
+    }
+}
+
+/// The part of the login screen that receives keys.
+///
+/// ```text
+/// Server ⇄ Method ──Enter (API key)──▶ ClientId ⇄ ClientSecret
+///   │ Enter on "Self-hosted" with no URL      Esc ◀──┘
+///   ▼
+/// ServerUrl ──Enter/Esc──▶ Server
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LoginFocus {
+    /// The server list (`j`/`k` choose).
+    #[default]
+    Server,
+    /// Typing the self-hosted server URL.
+    ServerUrl,
+    /// The method list (`j`/`k` choose).
+    Method,
+    /// The API key form, client id field.
+    ClientId,
+    /// The API key form, client secret field.
+    ClientSecret,
+}
+
 /// The login screen state.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LoginState {
-    /// Which box has focus.
-    pub box_index: usize,
-    /// Chosen server index (0 US, 1 EU, 2 self-hosted).
-    pub server_index: usize,
+    /// What receives keys.
+    pub focus: LoginFocus,
+    /// The chosen server.
+    pub server: LoginServer,
     /// Self-hosted URL input.
     pub server_input: String,
-    /// Chosen method index (0 password, 1 SSO, 2 API key).
-    pub method_index: usize,
-    /// API key form.
+    /// The chosen method.
+    pub method: LoginMethod,
+    /// API key form: client id.
     pub client_id: String,
-    /// API key secret.
+    /// API key form: client secret.
     pub client_secret: crate::input::secret::SecretInput,
-    /// API-key form focus.
-    pub form_index: usize,
-    /// Editing the server URL.
-    pub editing_server: bool,
     /// Error message.
     pub error: Option<String>,
-    /// Busy.
-    pub busy: bool,
 }
 
 impl LoginState {
     /// The chosen server URL.
     #[must_use]
     pub fn server_url(&self) -> &str {
-        match self.server_index {
-            0 => "https://vault.bitwarden.com",
-            1 => "https://vault.bitwarden.eu",
-            _ => self.server_input.trim(),
+        match self.server {
+            LoginServer::UnitedStates => "https://vault.bitwarden.com",
+            LoginServer::EuropeanUnion => "https://vault.bitwarden.eu",
+            LoginServer::SelfHosted => self.server_input.trim(),
         }
     }
+}
+
+/// The entry after (or before) `current` in `all`, wrapping around.
+fn cycle<T: Copy + PartialEq>(all: &[T], current: T, forward: bool) -> T {
+    let index = all.iter().position(|item| *item == current).unwrap_or(0);
+    let next = if forward { index + 1 } else { index + all.len() - 1 };
+    all[next % all.len()]
 }
 
 /// The startup error screen.
@@ -654,8 +760,6 @@ pub struct HealthState {
     pub index: usize,
     /// Offset.
     pub offset: usize,
-    /// Running.
-    pub running: bool,
     /// The raw `bw` entries, kept for a re-render.
     pub raw: Vec<HealthEntry>,
     /// True when the CLI is new enough for exposure data.
@@ -910,8 +1014,6 @@ pub struct ExportState {
     pub master: crate::input::secret::SecretInput,
     /// Error.
     pub error: Option<String>,
-    /// Waiting for the CLI.
-    pub busy: bool,
 }
 
 impl ExportState {
@@ -1018,8 +1120,6 @@ pub struct ImportState {
     pub filter: String,
     /// Selected row among the filtered formats.
     pub format_index: usize,
-    /// Waiting for the CLI.
-    pub busy: bool,
 }
 
 impl ImportState {
@@ -1294,8 +1394,9 @@ pub enum Pending {
     Starting,
     /// Unlocking.
     Unlock,
-    /// A master password re-prompt, carrying the action to run on success.
-    Reprompt(Box<Action>),
+    /// Checking the password typed into the re-prompt dialog; the dialog
+    /// holds the action to run (see [`RepromptState::request`]).
+    Reprompt,
     /// Loading the vault.
     Load,
     /// Syncing.
@@ -1525,8 +1626,6 @@ pub struct AppState {
     pub unlock: UnlockState,
     /// Login screen.
     pub login: LoginState,
-    /// Startup error.
-    pub error: Option<ErrorScreen>,
     /// Clipboard.
     pub clipboard: Clipboard,
     /// What was copied, for the message.
@@ -1593,8 +1692,6 @@ pub struct AppState {
     pub suspended: bool,
     /// Selection for `:g` style jumps.
     pub last_visual: Option<(usize, usize)>,
-    /// Pending re-prompt action.
-    pub reprompt_action: Option<Action>,
     /// Item whose master password re-prompt just succeeded; consumed by the
     /// action that asked for it.
     pub reprompt_once: Option<String>,
@@ -1723,7 +1820,6 @@ impl AppState {
             messages_offset: 0,
             unlock: UnlockState::default(),
             login: LoginState::default(),
-            error: None,
             clipboard: Clipboard::system(),
             clipboard_label: None,
             toasts: Vec::new(),
@@ -1757,7 +1853,6 @@ impl AppState {
             last_sync_at: None,
             suspended: false,
             last_visual: None,
-            reprompt_action: None,
             reprompt_once: None,
             reprompt_passed: None,
             detail_item: None,
@@ -2054,15 +2149,10 @@ impl AppState {
             .as_deref()
             .and_then(crate::util::time::parse_iso)
             .or(Some(self.now));
-        // The snapshot only moves the user off a session screen (starting,
-        // unlock, login). Anywhere else (the editor opened while the first
-        // load was still on its way, a refresh, a reload after a failure)
-        // they stay where they are.
-        let first_load = matches!(self.screen, Screen::Starting | Screen::Unlock | Screen::Login);
-        self.session = SessionPhase::Ready;
-        if first_load {
-            self.screen = if self.tab == Tab::Vault { Screen::Vault } else { self.tab.screen() };
-        }
+        // Only a session screen gives way to the vault; anywhere else (the
+        // editor opened while the first load was on its way, a refresh, a
+        // reload after a failure) the user stays where they are.
+        self.enter_session(SessionPhase::Ready);
         if let Some(id) = selected {
             let rows = self.visible_rows();
             if let Some(index) = rows.iter().position(|row| row.id == id) {
@@ -2083,8 +2173,99 @@ impl AppState {
         }
     }
 
-    /// Drops every decrypted value from memory (on lock).
+    /// Moves the session to `phase`. Every session change at run time goes
+    /// through here (a test checks it), so three things always agree:
+    ///
+    /// - the screen: each phase has its own, except Loading and Ready, which
+    ///   leave a session screen for the active tab and otherwise keep the
+    ///   screen the user is on;
+    /// - the vault data in memory: leaving Loading or Ready forgets it;
+    /// - the requests in flight: only the session's own steps survive that.
+    pub fn enter_session(&mut self, phase: SessionPhase) {
+        if self.session.holds_vault_data() && !phase.holds_vault_data() {
+            self.forget_vault();
+        }
+        match phase.screen() {
+            Some(screen) => self.screen = screen,
+            None if self.screen.is_session_screen() => self.screen = self.tab.screen(),
+            None => {}
+        }
+        self.session = phase;
+        self.dirty = true;
+    }
+
+    /// Locks locally: forgets every decrypted value and shows the unlock
+    /// screen, whatever the phase was.
     pub fn drop_secrets(&mut self) {
+        if !self.session.holds_vault_data() {
+            // enter_session only forgets when leaving Loading or Ready;
+            // a lock from anywhere else still clears what may be left.
+            self.forget_vault();
+        }
+        self.enter_session(SessionPhase::Locked);
+    }
+
+    /// The startup or fatal error being shown, if the session failed.
+    #[must_use]
+    pub fn error(&self) -> Option<&ErrorScreen> {
+        match &self.session {
+            SessionPhase::Failed(error) => Some(error),
+            _ => None,
+        }
+    }
+
+    /// True while a request matching `kind` waits for its answer.
+    ///
+    /// Progress indicators ask this instead of keeping a `busy` flag of
+    /// their own, so they stop however the request ends: answered, failed
+    /// to send, or forgotten on lock.
+    #[must_use]
+    pub fn awaiting(&self, kind: impl Fn(&Pending) -> bool) -> bool {
+        self.pending.values().any(kind)
+    }
+
+    /// The master password is being checked.
+    #[must_use]
+    pub fn unlocking(&self) -> bool {
+        self.awaiting(|p| matches!(p, Pending::Unlock))
+    }
+
+    /// A login, the server URL or the session after `bw login` is being set up.
+    #[must_use]
+    pub fn logging_in(&self) -> bool {
+        self.awaiting(|p| matches!(p, Pending::Login | Pending::ConfigServer | Pending::Starting))
+    }
+
+    /// The open re-prompt dialog's password is being checked.
+    #[must_use]
+    pub fn verifying_reprompt(&self) -> bool {
+        self.reprompt()
+            .and_then(|reprompt| reprompt.request)
+            .is_some_and(|id| self.pending.contains_key(&id))
+    }
+
+    /// An export is running.
+    #[must_use]
+    pub fn exporting(&self) -> bool {
+        self.awaiting(|p| matches!(p, Pending::Export))
+    }
+
+    /// An import is running.
+    #[must_use]
+    pub fn importing(&self) -> bool {
+        self.awaiting(|p| matches!(p, Pending::Import))
+    }
+
+    /// A health check is running.
+    #[must_use]
+    pub fn checking_health(&self) -> bool {
+        self.awaiting(|p| matches!(p, Pending::Health))
+    }
+
+    /// Drops every decrypted value from memory, closes whatever showed one,
+    /// and forgets the requests whose answers would carry vault data. The
+    /// session phase is left to the caller ([`AppState::enter_session`]).
+    pub fn forget_vault(&mut self) {
         crate::vault::health::forget_strength_cache();
         self.cache.clear();
         self.undo.clear();
@@ -2095,7 +2276,6 @@ impl AppState {
         self.detail = DetailState::default();
         self.detail_item = None;
         self.overlay = None;
-        self.reprompt_action = None;
         self.reprompt_once = None;
         self.reprompt_passed = None;
         self.yanked_item = None;
@@ -2110,8 +2290,6 @@ impl AppState {
         self.folds_restored = false;
         self.selection_clear();
         self.clipboard.clear_now();
-        self.session = SessionPhase::Locked;
-        self.screen = Screen::Unlock;
         // Answers to requests sent before the lock carry vault data; forget
         // the requests so those answers are dropped when they arrive. Only
         // the session's own steps stay.
@@ -2182,8 +2360,12 @@ pub struct RepromptState {
     pub password: crate::input::secret::SecretInput,
     /// Error.
     pub error: Option<String>,
-    /// Busy.
-    pub busy: bool,
+    /// What runs once the password is right.
+    pub action: Action,
+    /// The unlock request checking the typed password, once sent. Only the
+    /// answer to this request may run the action, so an answer that comes
+    /// back after the dialog was closed (or replaced) does nothing.
+    pub request: Option<u64>,
 }
 
 /// A row of the settings overlay.

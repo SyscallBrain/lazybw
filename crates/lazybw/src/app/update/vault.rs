@@ -291,13 +291,13 @@ pub(crate) fn reprompt(state: &mut AppState, action: Action) -> Vec<Effect> {
 
 pub(crate) fn reprompt_for(state: &mut AppState, item: &Item, action: Action) -> Vec<Effect> {
     let (id, name) = (item.id.clone().unwrap_or_default(), item.name.clone());
-    state.reprompt_action = Some(action);
     state.open(RepromptState {
         item_id: id,
         item_name: name.clone(),
         password: crate::input::secret::SecretInput::new(),
         error: None,
-        busy: false,
+        action,
+        request: None,
     });
     state.message(MessageLevel::Info, format!("“{name}” asks for your master password."));
     Vec::new()

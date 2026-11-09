@@ -125,10 +125,8 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
 
 pub(crate) fn health_action(state: &mut AppState, action: Action) -> Vec<Effect> {
     match action.id.as_str() {
-        "health.rerun" => {
-            state.health.running = true;
-            vec![request(state, CommandKind::Health, Pending::Health)]
-        }
+        "health.rerun" if state.checking_health() => Vec::new(),
+        "health.rerun" => vec![request(state, CommandKind::Health, Pending::Health)],
         "health.next_category" => {
             let categories = HealthCategory::ALL;
             let index = categories.iter().position(|c| *c == state.health.category).unwrap_or(0);

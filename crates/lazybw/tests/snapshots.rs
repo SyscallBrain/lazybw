@@ -638,7 +638,7 @@ fn reprompt_popup_snapshot() {
         item_name: "Bank".into(),
         password: "secret".into(),
         error: None,
-        busy: false,
+        ..Default::default()
     });
     insta::assert_snapshot!("reprompt_popup_120x36", render(&state, 120, 36));
 }

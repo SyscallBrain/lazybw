@@ -1221,10 +1221,9 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             Vec::new()
         }
         "unlock.submit" => {
-            if state.unlock.password.is_empty() {
+            if state.unlock.password.is_empty() || state.unlocking() {
                 return Vec::new();
             }
-            state.unlock.busy = true;
             state.unlock.error = None;
             let password = state.unlock.password.take_secret();
             vec![request(state, CommandKind::Unlock(password), Pending::Unlock)]

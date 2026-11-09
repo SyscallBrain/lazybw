@@ -67,7 +67,7 @@ pub(crate) fn draw_health(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let content = inner(area);
     let width = content.width as usize;
     if state.health.report.is_none() {
-        let lines = if state.health.running {
+        let lines = if state.checking_health() {
             let count = state.cache.active_items().filter(|i| i.kind == ItemType::Login).count();
             let mut lines = vec![
                 blank(),

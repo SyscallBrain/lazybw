@@ -10,7 +10,8 @@ pub(crate) fn on_backend(
     state: &mut AppState,
     event: crate::bw::service::BackendEvent,
 ) -> Vec<Effect> {
-    let pending = state.pending.remove(&event.id);
+    let id = event.id;
+    let pending = state.pending.remove(&id);
     let mut effects = Vec::new();
     use crate::bw::service::{BwEvent, FolderAction};
     // A response with vault data whose request was forgotten (the vault was
@@ -31,7 +32,7 @@ pub(crate) fn on_backend(
         || (matches!(event.event, BwEvent::Vault(_))
             && !matches!(state.session, SessionPhase::Loading | SessionPhase::Ready));
     if carries_vault_data && stale {
-        tracing::debug!(id = event.id, "dropping a response that arrived after a lock");
+        tracing::debug!(id, "dropping a response that arrived after a lock");
         return effects;
     }
     match event.event {
@@ -43,20 +44,28 @@ pub(crate) fn on_backend(
                 state.last_sync =
                     status.last_sync.as_deref().and_then(crate::util::time::parse_iso);
                 if status.is_unlocked() {
-                    state.session = SessionPhase::Loading;
-                    state.screen = Screen::Vault;
+                    state.enter_session(SessionPhase::Loading);
                     effects.push(request(state, CommandKind::LoadVault, Pending::Load));
                 } else if status.is_locked() {
-                    state.session = SessionPhase::Locked;
-                    state.screen = Screen::Unlock;
+                    state.enter_session(SessionPhase::Locked);
                 } else {
-                    state.session = SessionPhase::LoggedOut;
-                    state.screen = Screen::Login;
+                    state.enter_session(SessionPhase::LoggedOut);
                 }
             }
             Err(err) => {
+                // Without a running CLI nothing else can happen: say so and
+                // offer a retry instead of spinning on the start screen.
                 state.backend_alive = false;
-                show_backend_error(state, &err);
+                state.enter_session(SessionPhase::Failed(Box::new(
+                    crate::app::state::ErrorScreen {
+                        title: "Couldn't start the Bitwarden CLI".to_owned(),
+                        lines: vec![err.to_string()],
+                        detail: Vec::new(),
+                        actions: "r retry   q quit".to_owned(),
+                        retry: true,
+                        open_file: None,
+                    },
+                )));
             }
         },
         BwEvent::SessionSet(result) => match result {
@@ -67,45 +76,49 @@ pub(crate) fn on_backend(
             }
             Err(err) => show_backend_error(state, &err),
         },
-        BwEvent::Unlocked(result) => match result {
-            Ok(status) => {
-                if let Some(Pending::Reprompt(action)) = pending {
-                    let item_id = state.take_reprompt().map(|r| r.item_id).unwrap_or_default();
-                    state.reprompt_action = None;
+        BwEvent::Unlocked(result) if matches!(pending, Some(Pending::Reprompt)) => {
+            // Only the request recorded in the open dialog counts: the
+            // dialog may have been closed, or replaced by another, since.
+            if state.reprompt().and_then(|reprompt| reprompt.request) != Some(id) {
+                return effects;
+            }
+            match result {
+                Ok(_) => {
+                    let Some(reprompt) = state.take_reprompt() else { return effects };
                     if let Some(grace) = state.config.security.reprompt_grace.get()
                         && !grace.is_zero()
                     {
-                        state.reprompt_passed = Some((item_id.clone(), Instant::now() + grace));
+                        state.reprompt_passed =
+                            Some((reprompt.item_id.clone(), Instant::now() + grace));
                     }
-                    state.reprompt_once = Some(item_id);
-                    effects.extend(apply(state, *action));
+                    state.reprompt_once = Some(reprompt.item_id);
+                    effects.extend(apply(state, reprompt.action));
                     state.reprompt_once = None;
-                    return effects;
                 }
-                state.unlock = UnlockState::default();
-                state.session = SessionPhase::Loading;
-                if status.is_unlocked() {
-                    state.toast(MessageLevel::Ok, "Vault unlocked.");
-                    effects.push(request(state, CommandKind::LoadVault, Pending::Load));
-                } else {
-                    state.screen = Screen::Unlock;
-                }
-            }
-            Err(err) => {
-                if let Some(Pending::Reprompt(action)) = pending {
+                Err(err) => {
                     // A wrong password keeps the dialog open with the error;
                     // the vault itself stays unlocked.
-                    state.reprompt_action = Some(*action);
                     if let Some(Overlay::Reprompt(reprompt)) = &mut state.overlay {
-                        reprompt.busy = false;
+                        reprompt.request = None;
                         reprompt.error = Some(err.to_string());
                     }
                     if !matches!(err, crate::bw::BwError::InvalidPassword) {
                         show_backend_error(state, &err);
                     }
-                    return effects;
                 }
-                state.unlock.busy = false;
+            }
+        }
+        BwEvent::Unlocked(result) => match result {
+            Ok(status) if status.is_unlocked() => {
+                state.unlock = UnlockState::default();
+                state.enter_session(SessionPhase::Loading);
+                state.toast(MessageLevel::Ok, "Vault unlocked.");
+                effects.push(request(state, CommandKind::LoadVault, Pending::Load));
+            }
+            Ok(_) => {
+                state.unlock.error = Some("The vault is still locked. Try again.".to_owned());
+            }
+            Err(err) => {
                 if matches!(err, crate::bw::BwError::InvalidPassword) {
                     state.unlock.error = Some(err.to_string());
                     state.unlock.shake = Some(Instant::now());
@@ -175,13 +188,7 @@ pub(crate) fn on_backend(
                 );
                 effects.push(Effect::SaveHistory);
             }
-            Err(err) => {
-                if err.requires_login() {
-                    state.session = SessionPhase::LoggedOut;
-                    state.screen = Screen::Login;
-                }
-                show_backend_error(state, &err);
-            }
+            Err(err) => show_backend_error(state, &err),
         },
         BwEvent::Item(result) => match result {
             Ok(item) => {
@@ -413,7 +420,6 @@ pub(crate) fn on_backend(
             }
             Err(err) => {
                 if let Some(Overlay::Export(export)) = &mut state.overlay {
-                    export.busy = false;
                     export.step = if matches!(err, crate::bw::BwError::InvalidPassword) {
                         // Ask for the master password again.
                         crate::app::state::ExportStep::MasterPassword
@@ -465,7 +471,6 @@ pub(crate) fn on_backend(
             Err(err) => {
                 state.last_import = None;
                 if let Some(Overlay::Import(import)) = &mut state.overlay {
-                    import.busy = false;
                     import.error = Some(err.to_string());
                 } else {
                     show_backend_error(state, &err);
@@ -474,7 +479,6 @@ pub(crate) fn on_backend(
         },
         BwEvent::Health(result) => match result {
             Ok(entries) => {
-                state.health.running = false;
                 let old_age = state
                     .config
                     .health
@@ -501,55 +505,46 @@ pub(crate) fn on_backend(
                 state.toast(MessageLevel::Ok, message);
             }
             Err(err) => {
-                state.health.running = false;
                 state.toast_with(MessageLevel::Error, "Health check failed.", err.to_string());
             }
         },
         BwEvent::LoggedIn(result) => match result {
             Ok(status) => {
-                state.login.busy = false;
+                state.login = Default::default();
                 state.email = status.user_email.clone();
                 state.server = status.server_url.clone();
-                state.session = SessionPhase::Locked;
-                state.screen = Screen::Unlock;
+                state.enter_session(SessionPhase::Locked);
                 state.toast(MessageLevel::Ok, "Logged in. Unlock the vault to continue.");
             }
-            Err(err) => {
-                state.login.busy = false;
-                state.login.error = Some(err.to_string());
-            }
+            Err(err) => state.login.error = Some(err.to_string()),
         },
         BwEvent::LoggedOut(result) => match result {
             Ok(()) => {
-                state.drop_secrets();
-                state.session = SessionPhase::LoggedOut;
-                state.screen = Screen::Login;
+                // Clear everything, even when logging out from the unlock
+                // screen where nothing should be left.
+                state.forget_vault();
+                state.enter_session(SessionPhase::LoggedOut);
                 state.email = None;
                 state.toast(MessageLevel::Ok, "Logged out.");
             }
             Err(err) => show_backend_error(state, &err),
         },
         BwEvent::ServerConfigured(result) => match result {
-            Ok(()) => {
-                state.login.busy = false;
-                state.message(MessageLevel::Ok, "Server saved.");
-            }
-            Err(err) => {
-                state.login.busy = false;
-                state.login.error = Some(err.to_string());
-            }
+            Ok(()) => state.message(MessageLevel::Ok, "Server saved."),
+            Err(err) => state.login.error = Some(err.to_string()),
         },
         BwEvent::Fatal(message) => {
             state.backend_alive = false;
-            state.error = Some(crate::app::state::ErrorScreen {
+            // Leaving Ready forgets the vault: a retry starts a new CLI that
+            // has to be unlocked again anyway.
+            state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
                 title: "Bitwarden CLI stopped".to_owned(),
                 lines: vec![message],
                 detail: Vec::new(),
                 actions: "r retry   q quit".to_owned(),
                 retry: true,
                 open_file: None,
-            });
-            state.screen = Screen::Error;
+            })));
         }
     }
     effects
@@ -558,19 +553,12 @@ pub(crate) fn on_backend(
 pub(crate) fn on_suspended(state: &mut AppState, result: Suspended) -> Vec<Effect> {
     state.suspended = false;
     match result {
-        Suspended::Login(Some(key)) => {
-            state.login.busy = true;
-            vec![Effect::SetSession(key)]
-        }
+        Suspended::Login(Some(key)) => vec![Effect::SetSession(key)],
         Suspended::Login(None) => {
-            state.login.busy = false;
             state.login.error = Some("Login failed.".to_owned());
             Vec::new()
         }
-        Suspended::LoginFailed => {
-            state.login.busy = false;
-            Vec::new()
-        }
+        Suspended::LoginFailed => Vec::new(),
         Suspended::Notes(text) => {
             if let Some(notes) = &state.notes {
                 notes.borrow_mut().editor =

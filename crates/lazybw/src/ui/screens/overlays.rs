@@ -299,7 +299,7 @@ pub(crate) fn draw_reprompt(
             Span::styled("●".repeat(reprompt.password.char_count().min(40)), theme.style("fg")),
             Span::styled("▏", theme.style("accent")),
         ]),
-        if reprompt.busy {
+        if state.verifying_reprompt() {
             Line::from(Span::styled(
                 format!("{} Checking…", spinner_frame(tick(state))),
                 theme.style("info"),
@@ -528,7 +528,7 @@ pub(crate) fn draw_export(
         lines.push(text_line(theme, "fg.subtle", " Enter export · Esc cancel"));
     }
     lines.push(blank());
-    if export.busy {
+    if state.exporting() {
         lines.push(Line::from(Span::styled(
             format!(" {} Exporting…", spinner_frame(tick(state))),
             theme.style("info"),
@@ -814,7 +814,7 @@ pub(crate) fn draw_import(
             ));
         }
     }
-    if import.busy {
+    if state.importing() {
         lines.push(Line::from(Span::styled(
             format!(" {} Importing…", spinner_frame(tick(state))),
             theme.style("info"),

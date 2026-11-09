@@ -88,10 +88,31 @@ impl App {
                 }
                 Effect::StartBackend { id } => {
                     self.ensure_backend().await;
-                    if let Some(backend) = &self.backend
-                        && backend.send(id, crate::bw::service::CommandKind::Start).await.is_err()
-                    {
+                    let sent = match &self.backend {
+                        Some(backend) => {
+                            backend.send(id, crate::bw::service::CommandKind::Start).await.is_ok()
+                        }
+                        None => false,
+                    };
+                    if !sent {
+                        // Nothing will answer: say so rather than leave the
+                        // start screen spinning.
                         self.state.pending.remove(&id);
+                        self.state.enter_session(state::SessionPhase::Failed(Box::new(
+                            state::ErrorScreen {
+                                title: "Bitwarden CLI unavailable".to_owned(),
+                                lines: vec![
+                                    "lazybw has no Bitwarden CLI to start in this session."
+                                        .to_owned(),
+                                    "Check that bw is installed, then start lazybw again."
+                                        .to_owned(),
+                                ],
+                                detail: Vec::new(),
+                                actions: "q quit".to_owned(),
+                                retry: false,
+                                open_file: None,
+                            },
+                        )));
                     }
                 }
                 Effect::SetSession(key) => {
@@ -156,7 +177,6 @@ impl App {
                     let _ = open::that_detached(uri);
                 }
                 Effect::RunHealth => {
-                    self.state.health.running = true;
                     let id = self.state.next_request_id;
                     self.state.next_request_id += 1;
                     self.state.pending.insert(id, state::Pending::Health);
@@ -256,7 +276,7 @@ pub mod tests {
         state.now = crate::util::time::test_now();
         state.size = (120, 36);
         state.screen = Screen::Vault;
-        state.session = SessionPhase::Ready;
+        state.enter_session(SessionPhase::Ready);
         state.email = Some("you@example.com".to_owned());
         state.server = Some("vault.bitwarden.eu".to_owned());
         state
