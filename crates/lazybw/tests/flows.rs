@@ -1339,3 +1339,26 @@ async fn settings_move_with_ctrl_n_and_ctrl_p() {
     assert_eq!(app.app.state.settings.index, before + 1);
     assert!(app.app.state.quick_open().is_none(), "Ctrl-p opened quick open");
 }
+
+#[tokio::test]
+async fn a_new_item_saved_after_using_the_generator_is_clean() {
+    use lazybw::app::state::FormKey;
+    let mut app = ready_app().await;
+    let before = app.fake_names().len();
+    app.keys("al").await;
+    app.keys("iLinear<Tab><Tab>jane@example.com<Tab>").await;
+    app.keys("<C-g>").await;
+    app.wait_idle().await;
+    let generated = app.app.state.generator.output.clone();
+    app.keys("<CR>").await; // only the form row changes here
+    app.keys("<C-s>").await;
+    app.wait_idle().await;
+    let editor = app.app.state.editor.as_ref().expect("the editor stays open");
+    assert!(!editor.dirty, "the saved item is still marked as changed");
+    assert_eq!(editor_row_value(&app, FormKey::Password).as_deref(), Some(generated.as_str()));
+    assert_eq!(app.fake_names().len(), before + 1);
+    // q closes without asking to save again.
+    app.keys("q").await;
+    assert!(app.app.state.confirm().is_none(), "q asked about unsaved changes");
+    assert!(app.app.state.editor.is_none());
+}
