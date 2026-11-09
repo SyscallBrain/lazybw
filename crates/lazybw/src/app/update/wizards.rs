@@ -1,8 +1,8 @@
 //! Export and import wizards.
 
 use super::{
-    AppState, BTreeSet, CommandKind, Effect, ExportFormat, ImportRequest, Item, Key, Overlay,
-    PathBuf, Pending, Screen, ctrl_np_as_arrows, request,
+    AppState, BTreeSet, CommandKind, Effect, ExportFormat, ImportPreview, ImportRequest,
+    ImportStep, Item, Key, Overlay, PathBuf, Pending, Screen, ctrl_np_as_arrows, request,
 };
 
 pub(crate) fn open_export(state: &mut AppState, args: &[String]) -> Vec<Effect> {
@@ -25,7 +25,7 @@ pub(crate) fn open_export(state: &mut AppState, args: &[String]) -> Vec<Effect> 
         .display()
         .to_string()
     });
-    state.open(crate::app::state::ExportState { step: 0, format, path, ..Default::default() });
+    state.open(crate::app::state::ExportState { format, path, ..Default::default() });
     state.screen = Screen::Vault;
     Vec::new()
 }
@@ -52,7 +52,7 @@ pub(crate) fn open_import(state: &mut AppState, args: &[String]) -> Vec<Effect> 
     let path = args.get(1).cloned().unwrap_or_default();
     let format_index = formats.iter().position(|f| *f == format).unwrap_or(0);
     // With a format given on the command line, start at the file step.
-    let step = usize::from(!args.is_empty());
+    let step = if args.is_empty() { ImportStep::Format } else { ImportStep::Path };
     state.open(crate::app::state::ImportState {
         step,
         format,
@@ -65,101 +65,67 @@ pub(crate) fn open_import(state: &mut AppState, args: &[String]) -> Vec<Effect> 
 }
 
 pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
+    use crate::app::state::ExportStep::{
+        ConfirmPassword, Destination, FilePassword, Format, MasterPassword,
+    };
     use crate::config::keymap::Code;
     let key = ctrl_np_as_arrows(key);
     let Some(Overlay::Export(export)) = &mut state.overlay else { return Vec::new() };
-    match key.code {
-        Code::Esc => {
-            state.take_export();
-            return Vec::new();
+    if key.code == Code::Esc {
+        state.overlay = None;
+        return Vec::new();
+    }
+    // While the CLI works the wizard only shows progress; Esc still closes it.
+    if export.busy {
+        return Vec::new();
+    }
+    match (export.step, key.code) {
+        (Format, Code::Char('j') | Code::Down) => export.format = next_format(export.format, true),
+        (Format, Code::Char('k') | Code::Up) => export.format = next_format(export.format, false),
+        (Format, Code::Tab | Code::BackTab) => export.step = Destination,
+        (Destination, Code::Tab) => export.path = complete_path(&export.path),
+        (Destination, Code::BackTab) => export.step = Format,
+        (FilePassword, Code::Tab | Code::BackTab) => export.step = ConfirmPassword,
+        (ConfirmPassword, Code::Tab | Code::BackTab) => export.step = FilePassword,
+        (Format | Destination, Code::Enter) => {
+            export.error = None;
+            export.step =
+                if export.format.needs_password() { FilePassword } else { MasterPassword };
         }
-        Code::Tab if export.step == 0 && export.focus == 1 => {
-            export.path = complete_path(&export.path);
-            return Vec::new();
-        }
-        Code::Tab | Code::BackTab => {
-            export.focus = (export.focus + 1) % 2;
-            return Vec::new();
-        }
-        Code::Char('j') | Code::Down => {
-            if export.step == 0 && export.focus == 0 {
-                export.format = next_format(export.format, true);
-            }
-            return Vec::new();
-        }
-        Code::Char('k') | Code::Up => {
-            if export.step == 0 && export.focus == 0 {
-                export.format = next_format(export.format, false);
-            }
-            return Vec::new();
-        }
-        Code::Enter => {
-            let step = export.step;
-            if step == 0 {
-                export.step = if export.format.needs_password() { 1 } else { 2 };
-            } else if step == 1 {
-                if export.password != export.confirmation {
-                    export.error = Some("The passwords do not match.".to_owned());
-                } else if export.password.is_empty() {
-                    export.error = Some("Enter a file password.".to_owned());
-                } else {
-                    export.error = None;
-                    export.step = 2;
-                }
+        (FilePassword | ConfirmPassword, Code::Enter) => {
+            if export.password != export.confirmation {
+                export.error = Some("The passwords do not match.".to_owned());
+            } else if export.password.is_empty() {
+                export.error = Some("Enter a file password.".to_owned());
             } else {
-                if export.busy {
-                    return Vec::new();
-                }
-                if export.master.is_empty() {
-                    export.error = Some("Enter your master password.".to_owned());
-                    return Vec::new();
-                }
-                let format = export.format;
-                let destination = PathBuf::from(shellexpand_home(&export.path));
-                let password = (format == ExportFormat::PasswordProtectedJson)
-                    .then(|| export.password.to_secret());
-                let master = export.master.take_secret();
                 export.error = None;
-                // The wizard stays open until the CLI answers, so a wrong
-                // master password is shown in place.
-                export.busy = true;
-                return vec![request(
-                    state,
-                    CommandKind::Export { format, destination, password, master },
-                    Pending::Export,
-                )];
+                export.step = MasterPassword;
             }
-            return Vec::new();
         }
-        Code::Backspace => {
-            match (export.step, export.focus) {
-                (0, 0) => {}
-                (1, 0) => {
-                    export.password.pop();
-                }
-                (1, 1) => {
-                    export.confirmation.pop();
-                }
-                (2, _) => {
-                    export.master.pop();
-                }
-                _ => {
-                    export.path.pop();
-                }
+        (MasterPassword, Code::Enter) => {
+            if export.master.is_empty() {
+                export.error = Some("Enter your master password.".to_owned());
+                return Vec::new();
             }
-            return Vec::new();
+            let format = export.format;
+            let destination = PathBuf::from(shellexpand_home(&export.path));
+            let password = (format == ExportFormat::PasswordProtectedJson)
+                .then(|| export.password.to_secret());
+            let master = export.master.take_secret();
+            export.error = None;
+            // The wizard stays open until the CLI answers, so a wrong
+            // master password is shown in place.
+            export.busy = true;
+            return vec![request(
+                state,
+                CommandKind::Export { format, destination, password, master },
+                Pending::Export,
+            )];
         }
-        Code::Char(c) if key.is_printable() => {
-            match (export.step, export.focus) {
-                (0, 0) => {}
-                (0, 1) => export.path.push(c),
-                (1, 0) => export.password.push(c),
-                (1, 1) => export.confirmation.push(c),
-                (2, _) => export.master.push(c),
-                _ => {}
-            }
-            return Vec::new();
-        }
+        (_, Code::Backspace) => export.backspace(),
+        // Printable keys are text in every field, `j` and `k` included;
+        // only the format list reads them as moves.
+        (_, Code::Char(c)) if key.is_printable() => export.insert(c.encode_utf8(&mut [0; 4])),
         _ => {}
     }
     Vec::new()
@@ -194,17 +160,19 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         return Vec::new();
     }
     let ctrl = key.mods.contains(Mods::CTRL);
-    match (import.step, key.code) {
-        (_, Code::Esc) => {
-            if import.step == 0 {
-                state.take_import();
-            } else {
-                import.step -= 1;
-                import.error = None;
-            }
+    match (&mut import.step, key.code) {
+        // Esc goes back a step, and closes the wizard from the first.
+        (ImportStep::Format, Code::Esc) => state.overlay = None,
+        (ImportStep::Path | ImportStep::Password, Code::Esc) => {
+            import.step = ImportStep::Format;
+            import.error = None;
         }
-        // Step 0: filterable format list.
-        (0, Code::Down | Code::Tab) | (0, Code::Char('n'))
+        (ImportStep::Preview(_), Code::Esc) => {
+            import.step = ImportStep::Path;
+            import.error = None;
+        }
+        // Step one: the filterable format list.
+        (ImportStep::Format, Code::Down | Code::Tab) | (ImportStep::Format, Code::Char('n'))
             if key.code != Code::Char('n') || ctrl =>
         {
             let len = import.filtered_formats().len();
@@ -212,7 +180,7 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 import.format_index = (import.format_index + 1) % len;
             }
         }
-        (0, Code::Up | Code::BackTab) | (0, Code::Char('p'))
+        (ImportStep::Format, Code::Up | Code::BackTab) | (ImportStep::Format, Code::Char('p'))
             if key.code != Code::Char('p') || ctrl =>
         {
             let len = import.filtered_formats().len();
@@ -220,15 +188,15 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 import.format_index = (import.format_index + len - 1) % len;
             }
         }
-        (0, Code::Backspace) => {
+        (ImportStep::Format, Code::Backspace) => {
             import.filter.pop();
             import.format_index = 0;
         }
-        (0, Code::Char(c)) if key.is_printable() => {
+        (ImportStep::Format, Code::Char(c)) if key.is_printable() => {
             import.filter.push(c);
             import.format_index = 0;
         }
-        (0, Code::Enter) => {
+        (ImportStep::Format, Code::Enter) => {
             let Some(format) =
                 import.filtered_formats().get(import.format_index).map(|f| (*f).to_owned())
             else {
@@ -236,40 +204,35 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 return Vec::new();
             };
             import.format = format;
-            import.password_focus = false;
             import.error = None;
-            import.step = 1;
+            import.step = ImportStep::Path;
         }
-        // Step 1: file (and password for protected files).
-        (1, Code::Tab | Code::BackTab) => {
-            if import.format == "bitwardenpasswordprotected" {
-                import.password_focus = !import.password_focus;
+        // Step two: the file, and the password for protected files.
+        (ImportStep::Path, Code::Tab | Code::BackTab) => {
+            if import.needs_password() {
+                import.step = ImportStep::Password;
             } else {
                 import.path = complete_path(&import.path);
             }
         }
-        (1, Code::Backspace) => {
-            if import.password_focus {
-                import.password.pop();
-            } else {
-                import.path.pop();
-            }
+        (ImportStep::Password, Code::Tab | Code::BackTab) => import.step = ImportStep::Path,
+        (ImportStep::Path, Code::Backspace) => {
+            import.path.pop();
         }
-        (1, Code::Char(c)) if key.is_printable() => {
-            if import.password_focus {
-                import.password.push(c);
-            } else {
-                import.path.push(c);
-            }
+        (ImportStep::Password, Code::Backspace) => {
+            import.password.pop();
         }
-        (1, Code::Enter) => {
+        (ImportStep::Path, Code::Char(c)) if key.is_printable() => import.path.push(c),
+        (ImportStep::Password, Code::Char(c)) if key.is_printable() => import.password.push(c),
+        (ImportStep::Path | ImportStep::Password, Code::Enter) => {
             if import.path.is_empty() {
                 import.error = Some("Enter a file path.".to_owned());
+                import.step = ImportStep::Path;
                 return Vec::new();
             }
-            if import.format == "bitwardenpasswordprotected" && import.password.is_empty() {
+            if import.needs_password() && import.password.is_empty() {
                 import.error = Some("Enter the file password.".to_owned());
-                import.password_focus = true;
+                import.step = ImportStep::Password;
                 return Vec::new();
             }
             if import.format == "bitwardenjson" {
@@ -278,20 +241,21 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                     Ok((items, folders)) => {
                         let known: BTreeSet<String> =
                             state.cache.folders().iter().map(|f| f.name.clone()).collect();
-                        import.new_folders = folders
-                            .iter()
-                            .map(|f| f.name.clone())
-                            .filter(|name| !known.contains(name))
-                            .collect();
-                        import.duplicates = crate::vault::dupes::find(&state.cache, &items);
-                        import.skip = import.duplicates.iter().map(|d| d.index).collect();
-                        import.skip_enabled = !import.duplicates.is_empty();
-                        import.count = items.len();
-                        import.preview = items;
-                        import.folders = folders;
-                        import.index = 0;
+                        let duplicates = crate::vault::dupes::find(&state.cache, &items);
+                        import.step = ImportStep::Preview(ImportPreview {
+                            new_folders: folders
+                                .iter()
+                                .map(|f| f.name.clone())
+                                .filter(|name| !known.contains(name))
+                                .collect(),
+                            skip: duplicates.iter().map(|d| d.index).collect(),
+                            skip_enabled: !duplicates.is_empty(),
+                            duplicates,
+                            items,
+                            folders,
+                            index: 0,
+                        });
                         import.error = None;
-                        import.step = 2;
                     }
                     Err(err) => import.error = Some(err),
                 }
@@ -299,31 +263,35 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             }
             return start_import(state);
         }
-        // Step 2: preview.
-        (2, Code::Char('j') | Code::Down) => {
-            if import.index + 1 < import.duplicates.len() {
-                import.index += 1;
+        // Step three: the preview.
+        (ImportStep::Preview(preview), Code::Char('j') | Code::Down) => {
+            if preview.index + 1 < preview.duplicates.len() {
+                preview.index += 1;
             }
         }
-        (2, Code::Char('k') | Code::Up) => import.index = import.index.saturating_sub(1),
-        (2, Code::Char('x' | ' ')) => {
-            if let Some(duplicate) = import.duplicates.get(import.index) {
+        (ImportStep::Preview(preview), Code::Char('k') | Code::Up) => {
+            preview.index = preview.index.saturating_sub(1);
+        }
+        (ImportStep::Preview(preview), Code::Char('x' | ' ')) => {
+            if let Some(duplicate) = preview.duplicates.get(preview.index) {
                 let index = duplicate.index;
-                if !import.skip.remove(&index) {
-                    import.skip.insert(index);
+                if !preview.skip.remove(&index) {
+                    preview.skip.insert(index);
                 }
             }
         }
-        (2, Code::Char('a')) => {
-            let all = import.duplicates.iter().all(|d| import.skip.contains(&d.index));
-            import.skip = if all {
+        (ImportStep::Preview(preview), Code::Char('a')) => {
+            let all = preview.duplicates.iter().all(|d| preview.skip.contains(&d.index));
+            preview.skip = if all {
                 BTreeSet::new()
             } else {
-                import.duplicates.iter().map(|d| d.index).collect()
+                preview.duplicates.iter().map(|d| d.index).collect()
             };
         }
-        (2, Code::Char('s')) => import.skip_enabled = !import.skip_enabled,
-        (2, Code::Enter) => return start_import(state),
+        (ImportStep::Preview(preview), Code::Char('s')) => {
+            preview.skip_enabled = !preview.skip_enabled;
+        }
+        (ImportStep::Preview(_), Code::Enter) => return start_import(state),
         _ => {}
     }
     Vec::new()
@@ -336,25 +304,30 @@ pub(crate) fn start_import(state: &mut AppState) -> Vec<Effect> {
     let format = import.format.clone();
     let mut path = PathBuf::from(shellexpand_home(&import.path));
     let mut temporary = false;
-    let skipped = if import.step == 2 && import.skip_enabled { import.skip.len() } else { 0 };
-    if skipped > 0 {
-        match write_filtered_import(&import.preview, &import.folders, &import.skip) {
-            Ok(filtered) => {
-                path = filtered;
-                temporary = true;
-            }
-            Err(err) => {
-                import.error = Some(err);
-                return Vec::new();
-            }
+    let preview = import.preview();
+    let skipped = preview.map_or(0, ImportPreview::skipped);
+    // Only the preview knows what the file holds; other formats report the
+    // CLI's own message.
+    let counts = preview.map(|preview| (preview.items.len().saturating_sub(skipped), skipped));
+    let filtered = preview
+        .filter(|_| skipped > 0)
+        .map(|preview| write_filtered_import(&preview.items, &preview.folders, &preview.skip));
+    match filtered {
+        Some(Ok(filtered)) => {
+            path = filtered;
+            temporary = true;
         }
+        Some(Err(err)) => {
+            import.error = Some(err);
+            return Vec::new();
+        }
+        None => {}
     }
-    let password = (format == "bitwardenpasswordprotected").then(|| import.password.take_secret());
+    state.last_import = counts;
+    let password = import.needs_password().then(|| import.password.take_secret());
     let password_protected = password.is_some();
     import.busy = true;
     import.error = None;
-    let imported = if import.step == 2 { import.count.saturating_sub(skipped) } else { 0 };
-    state.last_import = (import.step == 2).then_some((imported, skipped));
     vec![request(
         state,
         CommandKind::Import(ImportRequest {

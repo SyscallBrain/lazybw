@@ -33,9 +33,9 @@ use crate::app::effect::Effect;
 use crate::app::msg::{EditorTarget, Msg, SuspendTask, Suspended};
 use crate::app::state::{
     Action, AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, FormKey,
-    FormKind, FormRow, HistoryState, InfoState, MessageLevel, Overlay, Pending, PickerEntry,
-    PickerKind, PickerState, PromptState, QuickOpenState, RepromptState, Screen, SessionPhase,
-    SettingKind, SettingRow, Tab, UnlockState, WhichKeyState,
+    FormKind, FormRow, HistoryState, ImportPreview, ImportStep, InfoState, MessageLevel, Overlay,
+    Pending, PickerEntry, PickerKind, PickerState, PromptState, QuickOpenState, RepromptState,
+    Screen, SessionPhase, SettingKind, SettingRow, Tab, UnlockState, WhichKeyState,
 };
 use crate::bw::models::{
     Card, Field, FieldKind, Identity, Item, ItemType, Login, LoginUri, SshKey, UriMatch,
@@ -452,22 +452,17 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
             return Vec::new();
         }
         Some(Overlay::Export(export)) => {
-            match (export.step, export.focus) {
-                (0, 1) => export.path.push_str(first_line),
-                (1, 0) => export.password.push_str(first_line),
-                (1, 1) => export.confirmation.push_str(first_line),
-                (2, _) => export.master.push_str(first_line),
-                _ => {}
+            if !export.busy {
+                export.insert(first_line);
             }
             return Vec::new();
         }
         Some(Overlay::Import(import)) => {
-            if import.step == 1 {
-                if import.password_focus {
-                    import.password.push_str(first_line);
-                } else {
-                    import.path.push_str(first_line);
-                }
+            match import.step {
+                _ if import.busy => {}
+                ImportStep::Path => import.path.push_str(first_line),
+                ImportStep::Password => import.password.push_str(first_line),
+                ImportStep::Format | ImportStep::Preview(_) => {}
             }
             return Vec::new();
         }

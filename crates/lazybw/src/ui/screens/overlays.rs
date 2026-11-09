@@ -389,12 +389,15 @@ pub(crate) fn draw_export(
     state: &AppState,
     export: &crate::app::state::ExportState,
 ) {
+    use crate::app::state::ExportStep;
     let theme = &state.theme;
     let total = if export.format.needs_password() { 3 } else { 2 };
-    let step = match export.step {
-        0 => 1,
-        1 => 2,
-        _ => total,
+    let step = if export.step.choosing_format() {
+        1
+    } else if export.step.choosing_password() {
+        2
+    } else {
+        total
     };
     let (rect, block) = popup_frame(frame, "Export vault", theme, area, 76, 16);
     let block = block.title_top(
@@ -422,7 +425,7 @@ pub(crate) fn draw_export(
     let secret = |value: &str| {
         Line::from(Span::styled("•".repeat(value.chars().count().min(40)), theme.style("fg")))
     };
-    if export.step == 0 {
+    if export.step.choosing_format() {
         lines.push(section_label(theme, " FORMAT"));
         for format in [
             ExportFormat::Json,
@@ -440,7 +443,7 @@ pub(crate) fn draw_export(
             lines.push(fill_line(
                 vec![
                     Span::styled(
-                        if selected && export.focus == 0 { "▌" } else { " " },
+                        if selected && export.step == ExportStep::Format { "▌" } else { " " },
                         theme.style("accent"),
                     ),
                     Span::styled(
@@ -459,7 +462,7 @@ pub(crate) fn draw_export(
         }
         lines.push(section_label(theme, " DESTINATION"));
         lines.push(field(
-            export.focus == 1,
+            export.step == ExportStep::Destination,
             "File",
             Line::from(Span::styled(export.path.clone(), theme.style("fg"))),
         ));
@@ -483,15 +486,23 @@ pub(crate) fn draw_export(
             "fg.subtle",
             " j k format · Tab field / complete path · Enter next · Esc cancel",
         ));
-    } else if export.step == 1 {
+    } else if export.step.choosing_password() {
         lines.push(text_line(
             theme,
             "fg",
             " Choose a password for the file. You need it to import it again.",
         ));
         lines.push(blank());
-        lines.push(field(export.focus == 0, "Password", secret(export.password.expose())));
-        lines.push(field(export.focus == 1, "Confirm", secret(export.confirmation.expose())));
+        lines.push(field(
+            export.step == ExportStep::FilePassword,
+            "Password",
+            secret(export.password.expose()),
+        ));
+        lines.push(field(
+            export.step == ExportStep::ConfirmPassword,
+            "Confirm",
+            secret(export.confirmation.expose()),
+        ));
         if !export.password.is_empty() {
             let strength = crate::vault::health::local_strength(export.password.expose());
             let mut spans = vec![Span::raw("           ")];
@@ -534,22 +545,23 @@ pub(crate) fn draw_import(
     state: &AppState,
     import: &crate::app::state::ImportState,
 ) {
+    use crate::app::state::ImportStep;
     let theme = &state.theme;
     let title = match import.step {
-        0 => "Import · Format".to_owned(),
-        1 => "Import · File".to_owned(),
-        _ => "Import · Preview".to_owned(),
+        ImportStep::Format => "Import · Format".to_owned(),
+        ImportStep::Path | ImportStep::Password => "Import · File".to_owned(),
+        ImportStep::Preview(_) => "Import · Preview".to_owned(),
     };
     let total = if import.format == "bitwardenjson" { 3 } else { 2 };
-    let height = match import.step {
-        0 => 20,
-        1 => 11,
-        _ => (14 + import.duplicates.len().min(8) as u16).min(26),
+    let height = match &import.step {
+        ImportStep::Format => 20,
+        ImportStep::Path | ImportStep::Password => 11,
+        ImportStep::Preview(preview) => (14 + preview.duplicates.len().min(8) as u16).min(26),
     };
     let (rect, block) = popup_frame(frame, &title, theme, area, 80, height);
     let block = block.title_top(
         Line::from(Span::styled(
-            format!(" {}/{total} ", (import.step + 1).min(total)),
+            format!(" {}/{total} ", import.step.number().min(total)),
             theme.style("fg.muted"),
         ))
         .alignment(Alignment::Right),
@@ -567,8 +579,8 @@ pub(crate) fn draw_import(
         }
         Line::from(spans)
     };
-    match import.step {
-        0 => {
+    match &import.step {
+        ImportStep::Format => {
             lines.push(Line::from(vec![
                 Span::styled(" ❯ ", theme.style("type.note")),
                 Span::styled(import.filter.clone(), theme.style("fg")),
@@ -617,33 +629,28 @@ pub(crate) fn draw_import(
                 ("Esc", "cancel"),
             ]));
         }
-        1 => {
+        ImportStep::Path | ImportStep::Password => {
+            let password_focus = matches!(import.step, ImportStep::Password);
             lines.push(section_label(theme, " FILE"));
             lines.push(Line::from(vec![
-                Span::styled(
-                    if import.password_focus { "  " } else { "▌ " },
-                    theme.style("accent"),
-                ),
+                Span::styled(if password_focus { "  " } else { "▌ " }, theme.style("accent")),
                 Span::styled(import.path.clone(), theme.style("fg")),
-                if import.password_focus {
+                if password_focus {
                     Span::raw("")
                 } else {
                     Span::styled("▏", theme.style("accent"))
                 },
             ]));
             lines.push(text_line(theme, "fg.subtle", format!("  format {}", import.format)));
-            if import.format == "bitwardenpasswordprotected" {
+            if import.needs_password() {
                 lines.push(section_label(theme, " FILE PASSWORD"));
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        if import.password_focus { "▌ " } else { "  " },
-                        theme.style("accent"),
-                    ),
+                    Span::styled(if password_focus { "▌ " } else { "  " }, theme.style("accent")),
                     Span::styled(
                         "•".repeat(import.password.char_count().min(40)),
                         theme.style("fg"),
                     ),
-                    if import.password_focus {
+                    if password_focus {
                         Span::styled("▏", theme.style("accent"))
                     } else {
                         Span::raw("")
@@ -655,20 +662,18 @@ pub(crate) fn draw_import(
             }
             lines.push(blank());
             let next = if import.format == "bitwardenjson" { "preview" } else { "import" };
-            let tab = if import.format == "bitwardenpasswordprotected" {
-                "switch field"
-            } else {
-                "complete path"
-            };
+            let tab = if import.needs_password() { "switch field" } else { "complete path" };
             lines.push(hint(&[("Tab", tab), ("Enter", next), ("Esc", "back")]));
         }
-        _ => {
+        ImportStep::Preview(preview) => {
             let icons = icons(state);
             lines.push(text_line(theme, "fg", format!(" {}", import.path)));
             lines.push(text_line(theme, "fg.muted", " Bitwarden JSON · not encrypted"));
             lines.push(blank());
-            let mut counts =
-                vec![Span::styled(format!(" {} items  ", import.count), theme.bold("fg"))];
+            let mut counts = vec![Span::styled(
+                format!(" {}  ", crate::util::text::items(preview.items.len())),
+                theme.bold("fg"),
+            )];
             for kind in [
                 ItemType::Login,
                 ItemType::SecureNote,
@@ -676,33 +681,37 @@ pub(crate) fn draw_import(
                 ItemType::Identity,
                 ItemType::SshKey,
             ] {
-                let n = import.preview.iter().filter(|item| item.kind == kind).count();
+                let n = preview.items.iter().filter(|item| item.kind == kind).count();
                 if n > 0 {
                     counts.push(Span::styled(
                         format!("{} ", icons.get(Icons::item(kind))),
                         theme.style(Theme::type_token(kind)),
                     ));
                     counts.push(Span::styled(
-                        format!("{n} {}  ", kind.plural().to_lowercase()),
+                        if n == 1 {
+                            format!("1 {}  ", kind.label())
+                        } else {
+                            format!("{n} {}  ", kind.plural().to_lowercase())
+                        },
                         theme.style("fg.alt"),
                     ));
                 }
             }
             lines.push(Line::from(counts));
-            let new_folders = if import.new_folders.is_empty() {
+            let new_folders = if preview.new_folders.is_empty() {
                 "none new".to_owned()
             } else {
-                format!("{} new: {}", import.new_folders.len(), import.new_folders.join(", "))
+                format!("{} new: {}", preview.new_folders.len(), preview.new_folders.join(", "))
             };
             lines.push(Line::from(vec![
-                Span::styled(format!(" {} folders  ", import.folders.len()), theme.bold("fg")),
+                Span::styled(format!(" {} folders  ", preview.folders.len()), theme.bold("fg")),
                 Span::styled(
                     truncate(&new_folders, width.saturating_sub(16)),
                     theme.style("fg.alt"),
                 ),
             ]));
             lines.push(blank());
-            if import.duplicates.is_empty() {
+            if preview.duplicates.is_empty() {
                 lines.push(text_line(
                     theme,
                     "fg.muted",
@@ -715,7 +724,7 @@ pub(crate) fn draw_import(
                             theme,
                             &format!(
                                 " POSSIBLE DUPLICATES ({}) · ☑ = skipped",
-                                import.duplicates.len()
+                                preview.duplicates.len()
                             ),
                         )
                         .spans[0]
@@ -727,13 +736,13 @@ pub(crate) fn draw_import(
                 ));
                 let visible = 8;
                 let offset =
-                    follow(state, "import_dupes", import.index, visible, import.duplicates.len());
+                    follow(state, "import_dupes", preview.index, visible, preview.duplicates.len());
                 for (index, duplicate) in
-                    import.duplicates.iter().enumerate().skip(offset).take(visible)
+                    preview.duplicates.iter().enumerate().skip(offset).take(visible)
                 {
-                    let selected = index == import.index;
-                    let kind = import
-                        .preview
+                    let selected = index == preview.index;
+                    let kind = preview
+                        .items
                         .get(duplicate.index)
                         .map(|i| i.kind)
                         .unwrap_or(ItemType::Login);
@@ -742,7 +751,7 @@ pub(crate) fn draw_import(
                             Span::styled(if selected { "▌" } else { " " }, theme.style("accent")),
                             // With skipping off the marks have no effect, so
                             // they are drawn faint.
-                            match (import.skip.contains(&duplicate.index), import.skip_enabled) {
+                            match (preview.skip.contains(&duplicate.index), preview.skip_enabled) {
                                 (true, true) => Span::styled("☑ ", theme.style("ok")),
                                 (true, false) => Span::styled("☑ ", theme.style("fg.subtle")),
                                 (false, _) => Span::styled("☐ ", theme.style("fg.subtle")),
@@ -768,12 +777,12 @@ pub(crate) fn draw_import(
                 lines.push(blank());
                 lines.push(Line::from(vec![
                     Span::raw(" "),
-                    if import.skip_enabled {
+                    if preview.skip_enabled {
                         Span::styled("☑ ", theme.style("ok"))
                     } else {
                         Span::styled("☐ ", theme.style("fg.subtle"))
                     },
-                    if import.skip_enabled {
+                    if preview.skip_enabled {
                         Span::styled("Skip the checked duplicates", theme.style("fg"))
                     } else {
                         Span::styled("Skipping is off: every item is imported", theme.style("fg"))
@@ -781,7 +790,7 @@ pub(crate) fn draw_import(
                     Span::styled("   s toggles", theme.style("fg.subtle")),
                 ]));
             }
-            let skipped = if import.skip_enabled { import.skip.len() } else { 0 };
+            let skipped = preview.skipped();
             lines.push(fill_line(
                 if skipped > 0 {
                     vec![Span::styled(format!(" {skipped} skipped"), theme.style("fg.muted"))]
@@ -792,7 +801,10 @@ pub(crate) fn draw_import(
                     Span::styled("[ Back ]", theme.style("fg.muted")),
                     Span::raw("   "),
                     Span::styled(
-                        format!("[ Import {} items ]", import.count.saturating_sub(skipped)),
+                        format!(
+                            "[ Import {} ]",
+                            crate::util::text::items(preview.items.len().saturating_sub(skipped))
+                        ),
                         theme.bold("accent"),
                     ),
                     Span::raw(" "),

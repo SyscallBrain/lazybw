@@ -169,7 +169,10 @@ pub(crate) fn on_backend(
                 {
                     editor.remote_change = true;
                 }
-                state.message(MessageLevel::Ok, format!("Synced {count} items."));
+                state.message(
+                    MessageLevel::Ok,
+                    format!("Synced {}.", crate::util::text::items(count)),
+                );
                 effects.push(Effect::SaveHistory);
             }
             Err(err) => {
@@ -394,25 +397,29 @@ pub(crate) fn on_backend(
             Ok(outcome) => {
                 let path = outcome.path.display().to_string();
                 let count = state.cache.active_items().count();
-                state.toast(MessageLevel::Ok, format!("Exported {count} items to {path}."));
+                state.toast(
+                    MessageLevel::Ok,
+                    format!("Exported {} to {path}.", crate::util::text::items(count)),
+                );
                 if state.export().is_some_and(|export| export.format.is_plaintext()) {
                     state.message(
                         MessageLevel::Warn,
                         "This file contains every password in plain text. Keep it safe and delete it when done.",
                     );
                 }
+                // Only the wizard closes: it may have been dismissed while
+                // the CLI worked, and the user has moved on since.
                 state.take_export();
-                state.screen = Screen::Vault;
             }
             Err(err) => {
                 if let Some(Overlay::Export(export)) = &mut state.overlay {
                     export.busy = false;
-                    if matches!(err, crate::bw::BwError::InvalidPassword) {
+                    export.step = if matches!(err, crate::bw::BwError::InvalidPassword) {
                         // Ask for the master password again.
-                        export.step = 2;
+                        crate::app::state::ExportStep::MasterPassword
                     } else {
-                        export.step = 0;
-                    }
+                        crate::app::state::ExportStep::Format
+                    };
                     export.error = Some(err.to_string());
                 } else {
                     show_backend_error(state, &err);
@@ -433,10 +440,13 @@ pub(crate) fn on_backend(
             Ok(message) => {
                 let text = match state.last_import.take() {
                     Some((imported, skipped)) if skipped > 0 => format!(
-                        "Imported {imported} items. Skipped {skipped} duplicate{}.",
+                        "Imported {}. Skipped {skipped} duplicate{}.",
+                        crate::util::text::items(imported),
                         if skipped == 1 { "" } else { "s" }
                     ),
-                    Some((imported, _)) => format!("Imported {imported} items."),
+                    Some((imported, _)) => {
+                        format!("Imported {}.", crate::util::text::items(imported))
+                    }
                     None => message,
                 };
                 state.toast(MessageLevel::Ok, text);

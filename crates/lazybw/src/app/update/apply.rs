@@ -392,8 +392,11 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     let count = state.cache.count(&Filter::Folder(name.clone()));
                     let subfolders =
                         crate::vault::folders::subfolder_count(state.cache.folders(), &name);
-                    let mut message =
-                        format!("Delete folder “{name}”? Its {count} items move to No folder.");
+                    let mut message = if count == 1 {
+                        format!("Delete folder “{name}”? Its 1 item moves to No folder.")
+                    } else {
+                        format!("Delete folder “{name}”? Its {count} items move to No folder.")
+                    };
                     if subfolders > 0 {
                         message.push_str(&format!(
                             " {subfolders} subfolder(s) will keep their names but their parent disappears."
@@ -540,7 +543,8 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             state.open(ConfirmState {
                 title: "Empty trash".to_owned(),
                 message: format!(
-                    "{count} items will be deleted for good. This cannot be undone. Type empty to confirm."
+                    "{} will be deleted for good. This cannot be undone. Type empty to confirm.",
+                    crate::util::text::items(count)
                 ),
                 confirm_label: "Empty trash".to_owned(),
                 danger: true,

@@ -2,10 +2,10 @@
 //! screens.
 
 use super::{
-    Action, AppState, CommandKind, Effect, ExportFormat, FieldKind, Filter, FormKey, ItemType, Key,
-    MessageLevel, Overlay, Pending, PickerKind, PromptState, Query, Screen, SecretString,
-    SessionPhase, SuspendTask, UriMatch, apply, cancel, copy_value, ctrl_np_as_arrows, field_label,
-    field_value, move_items, next_id, open_new_editor, overlay_binding, rebuild_rows, reprompt_for,
+    Action, AppState, CommandKind, Effect, FieldKind, Filter, FormKey, ItemType, Key, MessageLevel,
+    Overlay, Pending, PickerKind, PromptState, Query, Screen, SecretString, SessionPhase,
+    SuspendTask, UriMatch, apply, cancel, copy_value, ctrl_np_as_arrows, field_label, field_value,
+    move_items, next_id, open_new_editor, overlay_binding, rebuild_rows, reprompt_for,
     reprompt_required, request, select_item_by_id, sidebar_entries, sync_editor,
 };
 
@@ -122,18 +122,6 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
         }
         PickerKind::Theme => {
             return apply(state, Action::with("theme.set", &[value]));
-        }
-        PickerKind::ExportFormat => {
-            if let Some(Overlay::Export(export)) = &mut state.overlay {
-                export.format = ExportFormat::parse(value).unwrap_or(ExportFormat::Json);
-                export.step = 1;
-            }
-        }
-        PickerKind::ImportFormat => {
-            if let Some(Overlay::Import(import)) = &mut state.overlay {
-                import.format = value.to_owned();
-                import.step = 1;
-            }
         }
         PickerKind::FieldType => {
             if let Some(editor) = &mut state.editor
