@@ -73,6 +73,12 @@ Environment for every child process:
 
 `Ready` sub-states are driven by UI (screens, overlays), not by the backend.
 
+In the code this is `SessionPhase` (`crates/lazybw/src/app/state.rs`), and
+`AppState::enter_session` is the only place that changes it. Error is
+`SessionPhase::Failed`, which carries the screen it shows; a CLI that fails
+to start also lands there, with a retry. A dropped connection restarts
+`bw serve` inside the backend actor and leaves the phase alone.
+
 ## 4. Startup sequence
 
 1. Load config and theme; draw the Starting screen ("Starting Bitwarden CLI…").

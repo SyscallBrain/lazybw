@@ -419,6 +419,15 @@ fn a_cli_that_fails_to_start_shows_an_error_instead_of_spinning() {
     assert!(s.error().is_some_and(|e| e.retry && e.lines.join(" ").contains("bw serve exited")));
 }
 
+#[test]
+fn starting_without_an_account_goes_to_the_login_screen() {
+    let mut s = starting();
+    s.pending.insert(1, lazybw::app::state::Pending::Starting);
+    answer(&mut s, 1, lazybw::bw::service::BwEvent::Started(Err(lazybw::bw::BwError::NotLoggedIn)));
+    assert_eq!(s.session, SessionPhase::LoggedOut);
+    assert_eq!(s.screen, Screen::Login);
+}
+
 #[tokio::test]
 async fn starting_with_no_cli_to_talk_to_says_so() {
     // `bw` was not found at launch: nothing can answer a start request, so

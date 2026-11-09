@@ -7,10 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- On the login screen, the API key form opens with `Enter` on "API key"
+  and closes with `Esc`, and it marks the field being typed.
+- The export and import wizards dim the screen behind them, like the other
+  popups.
+- "Bitwarden CLI not found" no longer offers a retry that could not work:
+  lazybw looks for `bw` once, when it starts.
+
 ### Fixed
 
+- Starting lazybw with no Bitwarden account logged in shows the login
+  screen. It used to stay on "Starting Bitwarden CLI…" with an error.
 - Cancelling a key sequence with `Esc` (for example `Space` then `Esc`)
   no longer leaves the keys shown in the statusline.
+- The export wizard dropped `j` and `k` from everything typed into it. A
+  file password containing them was silently shortened in both fields, so
+  the backup was encrypted with a different password than the one typed.
+  The password step also starts on the password field now.
+- A paste while a picker, prompt or dialog is open no longer lands in the
+  screen behind it. Prompts and picker filters take the paste.
+- A configuration error at start-up stays on screen instead of being
+  replaced by the login or unlock screen a moment later.
+- A Bitwarden CLI that fails to start shows an error with a retry instead
+  of an endless spinner.
+- "You are not logged in" from the CLI now also clears the decrypted vault
+  from memory.
+- Cancelling the master password re-prompt while the password is being
+  checked no longer runs the action anyway.
+- After choosing "API key" on the login screen, another method can be
+  chosen again, and `q` quits as the hint says.
+- Pressing `Enter` twice no longer sends a second login or unlock.
+- After unlocking, the vault opens straight away with a loading message,
+  instead of an empty unlock screen followed by "No items".
+- Messages say "1 item" rather than "1 items".
 
 ## [1.0.0] - 2026-11-01
 

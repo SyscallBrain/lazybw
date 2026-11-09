@@ -79,6 +79,12 @@ pub struct TestApp {
 impl TestApp {
     /// Boots the app with a locked or unlocked fake account.
     pub async fn boot(locked: bool) -> Self {
+        Self::boot_with_status(if locked { "locked" } else { "unlocked" }).await
+    }
+
+    /// Boots the app with the fake account in `status` (`unauthenticated`,
+    /// `locked` or `unlocked`).
+    pub async fn boot_with_status(status: &str) -> Self {
         let env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = TempDir::new().expect("tempdir");
         let state_path = dir.path().join("state.json");
@@ -87,7 +93,7 @@ impl TestApp {
         // The fixture ids are stable; keep them.
         let state = json!({
             "version": "2026.10.1",
-            "status": if locked { "locked" } else { "unlocked" },
+            "status": status,
             "serverUrl": null,
             "lastSync": "2026-10-30T13:00:00.000Z",
             "email": "you@example.com",

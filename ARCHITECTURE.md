@@ -41,6 +41,44 @@ is dropped. Short tasks that `bw serve` cannot do (login, export, import) run
 as separate `bw` processes (`bw/subprocess.rs`), with secrets passed through
 the environment or a PTY, never through arguments.
 
+## State machines
+
+Where the next step depends on where the user is, the state is an enum in
+`app/state.rs`. Data that only makes sense in one situation lives inside
+that variant, so an impossible combination does not compile.
+`tests/state_machines.rs` drives each machine through `update`.
+
+| Machine | Type | Changed by |
+|---|---|---|
+| Session | `SessionPhase` | `AppState::enter_session` only |
+| Popup over the screen | `Option<Overlay>` | `AppState::open`, `take_picker()` and the other `take_*` |
+| Export wizard | `ExportStep` | `export_key` in `update/wizards.rs` |
+| Import wizard | `ImportStep` (the preview step holds the preview) | `import_key` in `update/wizards.rs` |
+| Login form | `LoginFocus`, `LoginServer`, `LoginMethod` | `login_action` in `update/overlays.rs` |
+| Master password re-prompt | `RepromptState` | `reprompt_key`, and the `Unlocked` answer in `update/backend.rs` |
+| Key sequences | `Dispatcher` | `input/dispatcher.rs` |
+
+A few rules come with them:
+
+- Each session phase has its own screen, and leaving Loading or Ready
+  forgets the decrypted vault. A test fails if code outside `state.rs`
+  assigns `state.session` or a session screen directly. The machine is the
+  one drawn in `docs/bw-integration.md` §3.
+- At most one overlay is open. It receives every key, leads the keymap
+  context chain, closes on `Esc`, and takes a paste or drops it; nothing
+  reaches the screen behind it.
+- The re-prompt dialog keeps the id of the request checking its password.
+  Only that answer can run the dialog's action, so closing the dialog
+  cancels it.
+- Busy indicators are not stored. `AppState::awaiting` and helpers such as
+  `unlocking()` and `exporting()` look at the requests in flight, so an
+  indicator ends when its request does, however it ends.
+
+Smaller modes are plain fields and are fine that way: the editor's INSERT
+mode (`EditorState::insert`), visual mode (`visual_anchor`), search
+(`SearchState::active`), a divider drag (`drag`) and a key capture in the
+keymap editor (`KeymapEditorState::capture`).
+
 ## Where things live
 
 | Path | Holds |
@@ -64,6 +102,8 @@ the environment or a PTY, never through arguments.
   key sequences.
 - `tests/regressions.rs` drives `update` directly to check what must not
   happen (stale answers, links opened without asking).
+- `tests/state_machines.rs` walks the transitions of each state machine
+  above, including the ones that must not happen.
 - `tests/snapshots.rs` renders every screen with `TestBackend` (insta).
 - `tests/security.rs` and `tests/logs.rs` check that secrets stay out of
   arguments, logs and the clipboard.

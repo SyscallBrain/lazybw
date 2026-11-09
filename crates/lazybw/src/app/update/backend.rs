@@ -52,6 +52,8 @@ pub(crate) fn on_backend(
                     state.enter_session(SessionPhase::LoggedOut);
                 }
             }
+            // No account yet: `bw serve` refuses to run until one logs in.
+            Err(err) if err.requires_login() => state.enter_session(SessionPhase::LoggedOut),
             Err(err) => {
                 // Without a running CLI nothing else can happen: say so and
                 // offer a retry instead of spinning on the start screen.
