@@ -4,7 +4,7 @@ mod harness;
 
 use harness::{assert_message, ready_app};
 use lazybw::app::Screen;
-use lazybw::app::state::Overlay;
+use lazybw::app::state::{ExportStep, ImportStep, Overlay};
 use lazybw::bw::models::ItemType;
 use lazybw::vault::cache::Filter;
 
@@ -254,12 +254,11 @@ async fn import_previews_duplicates_and_skips_them() {
     std::fs::write(&path, serde_json::to_vec(&body).unwrap()).unwrap();
     app.keys(&format!(":import bitwardenjson {}<CR>", path.display())).await;
     assert!(app.app.state.import().is_some());
-    assert_eq!(app.app.state.import().unwrap().step, 1);
+    assert!(matches!(app.app.state.import().unwrap().step, ImportStep::Path));
     app.keys("<CR>").await; // read the file -> preview
-    let import = app.app.state.import().unwrap();
-    assert_eq!(import.step, 2);
-    assert_eq!(import.duplicates.len(), 5);
-    assert_eq!(import.count, 7);
+    let preview = app.app.state.import().unwrap().preview().expect("the preview step");
+    assert_eq!(preview.duplicates.len(), 5);
+    assert_eq!(preview.items.len(), 7);
     app.keys("<CR>").await; // import
     app.wait_idle().await;
     assert!(
@@ -537,7 +536,7 @@ async fn password_protected_import_uses_the_file_password() {
     std::fs::write(&path, serde_json::to_vec(&body).unwrap()).unwrap();
     app.keys(&format!(":import bitwardenpasswordprotected {}<CR>", path.display())).await;
     // With a format on the command line the wizard opens at the file step.
-    assert_eq!(app.app.state.import().unwrap().step, 1);
+    assert!(matches!(app.app.state.import().unwrap().step, ImportStep::Path));
     app.keys("<Tab>").await; // password field
     app.keys("filepass").await;
     app.keys("<CR>").await; // run the import through the subprocess
@@ -743,7 +742,7 @@ async fn export_checks_the_master_password() {
         export.path = destination.display().to_string();
     }
     app.keys("<CR>").await;
-    assert_eq!(app.app.state.export().unwrap().step, 2);
+    assert_eq!(app.app.state.export().unwrap().step, ExportStep::MasterPassword);
     app.keys("not my password<CR>").await;
     app.wait_idle().await;
     let export = app.app.state.export().expect("the wizard stays open");
@@ -772,7 +771,7 @@ async fn import_wizard_filters_formats_and_keeps_folders() {
     let mut app = ready_app().await;
     app.keys("<Space>i").await;
     let import = app.app.state.import().expect("import wizard");
-    assert_eq!(import.step, 0);
+    assert!(matches!(import.step, ImportStep::Format));
     assert_eq!(import.formats[0], "bitwardenjson", "Bitwarden formats come first");
     app.keys("keepass").await;
     let filtered: Vec<String> = app
@@ -816,10 +815,9 @@ async fn import_wizard_filters_formats_and_keeps_folders() {
     let before = temp_files();
     app.keys(&format!(":import bitwardenjson {}<CR>", path.display())).await;
     app.keys("<CR>").await;
-    let import = app.app.state.import().unwrap();
-    assert_eq!(import.step, 2);
-    assert_eq!(import.new_folders, vec!["Travel".to_owned()]);
-    assert_eq!(import.duplicates.len(), 1);
+    let preview = app.app.state.import().unwrap().preview().expect("the preview step");
+    assert_eq!(preview.new_folders, vec!["Travel".to_owned()]);
+    assert_eq!(preview.duplicates.len(), 1);
     app.keys("<CR>").await;
     app.wait_idle().await;
     assert!(app.app.state.import().is_none(), "{:?}", app.app.state.import().map(|i| &i.error));
@@ -830,7 +828,7 @@ async fn import_wizard_filters_formats_and_keeps_folders() {
         .filter_map(|f| f["name"].as_str().map(str::to_owned))
         .collect();
     assert!(folders.contains(&"Travel".to_owned()), "{folders:?}");
-    assert_message(&app, "Imported 1 items. Skipped 1 duplicate.");
+    assert_message(&app, "Imported 1 item. Skipped 1 duplicate.");
     let leftovers: Vec<_> = temp_files().difference(&before).cloned().collect();
     assert!(leftovers.is_empty(), "filtered import file left behind: {leftovers:?}");
 }

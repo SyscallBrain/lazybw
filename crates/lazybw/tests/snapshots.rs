@@ -6,9 +6,9 @@
 
 use lazybw::app::state::{
     AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, ExportState,
-    FormKey, FormKind, FormRow, HistoryState, ImportState, InfoState, MessageLevel, Overlay,
-    PickerEntry, PickerKind, PickerState, QuickOpenState, RepromptState, Screen, SessionPhase, Tab,
-    WhichKeyState,
+    FormKey, FormKind, FormRow, HistoryState, ImportPreview, ImportState, ImportStep, InfoState,
+    MessageLevel, Overlay, PickerEntry, PickerKind, PickerState, QuickOpenState, RepromptState,
+    Screen, SessionPhase, Tab, WhichKeyState,
 };
 use lazybw::bw::models::{Folder, Item, ItemType, Login, LoginUri};
 use lazybw::bw::sensitive::Sensitive;
@@ -532,7 +532,6 @@ fn too_small_screen() {
 fn export_wizard_snapshot() {
     let mut state = state("tokyonight-night");
     state.open(ExportState {
-        step: 0,
         format: lazybw::bw::service::ExportFormat::Json,
         path: "~/bitwarden_export_20261030140000.json".into(),
         ..Default::default()
@@ -543,14 +542,12 @@ fn export_wizard_snapshot() {
 #[test]
 fn import_preview_snapshot() {
     let mut state = state("tokyonight-night");
-    let mut import = ImportState {
-        step: 2,
-        format: "bitwardenjson".into(),
-        path: "~/Downloads/bitwarden_export_20260101.json".into(),
-        count: 248,
-        ..Default::default()
+    let named = |name: &str, kind: ItemType| {
+        let mut item = Item::new(kind);
+        item.name = name.into();
+        item
     };
-    import.duplicates = vec![
+    let duplicates = vec![
         lazybw::vault::dupes::Duplicate {
             index: 0,
             name: "GitHub".into(),
@@ -570,8 +567,24 @@ fn import_preview_snapshot() {
             detail: "admin / hunter2".into(),
         },
     ];
-    import.skip = import.duplicates.iter().map(|d| d.index).collect();
-    state.open(import);
+    state.open(ImportState {
+        step: ImportStep::Preview(ImportPreview {
+            items: vec![
+                named("GitHub", ItemType::Login),
+                named("Gmail", ItemType::Login),
+                named("Router notes", ItemType::SecureNote),
+                named("Visa", ItemType::Card),
+                named("Passport", ItemType::Identity),
+            ],
+            skip: duplicates.iter().map(|d| d.index).collect(),
+            skip_enabled: true,
+            duplicates,
+            ..Default::default()
+        }),
+        format: "bitwardenjson".into(),
+        path: "~/Downloads/bitwarden_export_20260101.json".into(),
+        ..Default::default()
+    });
     insta::assert_snapshot!("import_preview_120x36", render(&state, 120, 36));
 }
 

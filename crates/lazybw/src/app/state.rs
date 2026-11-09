@@ -705,10 +705,6 @@ pub enum PickerKind {
     FolderJump,
     /// Theme.
     Theme,
-    /// Export format.
-    ExportFormat,
-    /// Import format.
-    ImportFormat,
     /// Custom field type.
     FieldType,
     /// URI match detection.
@@ -861,11 +857,47 @@ pub struct SettingsState {
     pub offset: usize,
 }
 
+/// Where the export wizard is: each value is a step together with the
+/// field that has focus in it, so keys can only reach the field on screen.
+///
+/// ```text
+/// Format ⇄ Destination ──Enter──▶ FilePassword ⇄ ConfirmPassword ──Enter──▶ MasterPassword
+///        └───────────────Enter (no file password)─────────────────────────▲
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ExportStep {
+    /// Step one, the format list (`j`/`k` choose).
+    #[default]
+    Format,
+    /// Step one, the destination path (`Tab` completes it).
+    Destination,
+    /// Step two, the file password (password-protected JSON only).
+    FilePassword,
+    /// Step two, the file password again.
+    ConfirmPassword,
+    /// The last step: the master password, then the export runs.
+    MasterPassword,
+}
+
+impl ExportStep {
+    /// True on the first step (format and destination).
+    #[must_use]
+    pub fn choosing_format(self) -> bool {
+        matches!(self, Self::Format | Self::Destination)
+    }
+
+    /// True on the file password step.
+    #[must_use]
+    pub fn choosing_password(self) -> bool {
+        matches!(self, Self::FilePassword | Self::ConfirmPassword)
+    }
+}
+
 /// The export wizard state.
 #[derive(Debug, Clone, Default)]
 pub struct ExportState {
-    /// Current step (0 format, 1 password, 2 master).
-    pub step: usize,
+    /// The step, and the field in it that has focus.
+    pub step: ExportStep,
     /// Format.
     pub format: crate::bw::service::ExportFormat,
     /// Destination path input.
@@ -876,58 +908,136 @@ pub struct ExportState {
     pub confirmation: crate::input::secret::SecretInput,
     /// Master password.
     pub master: crate::input::secret::SecretInput,
-    /// Focus within the step.
-    pub focus: usize,
     /// Error.
     pub error: Option<String>,
     /// Waiting for the CLI.
     pub busy: bool,
 }
 
+impl ExportState {
+    /// Types text into the focused field. The format list takes none.
+    pub fn insert(&mut self, text: &str) {
+        match self.step {
+            ExportStep::Format => {}
+            ExportStep::Destination => self.path.push_str(text),
+            ExportStep::FilePassword => self.password.push_str(text),
+            ExportStep::ConfirmPassword => self.confirmation.push_str(text),
+            ExportStep::MasterPassword => self.master.push_str(text),
+        }
+    }
+
+    /// Deletes the last character of the focused field.
+    pub fn backspace(&mut self) {
+        match self.step {
+            ExportStep::Format => None,
+            ExportStep::Destination => self.path.pop(),
+            ExportStep::FilePassword => self.password.pop(),
+            ExportStep::ConfirmPassword => self.confirmation.pop(),
+            ExportStep::MasterPassword => self.master.pop(),
+        };
+    }
+}
+
+/// Where the import wizard is. The file step is split by the field that
+/// has focus; the preview step carries what it shows, so it cannot outlive
+/// the step.
+///
+/// ```text
+/// Format ──Enter──▶ Path ⇄ Password ──Enter──▶ Preview (Bitwarden JSON) ──Enter──▶ import
+///   ▲                 │                  └──────Enter (other formats)─────────────▲
+///   └──────Esc────────┘◀───────────────Esc──────────┘
+/// ```
+#[derive(Debug, Clone, Default)]
+pub enum ImportStep {
+    /// Step one, the filterable format list.
+    #[default]
+    Format,
+    /// Step two, the file path.
+    Path,
+    /// Step two, the file password (password-protected Bitwarden JSON).
+    Password,
+    /// Step three, what a Bitwarden JSON file would add.
+    Preview(ImportPreview),
+}
+
+impl ImportStep {
+    /// The step number shown in the corner of the wizard, from 1.
+    #[must_use]
+    pub fn number(&self) -> usize {
+        match self {
+            Self::Format => 1,
+            Self::Path | Self::Password => 2,
+            Self::Preview(_) => 3,
+        }
+    }
+}
+
+/// The preview of a Bitwarden JSON file, checked against the vault.
+#[derive(Debug, Clone, Default)]
+pub struct ImportPreview {
+    /// The items in the file.
+    pub items: Vec<Item>,
+    /// The folders in the file.
+    pub folders: Vec<crate::bw::models::Folder>,
+    /// Folder names in the file that the vault does not have yet.
+    pub new_folders: Vec<String>,
+    /// Items that look like ones already in the vault.
+    pub duplicates: Vec<crate::vault::dupes::Duplicate>,
+    /// Duplicates (indices into `items`) checked for skipping.
+    pub skip: BTreeSet<usize>,
+    /// Skip the checked duplicates; off imports everything.
+    pub skip_enabled: bool,
+    /// Selected duplicate row.
+    pub index: usize,
+}
+
+impl ImportPreview {
+    /// How many duplicates the import leaves out.
+    #[must_use]
+    pub fn skipped(&self) -> usize {
+        if self.skip_enabled { self.skip.len() } else { 0 }
+    }
+}
+
 /// The import wizard state.
 #[derive(Debug, Clone, Default)]
 pub struct ImportState {
-    /// Step.
-    pub step: usize,
+    /// The step, and the field in it that has focus.
+    pub step: ImportStep,
     /// Format.
     pub format: String,
     /// Path input.
     pub path: String,
     /// File password.
     pub password: crate::input::secret::SecretInput,
-    /// Editing the password rather than the path.
-    pub password_focus: bool,
-    /// Preview items.
-    pub preview: Vec<Item>,
-    /// Duplicates.
-    pub duplicates: Vec<crate::vault::dupes::Duplicate>,
-    /// Duplicates checked for skipping.
-    pub skip: BTreeSet<usize>,
-    /// Skip all duplicates.
-    pub skip_enabled: bool,
-    /// Selected duplicate row.
-    pub index: usize,
     /// Error.
     pub error: Option<String>,
-    /// Password protected.
-    pub password_protected: bool,
-    /// Import item count.
-    pub count: usize,
     /// Every format the CLI accepts, featured ones first.
     pub formats: Vec<String>,
     /// Filter typed in the format step.
     pub filter: String,
     /// Selected row among the filtered formats.
     pub format_index: usize,
-    /// Folders in the file being previewed.
-    pub folders: Vec<crate::bw::models::Folder>,
-    /// Folder names in the file that the vault does not have yet.
-    pub new_folders: Vec<String>,
     /// Waiting for the CLI.
     pub busy: bool,
 }
 
 impl ImportState {
+    /// The preview, on the preview step.
+    #[must_use]
+    pub fn preview(&self) -> Option<&ImportPreview> {
+        match &self.step {
+            ImportStep::Preview(preview) => Some(preview),
+            _ => None,
+        }
+    }
+
+    /// True when the chosen format needs a file password.
+    #[must_use]
+    pub fn needs_password(&self) -> bool {
+        self.format == "bitwardenpasswordprotected"
+    }
+
     /// The formats matching the filter.
     #[must_use]
     pub fn filtered_formats(&self) -> Vec<&str> {

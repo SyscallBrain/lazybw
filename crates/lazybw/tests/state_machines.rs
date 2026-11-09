@@ -4,8 +4,8 @@
 //! checks where it lands, including the moves that must not happen.
 
 use lazybw::app::state::{
-    Action, ConfirmState, HistoryState, InfoState, Overlay, PickerEntry, PickerKind, PickerState,
-    PromptState, QuickOpenState,
+    Action, ConfirmState, ExportStep, HistoryState, ImportStep, InfoState, Overlay, PickerEntry,
+    PickerKind, PickerState, PromptState, QuickOpenState,
 };
 use lazybw::app::update::update;
 use lazybw::app::{AppState, Effect, Msg, Screen, SessionPhase};
@@ -169,4 +169,144 @@ fn locking_closes_any_overlay() {
         s.drop_secrets();
         assert!(s.overlay.is_none(), "{overlay:?} survived the lock");
     }
+}
+
+// ── Export wizard ───────────────────────────────────────────────────────
+
+fn open_export(s: &mut AppState, format: &str) {
+    keys(s, &format!(":export {format} /tmp/lazybw-never-written.json<CR>"));
+    assert!(s.export().is_some(), "the export wizard opened");
+}
+
+fn backend_ids(effects: &[Effect]) -> Vec<u64> {
+    effects
+        .iter()
+        .filter_map(|e| if let Effect::Backend { id, .. } = e { Some(*id) } else { None })
+        .collect()
+}
+
+#[test]
+fn export_steps_follow_the_format() {
+    let mut s = state();
+    open_export(&mut s, "encrypted");
+    assert_eq!(s.export().unwrap().step, ExportStep::Format);
+    keys(&mut s, "<CR>");
+    assert_eq!(s.export().unwrap().step, ExportStep::FilePassword);
+    keys(&mut s, "<Esc>");
+
+    open_export(&mut s, "json");
+    keys(&mut s, "<CR>");
+    assert_eq!(s.export().unwrap().step, ExportStep::MasterPassword, "no file password for JSON");
+}
+
+#[test]
+fn export_fields_take_j_and_k_as_text() {
+    let mut s = state();
+    open_export(&mut s, "encrypted");
+    keys(&mut s, "<Tab>");
+    assert_eq!(s.export().unwrap().step, ExportStep::Destination);
+    keys(&mut s, "jk");
+    assert!(s.export().unwrap().path.ends_with("jk"), "{}", s.export().unwrap().path);
+    keys(&mut s, "<CR>jakek<Tab>jakek<CR>");
+    assert_eq!(s.export().unwrap().error, None);
+    assert_eq!(s.export().unwrap().step, ExportStep::MasterPassword);
+    keys(&mut s, "kojak");
+    assert_eq!(s.export().unwrap().master.expose(), "kojak");
+}
+
+#[test]
+fn export_format_list_reads_j_and_k_as_moves() {
+    let mut s = state();
+    open_export(&mut s, "json");
+    let before = s.export().unwrap().format;
+    keys(&mut s, "j");
+    assert_ne!(s.export().unwrap().format, before);
+    keys(&mut s, "k");
+    assert_eq!(s.export().unwrap().format, before);
+}
+
+#[test]
+fn export_password_step_starts_on_the_password_field() {
+    // Leaving step one from the destination field used to land on the
+    // confirmation field.
+    let mut s = state();
+    open_export(&mut s, "encrypted");
+    keys(&mut s, "<Tab><CR>");
+    assert_eq!(s.export().unwrap().step, ExportStep::FilePassword);
+}
+
+#[test]
+fn export_ignores_keys_while_the_cli_works() {
+    let mut s = state();
+    open_export(&mut s, "json");
+    let effects = keys(&mut s, "<CR>master<CR>");
+    assert_eq!(backend_ids(&effects).len(), 1, "one export request");
+    assert!(s.export().unwrap().busy);
+    let effects = keys(&mut s, "more<CR>");
+    assert!(backend_ids(&effects).is_empty(), "a second export was sent");
+    assert!(s.export().unwrap().master.is_empty(), "typing reached the busy wizard");
+}
+
+#[test]
+fn a_late_export_answer_leaves_the_screen_alone() {
+    let mut s = state();
+    open_export(&mut s, "json");
+    let id = backend_ids(&keys(&mut s, "<CR>master<CR>"))[0];
+    keys(&mut s, "<Esc>");
+    assert!(s.overlay.is_none());
+    keys(&mut s, "al");
+    assert_eq!(s.screen, Screen::Editor);
+    let outcome = lazybw::bw::service::ExportOutcome {
+        path: "/tmp/lazybw-never-written.json".into(),
+        bytes: 1,
+    };
+    update(
+        &mut s,
+        Msg::Backend(lazybw::bw::service::BackendEvent {
+            id,
+            event: lazybw::bw::service::BwEvent::Exported(Ok(outcome)),
+        }),
+    );
+    assert_eq!(s.screen, Screen::Editor, "the export answer closed the editor");
+}
+
+// ── Import wizard ───────────────────────────────────────────────────────
+
+#[test]
+fn esc_walks_the_import_wizard_back_one_step() {
+    let mut s = state();
+    keys(&mut s, ":import<CR>");
+    assert!(matches!(s.import().unwrap().step, ImportStep::Format));
+    keys(&mut s, "<CR>");
+    assert!(matches!(s.import().unwrap().step, ImportStep::Path));
+    keys(&mut s, "<Esc>");
+    assert!(matches!(s.import().unwrap().step, ImportStep::Format));
+    keys(&mut s, "<Esc>");
+    assert!(s.import().is_none());
+}
+
+#[test]
+fn import_password_is_a_step_only_for_protected_files() {
+    let mut s = state();
+    keys(&mut s, ":import bitwardenpasswordprotected /tmp/x.json<CR>");
+    keys(&mut s, "<Tab>");
+    assert!(matches!(s.import().unwrap().step, ImportStep::Password));
+    paste(&mut s, "filepass\n");
+    assert_eq!(s.import().unwrap().password.expose(), "filepass");
+    keys(&mut s, "<Esc><Esc>");
+    assert!(s.import().is_none());
+
+    keys(&mut s, ":import bitwardencsv /tmp/x.csv<CR>");
+    keys(&mut s, "<Tab>");
+    assert!(matches!(s.import().unwrap().step, ImportStep::Path), "Tab completes the path");
+}
+
+#[test]
+fn an_empty_protected_password_moves_focus_to_it() {
+    let mut s = state();
+    keys(&mut s, ":import bitwardenpasswordprotected /tmp/x.json<CR>");
+    keys(&mut s, "<CR>");
+    let import = s.import().unwrap();
+    assert!(matches!(import.step, ImportStep::Password));
+    assert!(import.error.is_some());
 }

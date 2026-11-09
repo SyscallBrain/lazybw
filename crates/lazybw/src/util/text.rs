@@ -91,6 +91,12 @@ pub fn looks_like_url(value: &str) -> bool {
     url::Url::parse(value).is_ok()
 }
 
+/// A count of items for messages: `1 item`, `3 items`.
+#[must_use]
+pub fn items(count: usize) -> String {
+    if count == 1 { "1 item".to_owned() } else { format!("{count} items") }
+}
+
 /// Removes a leading scheme for display.
 #[must_use]
 pub fn strip_scheme(value: &str) -> &str {
@@ -122,6 +128,13 @@ mod tests {
         assert_eq!(group_code("482913", 6), "482 913");
         assert_eq!(group_code("48291374", 8), "4829 1374");
         assert_eq!(group_code("ABCDE", 5), "ABCDE");
+    }
+
+    #[test]
+    fn item_counts_agree_with_the_number() {
+        assert_eq!(items(0), "0 items");
+        assert_eq!(items(1), "1 item");
+        assert_eq!(items(248), "248 items");
     }
 
     #[test]

@@ -15,16 +15,16 @@ expression: "render(&state, 120, 36)"
 │ ─ ││   Jane Examp│ ~/Downloads/bitwarden_export_20260101.json                                   │                   │
 │  ││    Jane Examp│ Bitwarden JSON · not encrypted                                               │                   │
 │ ─ ││   Personal v│                                                                              │                   │
-│  ││    Visa •••• │ 248 items                                                                    │                   │
+│  ││    Visa •••• │ 5 items   2 logins   1 secure note   1 card   1 identity                 │                   │
 │   ││   Router not│ 0 folders  none new                                                          │                   │
 │   ││    admin / hu│                                                                              │                   │
 │   ││              │ POSSIBLE DUPLICATES (3) · ☑ = skipped                 x skip or keep · a all │                   │
 │   ││              │▌☑  GitHub                      dev-example                                  │                   │
 │   ││              │ ☑  Gmail                       personal@example.com                         │                   │
-│   ││              │ ☑  Router notes                admin / hunter2                              │                   │
+│   ││              │ ☑  Router notes                admin / hunter2                              │                   │
 │   ││              │                                                                              │                   │
-│   ││              │ ☐ Skipping is off: every item is imported   s toggles                        │                   │
-│   ││              │                                              [ Back ]   [ Import 248 items ] │                   │
+│   ││              │ ☑ Skip the checked duplicates   s toggles                                    │                   │
+│   ││              │ 3 skipped                                      [ Back ]   [ Import 2 items ] │                   │
 │   ││              │                                                                              │                   │
 │   ││              │                                                                              │                   │
 │   ││              ╰──────────────────────────────────────────────────────────────────────────────╯                   │
@@ -52,16 +52,16 @@ styles:
 10:d6920c6d481e047b
 11:5a6fa489d54d3c49
 12:e769b9ee90a34719
-13:097cd8b765b02096
+13:c3ebf58827e80d9e
 14:b920f7bffe0cd403
 15:a974bc5b903e73e9
 16:c12da2c83924ed65
-17:fd50a811bbb3db15
-18:759284d36fa5ecf5
-19:d0730b7d2d148bb7
+17:6465d26c09717fc0
+18:2c16e5a7dfe565fa
+19:35e057ee878a90db
 20:ca10df77b5a1193a
-21:388e3407675c6031
-22:417ff6903f7cadae
+21:6561438c9c92ae30
+22:be3d86e601378aab
 23:ca10df77b5a1193a
 24:ca10df77b5a1193a
 25:082d0ec4fdedd14a
