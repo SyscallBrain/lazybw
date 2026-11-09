@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Space` opened the which-key panel anywhere from half a second to well
+  over a second after the key, instead of after `keys.which_key_delay`
+  (300 ms). An ambiguous key sequence likewise waited up to a second longer
+  than `keys.timeoutlen` to run.
 - A new item saved with `Ctrl-s` after using the password generator stayed
   marked as changed, and closing the editor asked to save it again. The
   same happened after picking a folder from the list.

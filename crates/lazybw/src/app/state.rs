@@ -2071,6 +2071,21 @@ impl AppState {
         fx.is_active() || self.toasts.iter().any(|toast| fx.toast_sliding(toast.created))
     }
 
+    /// When a pending key sequence next needs attention: which-key opening
+    /// after `which_key_delay`, or an ambiguous sequence resolving after
+    /// `timeoutlen`. The main loop wakes up then; the one-second tick alone
+    /// would show which-key anywhere from 0.3 to 1.3 seconds after the key.
+    #[must_use]
+    pub fn key_deadline(&self) -> Option<Instant> {
+        let since = self.dispatcher.since.filter(|_| self.dispatcher.is_pending())?;
+        let which_key = self.which_key.is_none().then(|| since + self.config.which_key_delay());
+        let timeout = self
+            .dispatcher
+            .timeout_applies(&self.keymap, &self.contexts())
+            .then(|| since + self.config.timeoutlen());
+        which_key.into_iter().chain(timeout).min()
+    }
+
     /// Adds a toast and logs it.
     pub fn toast(&mut self, level: MessageLevel, title: impl Into<String>) {
         let title = title.into();

@@ -122,6 +122,7 @@ fn update_inner(state: &mut AppState, msg: Msg) -> Vec<Effect> {
             Vec::new()
         }
         Msg::Tick => on_tick(state),
+        Msg::KeyTimer => on_key_timers(state),
         Msg::Backend(event) => on_backend(state, event),
         Msg::Reload(event) => on_reload(state, event),
         Msg::FocusLost => {
@@ -198,13 +199,11 @@ fn copy_value(state: &mut AppState, text: &str, label: &str, item_name: &str) ->
     }
     Vec::new()
 }
-fn on_tick(state: &mut AppState) -> Vec<Effect> {
+/// Opens which-key and resolves an ambiguous key sequence once their delays
+/// have passed. Runs on every tick and when the main loop wakes up for
+/// [`AppState::key_deadline`].
+fn on_key_timers(state: &mut AppState) -> Vec<Effect> {
     let mut effects = Vec::new();
-    state.now = Utc::now();
-    state.expire(Instant::now());
-    if state.clipboard.tick(Instant::now()) {
-        state.message(MessageLevel::Info, "Clipboard cleared.");
-    }
     // Resolve an ambiguous sequence after timeoutlen.
     if state.dispatcher.is_pending() {
         let now = Instant::now();
@@ -232,6 +231,16 @@ fn on_tick(state: &mut AppState) -> Vec<Effect> {
     } else if !state.dispatcher.is_pending() {
         state.which_key = None;
     }
+    effects
+}
+fn on_tick(state: &mut AppState) -> Vec<Effect> {
+    let mut effects = Vec::new();
+    state.now = Utc::now();
+    state.expire(Instant::now());
+    if state.clipboard.tick(Instant::now()) {
+        state.message(MessageLevel::Info, "Clipboard cleared.");
+    }
+    effects.extend(on_key_timers(state));
     // Auto-lock.
     if state.session.is_ready()
         && let Some(limit) = state.config.security.auto_lock.get()

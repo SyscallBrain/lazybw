@@ -396,3 +396,21 @@ fn tab_in_insert_moves_to_the_next_field_and_keeps_typing() {
     keys(&mut s, "<Esc>gg");
     assert!(!s.editor.as_ref().unwrap().insert);
 }
+
+#[test]
+fn which_key_opens_at_its_delay_not_at_the_next_tick() {
+    use std::time::{Duration, Instant};
+    let mut s = state();
+    keys(&mut s, "<Space>");
+    let since = s.dispatcher.since.expect("Space is pending");
+    // The main loop sleeps until this deadline instead of the 1 s tick.
+    assert_eq!(s.key_deadline(), Some(since + s.config.which_key_delay()));
+    s.dispatcher.since = Some(Instant::now() - Duration::from_millis(350));
+    update(&mut s, Msg::KeyTimer);
+    assert!(s.which_key.is_some(), "which-key did not open at its deadline");
+    // The leader is only a prefix: nothing else is due until the next key.
+    assert_eq!(s.key_deadline(), None);
+    keys(&mut s, "<Esc>");
+    assert!(s.which_key.is_none());
+    assert_eq!(s.key_deadline(), None);
+}
