@@ -190,6 +190,14 @@ async fn cmdline_theme_and_sync() {
 }
 
 #[tokio::test]
+async fn cmdline_doctor_shows_the_lazybw_version() {
+    let mut app = ready_app().await;
+    app.keys(":doctor<CR>").await;
+    let info = app.app.state.info().expect("doctor opens the info overlay");
+    assert_eq!(info.lines[0], ("version".to_owned(), env!("CARGO_PKG_VERSION").to_owned()));
+}
+
+#[tokio::test]
 async fn which_key_appears_after_the_prefix() {
     let mut app = ready_app().await;
     app.keys("<Space>").await;

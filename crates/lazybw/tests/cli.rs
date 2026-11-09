@@ -38,3 +38,22 @@ fn keys_check_output_snapshot() {
 fn config_path_output_snapshot() {
     insta::assert_snapshot!("cli_config_path", run(&["config", "--path"]));
 }
+
+#[test]
+fn doctor_shows_the_lazybw_version() {
+    // Bug reports ask for the doctor output, so it must say which release
+    // it came from. An empty PATH keeps it away from any real `bw`.
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let output = Command::new(env!("CARGO_BIN_EXE_lazybw"))
+        .arg("doctor")
+        .env("XDG_CONFIG_HOME", dir.path().join("config"))
+        .env("XDG_STATE_HOME", dir.path().join("state"))
+        .env("PATH", dir.path())
+        .env_remove("LAZYBW_BW")
+        .output()
+        .expect("run lazybw");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let expected = format!("version      {}", env!("CARGO_PKG_VERSION"));
+    assert!(stdout.lines().any(|line| line == expected), "no version line in:\n{stdout}");
+}
