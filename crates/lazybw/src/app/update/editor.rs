@@ -1017,6 +1017,7 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         state.message(MessageLevel::Error, "The name cannot be empty.");
         return Vec::new();
     }
+    let stale = editor.item.clone();
     sync_editor(state);
     let errors = validate_editor(state);
     if !errors.is_empty() {
@@ -1034,7 +1035,12 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
     let Some(editor) = &state.editor else { return Vec::new() };
     let item = editor.item.clone();
     let id = item.id.clone();
-    let revision = editor.history.revision;
+    // The generator popup and the folder picker change only the form rows;
+    // the sync above carries that into the item, and the undo history counts
+    // it as one more change once this key is handled. Send the revision the
+    // form will have then, or the answer looks like a later edit and the
+    // saved item stays marked as changed.
+    let revision = editor.history.revision + u64::from(item != stale);
     let request_effect = request(
         state,
         if id.is_some() {

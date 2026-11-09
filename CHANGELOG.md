@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A new item saved with `Ctrl-s` after using the password generator stayed
+  marked as changed, and closing the editor asked to save it again. The
+  same happened after picking a folder from the list.
 - In the editor, `Tab` and `Shift-Tab` left INSERT mode, although the guide
   says they keep it. A form can now be filled in one go: `Tab` moves to the
   next field and typing carries on. Typing on a choice or a checkbox changes
