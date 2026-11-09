@@ -391,7 +391,7 @@ lazybw also accepts a bare array for older builds and the test double.
 |---|---|---|
 | `Vault is locked.` | `Locked` | zeroize, Unlock screen |
 | `You are not logged in.` | `NotLoggedIn` | stop serve, Login screen |
-| `Invalid master password.` | `InvalidPassword` | shake + message on Unlock / re-prompt |
+| `Invalid master password.`; on `POST /unlock` also `Cryptography error, The decryption operation failed` (what 2026.10.1 answers) | `InvalidPassword` | shake + message on Unlock / re-prompt |
 | `Not found.` | `NotFound` | toast "Item no longer exists. Syncing…", sync |
 | `Premium status is required to use this feature.` | `PremiumRequired` | toast; indicates a lazybw bug |
 | `Logout required before server config update.` | `LogoutRequired` | message on Login screen |

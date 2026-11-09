@@ -414,6 +414,10 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     }));
     let mut ticker = tokio::time::interval(Duration::from_secs(1));
     let mut redraw = tokio::time::interval(Duration::from_millis(50));
+    // The redraw branch sits idle between animations; when the next one
+    // starts, skip the ticks missed meanwhile instead of drawing them all in
+    // a burst.
+    redraw.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     // Show the starting screen before locating the CLI. `bw --version` starts
     // Node and takes hundreds of milliseconds on a cold cache; the user should
@@ -565,7 +569,11 @@ fn redraw_now(app: &mut App, terminal: &mut ratatui::DefaultTerminal) -> color_e
         terminal.clear()?;
     }
     terminal.draw(|frame| crate::ui::draw(frame, &app.state))?;
-    app.state.dirty = false;
+    // The 50 ms redraw timer only fires while the state is dirty, so stay
+    // dirty until the animation on screen settles. Otherwise an effect only
+    // moves when something else draws a frame (a key, an answer from bw, the
+    // 1 s tick), and the 250 ms sweep after unlocking takes two seconds.
+    app.state.dirty = app.state.animating();
     Ok(())
 }
 

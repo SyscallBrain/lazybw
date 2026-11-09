@@ -339,6 +339,9 @@ pub struct UnlockState {
     pub error: Option<String>,
     /// Shake animation start.
     pub shake: Option<Instant>,
+    /// Enter was pressed while the CLI was still starting: unlock as soon as
+    /// it reports a locked vault.
+    pub submit_when_ready: bool,
 }
 
 /// The server choices on the login screen.
@@ -2060,6 +2063,14 @@ impl AppState {
         chain
     }
 
+    /// True while something on screen is still moving: an effect, or a toast
+    /// sliding in. The main loop keeps drawing frames until this settles.
+    #[must_use]
+    pub fn animating(&self) -> bool {
+        let fx = self.fx.borrow();
+        fx.is_active() || self.toasts.iter().any(|toast| fx.toast_sliding(toast.created))
+    }
+
     /// Adds a toast and logs it.
     pub fn toast(&mut self, level: MessageLevel, title: impl Into<String>) {
         let title = title.into();
@@ -2123,14 +2134,7 @@ impl AppState {
     pub fn apply_snapshot(&mut self, snapshot: VaultSnapshot) {
         let selected = self.selected_id();
         self.cache.load(snapshot.items, snapshot.folders, snapshot.trash, snapshot.archived);
-        self.email = snapshot.status.user_email.clone();
-        self.server = snapshot.status.server_url.clone();
-        self.last_sync = snapshot
-            .status
-            .last_sync
-            .as_deref()
-            .and_then(crate::util::time::parse_iso)
-            .or(Some(self.now));
+        self.last_sync = self.last_sync.or(Some(self.now));
         // Only a session screen gives way to the vault; anywhere else (the
         // editor opened while the first load was on its way, a refresh, a
         // reload after a failure) the user stays where they are.

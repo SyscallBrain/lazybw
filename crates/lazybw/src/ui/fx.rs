@@ -13,6 +13,9 @@ use ratatui::style::{Color, Modifier, Style};
 use std::time::{Duration, Instant};
 use tachyonfx::{Interpolation, Motion, fx};
 
+/// How long a new toast takes to slide in from the right.
+const TOAST_SLIDE: Duration = Duration::from_millis(180);
+
 /// The trigger points from design.md §7.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FxKind {
@@ -76,11 +79,19 @@ impl Fx {
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
         if !enabled {
-            self.manager = tachyonfx::EffectManager::default();
-            self.shake_since = None;
-            self.flash_since = None;
-            self.totp_since = None;
+            self.cancel();
         }
+    }
+
+    /// Drops every running effect. Used when no frame can show them (the
+    /// terminal is too small): a tachyonfx effect only advances when
+    /// [`Fx::process`] runs, so it would otherwise stay "active" and keep
+    /// the main loop drawing frames for nothing.
+    pub fn cancel(&mut self) {
+        self.manager = tachyonfx::EffectManager::default();
+        self.shake_since = None;
+        self.flash_since = None;
+        self.totp_since = None;
     }
 
     /// True when a frame should be requested.
@@ -196,14 +207,21 @@ impl Fx {
         self.totp_flash().then(|| theme.style("totp.code").add_modifier(Modifier::BOLD))
     }
 
+    /// True while a toast created at `created` is still sliding in.
+    #[must_use]
+    pub fn toast_sliding(&self, created: Instant) -> bool {
+        self.enabled && created.elapsed() < TOAST_SLIDE
+    }
+
     /// The sweep-in offset for a toast that just appeared.
     #[must_use]
     pub fn toast_offset(&self, created: Instant, width: u16) -> u16 {
         if !self.enabled {
             return 0;
         }
-        let elapsed = created.elapsed().as_millis().min(180) as u16;
-        ((u32::from(width) * (180 - u32::from(elapsed)) / 180) as u16).min(width)
+        let total = TOAST_SLIDE.as_millis() as u32;
+        let elapsed = created.elapsed().as_millis().min(u128::from(total)) as u32;
+        ((u32::from(width) * (total - elapsed) / total) as u16).min(width)
     }
 
     /// A dimming cell style for the popup backdrop.

@@ -98,8 +98,6 @@ pub struct VaultSnapshot {
     pub trash: Vec<Item>,
     /// Archived items (read-only), empty when unsupported.
     pub archived: Vec<Item>,
-    /// The status after loading.
-    pub status: Status,
 }
 
 /// What happened to a folder.
@@ -239,7 +237,7 @@ pub enum BwEvent {
     /// A session key was accepted and the vault is locked.
     SessionSet(Result<(), BwError>),
     /// Unlock finished; the service now holds the new session key.
-    Unlocked(Result<Status, BwError>),
+    Unlocked(Result<(), BwError>),
     /// Lock finished.
     Locked(Result<(), BwError>),
     /// Sync finished.
@@ -281,10 +279,9 @@ impl BwEvent {
     #[must_use]
     pub fn error(&self) -> Option<&BwError> {
         match self {
-            Self::Started(r) | Self::Unlocked(r) | Self::Synced(r) | Self::LoggedIn(r) => {
-                r.as_ref().err()
-            }
+            Self::Started(r) | Self::Synced(r) | Self::LoggedIn(r) => r.as_ref().err(),
             Self::SessionSet(r)
+            | Self::Unlocked(r)
             | Self::Locked(r)
             | Self::LoggedOut(r)
             | Self::ServerConfigured(r) => r.as_ref().err(),
@@ -614,15 +611,18 @@ impl Service {
         self.session.as_ref().map(|s| s.expose_secret().to_owned()).ok_or(BwError::Locked)
     }
 
-    async fn unlock(&mut self, password: &str) -> Result<Status, BwError> {
+    /// No `GET /status` follows: a successful unlock is the answer, and
+    /// with the vault open that call costs about 100 ms of the time before
+    /// the vault shows. Were the vault somehow still locked, the load that
+    /// comes next fails with "Vault is locked." and the unlock screen returns.
+    async fn unlock(&mut self, password: &str) -> Result<(), BwError> {
         let client = self.ensure_client().await?;
         let response = client.unlock(password).await?;
         if response.raw.is_empty() {
             return Err(BwError::InvalidResponse("unlock returned no session key".to_owned()));
         }
         self.session = Some(SecretString::from(response.raw));
-        let client = self.ensure_client().await?;
-        client.status().await
+        Ok(())
     }
 
     async fn load_vault(&mut self) -> Result<VaultSnapshot, BwError> {
@@ -636,8 +636,10 @@ impl Service {
         } else {
             Vec::new()
         };
-        let status = client.status().await?;
-        Ok(VaultSnapshot { items, folders, trash, archived, status })
+        // No `GET /status` here (bw-integration.md §6.3): the account,
+        // server and last sync come from the start, the login and each sync,
+        // and the call would add about 100 ms before the vault shows.
+        Ok(VaultSnapshot { items, folders, trash, archived })
     }
 
     async fn export(

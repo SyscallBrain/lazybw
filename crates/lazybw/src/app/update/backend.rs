@@ -36,40 +36,17 @@ pub(crate) fn on_backend(
         return effects;
     }
     match event.event {
-        BwEvent::Started(result) => match result {
-            Ok(status) => {
-                state.backend_alive = true;
-                state.email = status.user_email.clone();
-                state.server = status.server_url.clone();
-                state.last_sync =
-                    status.last_sync.as_deref().and_then(crate::util::time::parse_iso);
-                if status.is_unlocked() {
-                    state.enter_session(SessionPhase::Loading);
-                    effects.push(request(state, CommandKind::LoadVault, Pending::Load));
-                } else if status.is_locked() {
-                    state.enter_session(SessionPhase::Locked);
-                } else {
-                    state.enter_session(SessionPhase::LoggedOut);
-                }
+        BwEvent::Started(result) => {
+            on_started(state, result, &mut effects);
+            // A master password typed ahead on the start screen
+            // (`starting_key`) is only for a locked vault, and was used just
+            // now if Enter was pressed; never keep it for another screen.
+            if state.session != SessionPhase::Locked {
+                state.unlock = UnlockState::default();
+            } else if std::mem::take(&mut state.unlock.submit_when_ready) {
+                effects.extend(apply(state, crate::app::state::Action::new("unlock.submit")));
             }
-            // No account yet: `bw serve` refuses to run until one logs in.
-            Err(err) if err.requires_login() => state.enter_session(SessionPhase::LoggedOut),
-            Err(err) => {
-                // Without a running CLI nothing else can happen: say so and
-                // offer a retry instead of spinning on the start screen.
-                state.backend_alive = false;
-                state.enter_session(SessionPhase::Failed(Box::new(
-                    crate::app::state::ErrorScreen {
-                        title: "Couldn't start the Bitwarden CLI".to_owned(),
-                        lines: vec![err.to_string()],
-                        detail: Vec::new(),
-                        actions: "r retry   q quit".to_owned(),
-                        retry: true,
-                        open_file: None,
-                    },
-                )));
-            }
-        },
+        }
         BwEvent::SessionSet(result) => match result {
             Ok(()) => {
                 let id = next_id(state);
@@ -111,14 +88,11 @@ pub(crate) fn on_backend(
             }
         }
         BwEvent::Unlocked(result) => match result {
-            Ok(status) if status.is_unlocked() => {
+            Ok(()) => {
                 state.unlock = UnlockState::default();
                 state.enter_session(SessionPhase::Loading);
                 state.toast(MessageLevel::Ok, "Vault unlocked.");
                 effects.push(request(state, CommandKind::LoadVault, Pending::Load));
-            }
-            Ok(_) => {
-                state.unlock.error = Some("The vault is still locked. Try again.".to_owned());
             }
             Err(err) => {
                 if matches!(err, crate::bw::BwError::InvalidPassword) {
@@ -165,9 +139,14 @@ pub(crate) fn on_backend(
                     .and_then(|editor| editor.item.id.clone())
                     .and_then(|id| state.cache.item(&id).cloned())
                     .and_then(|item| item.revision_date);
+                // The panes sweep in when the vault opens, not on every
+                // reload (a background sync, a folder change).
+                let opening = state.session == SessionPhase::Loading;
                 state.apply_snapshot(snapshot);
                 state.last_sync_at = Some(Instant::now());
-                animate(state, crate::ui::fx::FxKind::Sweep);
+                if opening {
+                    animate(state, crate::ui::fx::FxKind::Sweep);
+                }
                 if let Some(id) = selected {
                     let rows = state.visible_rows();
                     if let Some(index) = rows.iter().position(|row| row.id == id) {
@@ -515,6 +494,9 @@ pub(crate) fn on_backend(
                 state.login = Default::default();
                 state.email = status.user_email.clone();
                 state.server = status.server_url.clone();
+                // `bw login` syncs; the vault load no longer asks for this.
+                state.last_sync =
+                    status.last_sync.as_deref().and_then(crate::util::time::parse_iso);
                 state.enter_session(SessionPhase::Locked);
                 state.toast(MessageLevel::Ok, "Logged in. Unlock the vault to continue.");
             }
@@ -658,4 +640,43 @@ fn rollback_failed_change(
         "A change failed; reloading the vault to show its real state.",
     );
     vec![request(state, CommandKind::LoadVault, Pending::Load)]
+}
+
+/// The CLI answered (or failed) at start: pick the session phase.
+fn on_started(
+    state: &mut AppState,
+    result: Result<crate::bw::models::Status, crate::bw::BwError>,
+    effects: &mut Vec<Effect>,
+) {
+    match result {
+        Ok(status) => {
+            state.backend_alive = true;
+            state.email = status.user_email.clone();
+            state.server = status.server_url.clone();
+            state.last_sync = status.last_sync.as_deref().and_then(crate::util::time::parse_iso);
+            if status.is_unlocked() {
+                state.enter_session(SessionPhase::Loading);
+                effects.push(request(state, CommandKind::LoadVault, Pending::Load));
+            } else if status.is_locked() {
+                state.enter_session(SessionPhase::Locked);
+            } else {
+                state.enter_session(SessionPhase::LoggedOut);
+            }
+        }
+        // No account yet: `bw serve` refuses to run until one logs in.
+        Err(err) if err.requires_login() => state.enter_session(SessionPhase::LoggedOut),
+        Err(err) => {
+            // Without a running CLI nothing else can happen: say so and
+            // offer a retry instead of spinning on the start screen.
+            state.backend_alive = false;
+            state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
+                title: "Couldn't start the Bitwarden CLI".to_owned(),
+                lines: vec![err.to_string()],
+                detail: Vec::new(),
+                actions: "r retry   q quit".to_owned(),
+                retry: true,
+                open_file: None,
+            })));
+        }
+    }
 }

@@ -188,7 +188,10 @@ fn unlock(state: &mut State, request: &Request) -> Response {
         .and_then(Value::as_str)
         .unwrap_or_default();
     if password != state.master_password {
-        return Response::error("Invalid master password.");
+        // What bw 2026.10.1 answers: the key derived from a wrong password
+        // cannot decrypt the account key. Older CLIs said "Invalid master
+        // password."; lazybw reads both as a wrong password.
+        return Response::error("Cryptography error, The decryption operation failed");
     }
     state.status = state::STATUS_UNLOCKED.to_owned();
     Response::ok(json!({
@@ -784,7 +787,10 @@ mod tests {
         let wrong = Request::new("POST", "/unlock").with_body(json!({"password": "nope"}));
         let response = handle(&mut state, &wrong);
         assert_eq!(response.status, 400);
-        assert_eq!(body(&response)["message"], "Invalid master password.");
+        assert_eq!(
+            body(&response)["message"],
+            "Cryptography error, The decryption operation failed"
+        );
 
         let right = Request::new("POST", "/unlock").with_body(json!({"password": "correct horse"}));
         let response = handle(&mut state, &right);

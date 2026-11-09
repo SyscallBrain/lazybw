@@ -525,6 +525,34 @@ pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     }
 }
 
+/// Keys typed while the CLI starts are the master password, typed ahead:
+/// `bw serve` takes most of a second to come up, and people start typing as
+/// soon as lazybw opens. Enter unlocks as soon as the CLI reports a locked
+/// vault; if it reports anything else, what was typed is dropped (`Started`
+/// in `update/backend.rs`). Only Ctrl-c leaves from here, so a `q` in the
+/// password cannot quit and send the rest of it to the shell.
+pub(crate) fn starting_key(state: &mut AppState, key: Key) -> Vec<Effect> {
+    use crate::config::keymap::Code;
+    if is_ctrl_c(key) {
+        return apply(state, Action::new("app.quit"));
+    }
+    let unlock = &mut state.unlock;
+    match key.code {
+        Code::Enter => unlock.submit_when_ready = !unlock.password.is_empty(),
+        Code::Esc => *unlock = crate::app::state::UnlockState::default(),
+        Code::Backspace => {
+            unlock.password.pop();
+            unlock.submit_when_ready = false;
+        }
+        Code::Char(c) if key.is_printable() => {
+            unlock.password.push(c);
+            unlock.submit_when_ready = false;
+        }
+        _ => {}
+    }
+    Vec::new()
+}
+
 pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::app::state::LoginFocus::{ClientId, ClientSecret, Method, Server, ServerUrl};
     use crate::config::keymap::Code;

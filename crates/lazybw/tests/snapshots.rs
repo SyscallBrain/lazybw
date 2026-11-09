@@ -183,6 +183,9 @@ fn starting_screen() {
     state.capabilities =
         Some(lazybw::bw::locate::Capabilities::from_version(semver::Version::new(2026, 10, 1)));
     insta::assert_snapshot!("starting_120x36", render(&state, 120, 36));
+    // The master password typed ahead shows masked.
+    state.unlock.password.push_str("secret");
+    insta::assert_snapshot!("starting_typed_ahead_120x36", render(&state, 120, 36));
 }
 
 #[test]
@@ -526,6 +529,12 @@ fn confirm_overlay() {
 fn too_small_screen() {
     let state = state("tokyonight-night");
     insta::assert_snapshot!("too_small_52x14", render(&state, 52, 14));
+}
+
+#[test]
+fn too_small_screen_narrow() {
+    let state = state("tokyonight-night");
+    insta::assert_snapshot!("too_small_40x10", render(&state, 40, 10));
 }
 
 #[test]
