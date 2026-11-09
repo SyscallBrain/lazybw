@@ -115,9 +115,7 @@ impl Serve {
                         Ok(stream) => break stream,
                         Err(err) if Instant::now() < deadline => {
                             if let Ok(Some(status)) = self.child.try_wait() {
-                                return Err(BwError::Other(format!(
-                                    "bw serve exited with {status}"
-                                )));
+                                return Err(self.exit_error(status));
                             }
                             let _ = err;
                             tokio::time::sleep(delay).await;
@@ -145,10 +143,7 @@ impl Serve {
                 }
                 Err(err) => {
                     if let Ok(Some(status)) = self.child.try_wait() {
-                        return Err(BwError::Other(format!(
-                            "bw serve exited with {status}: {}",
-                            self.stderr_tail()
-                        )));
+                        return Err(self.exit_error(status));
                     }
                     if Instant::now() >= deadline {
                         return Err(err);
@@ -160,6 +155,24 @@ impl Serve {
                 }
             }
         }
+    }
+
+    /// Why `bw serve` stopped before it answered. With no account logged
+    /// in it exits printing "You are not logged in." (bw-integration.md §2);
+    /// that message maps to [`BwError::NotLoggedIn`] like any other, so the
+    /// app shows the login screen. Anything else reports the stderr tail.
+    fn exit_error(&self, status: std::process::ExitStatus) -> BwError {
+        let not_logged_in = {
+            let guard = self.stderr.lock().unwrap_or_else(|e| e.into_inner());
+            guard.iter().any(|line| {
+                let message = line.strip_prefix("bw serve stderr:").unwrap_or(line);
+                matches!(BwError::from_message(message), BwError::NotLoggedIn)
+            })
+        };
+        if not_logged_in {
+            return BwError::NotLoggedIn;
+        }
+        BwError::Other(format!("bw serve exited with {status}: {}", self.stderr_tail()))
     }
 
     /// The last 20 stderr lines, joined.

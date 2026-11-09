@@ -9,6 +9,15 @@ use lazybw::bw::models::ItemType;
 use lazybw::vault::cache::Filter;
 
 #[tokio::test]
+async fn startup_without_an_account_shows_the_login_screen() {
+    // `bw serve` exits with "You are not logged in." when no account is
+    // logged in; that must lead to the login screen, not an error.
+    let mut app = harness::TestApp::boot_with_status("unauthenticated").await;
+    app.wait_screen(Screen::Login).await;
+    assert_eq!(app.app.state.session, lazybw::app::SessionPhase::LoggedOut);
+}
+
+#[tokio::test]
 async fn startup_loads_the_vault() {
     let mut app = ready_app().await;
     assert_eq!(app.app.state.screen, Screen::Vault);
