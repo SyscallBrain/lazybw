@@ -9,6 +9,7 @@ use crate::ui::{
 };
 
 pub(crate) fn draw_overlays(frame: &mut Frame<'_>, area: Rect, body: Rect, state: &AppState) {
+    use crate::app::state::Overlay;
     if state.overlay_open() && body.width > 0 {
         // Dim everything behind a modal by 55% toward the bar background.
         let style = crate::ui::fx::Fx::backdrop_style(&state.theme, 1.0);
@@ -17,40 +18,23 @@ pub(crate) fn draw_overlays(frame: &mut Frame<'_>, area: Rect, body: Rect, state
     if state.generator_popup_open() {
         draw_generator_popup(frame, body, state);
     }
-    if state.quick_open.is_some() {
-        draw_quick_open(frame, area, state);
-    }
-    if state.cmdline.is_some() {
-        draw_wildmenu(frame, area, state);
-    }
-    if let Some(export) = &state.export {
-        draw_export(frame, area, state, export);
-    }
-    if let Some(import) = &state.import {
-        draw_import(frame, area, state, import);
-    }
-    if let Some(picker) = &state.picker {
-        draw_picker(frame, area, state, picker);
-    }
-    if let Some(confirm) = &state.confirm {
-        draw_confirm(frame, area, state, confirm);
-    }
-    if let Some(prompt) = &state.prompt {
-        draw_prompt(frame, area, state, prompt);
-    }
-    if let Some(reprompt) = &state.remprompt {
-        draw_reprompt(frame, area, state, reprompt);
-    }
-    if let Some(history) = &state.history {
-        draw_history(frame, area, state, history);
-    }
-    if let Some(info) = &state.info {
-        draw_info(frame, area, state, info);
+    match &state.overlay {
+        Some(Overlay::QuickOpen(_)) => draw_quick_open(frame, area, state),
+        Some(Overlay::Cmdline(_)) => draw_wildmenu(frame, area, state),
+        Some(Overlay::Export(export)) => draw_export(frame, area, state, export),
+        Some(Overlay::Import(import)) => draw_import(frame, area, state, import),
+        Some(Overlay::Picker(picker)) => draw_picker(frame, area, state, picker),
+        Some(Overlay::Confirm(confirm)) => draw_confirm(frame, area, state, confirm),
+        Some(Overlay::Prompt(prompt)) => draw_prompt(frame, area, state, prompt),
+        Some(Overlay::Reprompt(reprompt)) => draw_reprompt(frame, area, state, reprompt),
+        Some(Overlay::History(history)) => draw_history(frame, area, state, history),
+        Some(Overlay::Info(info)) => draw_info(frame, area, state, info),
+        None => {}
     }
 }
 
 pub(crate) fn draw_quick_open(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
-    let Some(quick) = &state.quick_open else { return };
+    let Some(quick) = state.quick_open() else { return };
     let theme = &state.theme;
     let rect = quick_open_rect(area);
     popup_surface(frame, rect, theme);

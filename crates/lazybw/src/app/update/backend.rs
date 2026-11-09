@@ -1,9 +1,9 @@
 //! Backend results and resumed terminal tasks.
 
 use super::{
-    AppState, CommandKind, Effect, Filter, FormKey, Instant, Item, MessageLevel, Pending, Screen,
-    SessionPhase, SortOrder, Suspended, UnlockState, animate, apply, drive_folder_restore, next_id,
-    ordered_import_formats, rebuild_rows, request, show_backend_error,
+    AppState, CommandKind, Effect, Filter, FormKey, Instant, Item, MessageLevel, Overlay, Pending,
+    Screen, SessionPhase, SortOrder, Suspended, UnlockState, animate, apply, drive_folder_restore,
+    next_id, ordered_import_formats, rebuild_rows, request, show_backend_error,
 };
 
 pub(crate) fn on_backend(
@@ -70,7 +70,7 @@ pub(crate) fn on_backend(
         BwEvent::Unlocked(result) => match result {
             Ok(status) => {
                 if let Some(Pending::Reprompt(action)) = pending {
-                    let item_id = state.remprompt.take().map(|r| r.item_id).unwrap_or_default();
+                    let item_id = state.take_reprompt().map(|r| r.item_id).unwrap_or_default();
                     state.reprompt_action = None;
                     if let Some(grace) = state.config.security.reprompt_grace.get()
                         && !grace.is_zero()
@@ -96,7 +96,7 @@ pub(crate) fn on_backend(
                     // A wrong password keeps the dialog open with the error;
                     // the vault itself stays unlocked.
                     state.reprompt_action = Some(*action);
-                    if let Some(reprompt) = &mut state.remprompt {
+                    if let Some(Overlay::Reprompt(reprompt)) = &mut state.overlay {
                         reprompt.busy = false;
                         reprompt.error = Some(err.to_string());
                     }
@@ -395,17 +395,17 @@ pub(crate) fn on_backend(
                 let path = outcome.path.display().to_string();
                 let count = state.cache.active_items().count();
                 state.toast(MessageLevel::Ok, format!("Exported {count} items to {path}."));
-                if state.export.as_ref().is_some_and(|export| export.format.is_plaintext()) {
+                if state.export().is_some_and(|export| export.format.is_plaintext()) {
                     state.message(
                         MessageLevel::Warn,
                         "This file contains every password in plain text. Keep it safe and delete it when done.",
                     );
                 }
-                state.export = None;
+                state.take_export();
                 state.screen = Screen::Vault;
             }
             Err(err) => {
-                if let Some(export) = &mut state.export {
+                if let Some(Overlay::Export(export)) = &mut state.overlay {
                     export.busy = false;
                     if matches!(err, crate::bw::BwError::InvalidPassword) {
                         // Ask for the master password again.
@@ -420,7 +420,7 @@ pub(crate) fn on_backend(
             }
         },
         BwEvent::ImportFormats(formats) => {
-            if let Some(import) = &mut state.import {
+            if let Some(Overlay::Import(import)) = &mut state.overlay {
                 let selected =
                     import.filtered_formats().get(import.format_index).map(|f| (*f).to_owned());
                 import.formats = ordered_import_formats(&formats);
@@ -440,7 +440,7 @@ pub(crate) fn on_backend(
                     None => message,
                 };
                 state.toast(MessageLevel::Ok, text);
-                state.import = None;
+                state.take_import();
                 state.screen = Screen::Vault;
                 // Show what arrived: All items, newest first.
                 state.filter = Filter::All;
@@ -454,7 +454,7 @@ pub(crate) fn on_backend(
             }
             Err(err) => {
                 state.last_import = None;
-                if let Some(import) = &mut state.import {
+                if let Some(Overlay::Import(import)) = &mut state.overlay {
                     import.busy = false;
                     import.error = Some(err.to_string());
                 } else {

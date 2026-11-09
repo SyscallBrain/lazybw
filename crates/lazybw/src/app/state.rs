@@ -1237,6 +1237,115 @@ pub enum Pending {
     ConfigServer,
 }
 
+/// The modal popup drawn over the current screen.
+///
+/// Only one is open at a time, so it is one value rather than a field per
+/// popup: an overlay that runs an action closes itself first, and opening
+/// one replaces whatever was open. While an overlay is open it receives
+/// every key (`update::on_key`), its keymap context leads the chain
+/// ([`AppState::contexts`]) and `Esc` closes it.
+#[derive(Debug, Clone)]
+pub enum Overlay {
+    /// The fuzzy finder (`Ctrl-p`).
+    QuickOpen(QuickOpenState),
+    /// The `:` command line.
+    Cmdline(CmdlineState),
+    /// A list to pick from (folder, item type, theme, …).
+    Picker(PickerState),
+    /// A yes/no question.
+    Confirm(ConfirmState),
+    /// The master password re-prompt for a protected item.
+    Reprompt(RepromptState),
+    /// A one-line text prompt (new folder name, …).
+    Prompt(PromptState),
+    /// The password history of an item.
+    History(HistoryState),
+    /// Item details (`:info`).
+    Info(InfoState),
+    /// The export wizard.
+    Export(ExportState),
+    /// The import wizard.
+    Import(ImportState),
+}
+
+impl Overlay {
+    /// The keymap context that leads the chain while this overlay is open.
+    /// The wizards read keys directly and have none.
+    #[must_use]
+    pub fn context(&self) -> Option<&'static str> {
+        match self {
+            Self::QuickOpen(_) => Some("quick_open"),
+            Self::Cmdline(_) | Self::Prompt(_) => Some("cmdline"),
+            Self::Picker(_) => Some("picker"),
+            Self::Confirm(_) => Some("confirm"),
+            Self::Reprompt(_) => Some("unlock"),
+            Self::History(_) | Self::Info(_) => Some("help"),
+            Self::Export(_) | Self::Import(_) => None,
+        }
+    }
+}
+
+impl AppState {
+    /// Opens an overlay, replacing whatever overlay was open.
+    pub fn open(&mut self, overlay: impl Into<Overlay>) {
+        self.overlay = Some(overlay.into());
+    }
+}
+
+/// Per-kind access to the open overlay: `picker()` reads it, `take_picker()`
+/// closes it and hands it back (and leaves any other kind alone), and
+/// `PickerState` converts into an [`Overlay`] for [`AppState::open`].
+/// Code that changes an overlay in place matches on [`AppState::overlay`],
+/// so the borrow stays on that one field.
+macro_rules! overlay_kinds {
+    ($($get:ident, $take:ident: $variant:ident($ty:ty)),* $(,)?) => {
+        impl AppState {
+            $(
+                #[doc = concat!("The `", stringify!($variant), "` overlay, if that is the one open.")]
+                #[must_use]
+                pub fn $get(&self) -> Option<&$ty> {
+                    match &self.overlay {
+                        Some(Overlay::$variant(inner)) => Some(inner),
+                        _ => None,
+                    }
+                }
+
+                #[doc = concat!("Closes the `", stringify!($variant), "` overlay and returns it; any other overlay stays open.")]
+                pub fn $take(&mut self) -> Option<$ty> {
+                    match self.overlay.take() {
+                        Some(Overlay::$variant(inner)) => Some(inner),
+                        other => {
+                            self.overlay = other;
+                            None
+                        }
+                    }
+                }
+            )*
+        }
+
+        $(
+            impl From<$ty> for Overlay {
+                fn from(inner: $ty) -> Self {
+                    Self::$variant(inner)
+                }
+            }
+        )*
+    };
+}
+
+overlay_kinds! {
+    quick_open, take_quick_open: QuickOpen(QuickOpenState),
+    cmdline, take_cmdline: Cmdline(CmdlineState),
+    picker, take_picker: Picker(PickerState),
+    confirm, take_confirm: Confirm(ConfirmState),
+    reprompt, take_reprompt: Reprompt(RepromptState),
+    prompt, take_prompt: Prompt(PromptState),
+    history, take_history: History(HistoryState),
+    info, take_info: Info(InfoState),
+    export, take_export: Export(ExportState),
+    import, take_import: Import(ImportState),
+}
+
 /// The whole application state.
 #[derive(Debug)]
 pub struct AppState {
@@ -1286,32 +1395,14 @@ pub struct AppState {
     pub generator: GeneratorState,
     /// Health.
     pub health: HealthState,
-    /// Quick open.
-    pub quick_open: Option<QuickOpenState>,
-    /// Command line.
-    pub cmdline: Option<CmdlineState>,
-    /// Picker.
-    pub picker: Option<PickerState>,
-    /// Confirmation dialog.
-    pub confirm: Option<ConfirmState>,
-    /// Master password re-prompt.
-    pub remprompt: Option<RepromptState>,
-    /// One-line prompt overlay.
-    pub prompt: Option<PromptState>,
-    /// Password history popup.
-    pub history: Option<HistoryState>,
-    /// Item info popup.
-    pub info: Option<InfoState>,
+    /// The modal popup over the screen, if any. See [`Overlay`].
+    pub overlay: Option<Overlay>,
     /// Which-key.
     pub which_key: Option<WhichKeyState>,
     /// Settings.
     pub settings: SettingsState,
     /// Keymap editor.
     pub keymap_editor: KeymapEditorState,
-    /// Export wizard.
-    pub export: Option<ExportState>,
-    /// Import wizard.
-    pub import: Option<ImportState>,
     /// Help filter.
     pub help_filter: String,
     /// The key contexts that were active when help opened.
@@ -1513,19 +1604,10 @@ impl AppState {
             editor: None,
             generator: GeneratorState::default(),
             health: HealthState::default(),
-            quick_open: None,
-            cmdline: None,
-            picker: None,
-            confirm: None,
-            remprompt: None,
-            prompt: None,
-            history: None,
-            info: None,
+            overlay: None,
             which_key: None,
             settings: SettingsState::default(),
             keymap_editor: KeymapEditorState::default(),
-            export: None,
-            import: None,
             help_filter: String::new(),
             help_offset: 0,
             messages_offset: 0,
@@ -1684,14 +1766,11 @@ impl AppState {
         if self.visual_anchor.is_some() {
             return "VISUAL";
         }
-        if self.cmdline.is_some() {
-            return "COMMAND";
-        }
-        if self.search.active {
-            return "SEARCH";
-        }
-        if self.quick_open.is_some() {
-            return "SEARCH";
+        match self.overlay {
+            Some(Overlay::Cmdline(_)) => return "COMMAND",
+            Some(Overlay::QuickOpen(_)) => return "SEARCH",
+            _ if self.search.active => return "SEARCH",
+            _ => {}
         }
         match self.screen {
             Screen::Unlock => "LOCKED",
@@ -1744,18 +1823,10 @@ impl AppState {
         (self.list_row.min(len.saturating_sub(1)) + 1, len)
     }
 
-    /// True when an overlay is open.
+    /// True when a modal is open: anything that dims the screen behind it.
     #[must_use]
     pub fn overlay_open(&self) -> bool {
-        self.generator_popup_open()
-            || self.quick_open.is_some()
-            || self.cmdline.is_some()
-            || self.picker.is_some()
-            || self.confirm.is_some()
-            || self.remprompt.is_some()
-            || self.prompt.is_some()
-            || self.history.is_some()
-            || self.info.is_some()
+        self.generator_popup_open() || self.overlay.is_some()
     }
 
     /// Is the editor's `Ctrl-g` generator popup showing?
@@ -1768,20 +1839,8 @@ impl AppState {
     #[must_use]
     pub fn contexts(&self) -> Vec<String> {
         let mut chain = Vec::new();
-        if self.picker.is_some() {
-            chain.push("picker".to_owned());
-        } else if self.confirm.is_some() {
-            chain.push("confirm".to_owned());
-        } else if self.remprompt.is_some() {
-            chain.push("unlock".to_owned());
-        } else if self.prompt.is_some() {
-            chain.push("cmdline".to_owned());
-        } else if self.history.is_some() || self.info.is_some() || self.messages_screen() {
-            chain.push("help".to_owned());
-        } else if self.quick_open.is_some() {
-            chain.push("quick_open".to_owned());
-        } else if self.cmdline.is_some() {
-            chain.push("cmdline".to_owned());
+        if let Some(overlay) = &self.overlay {
+            chain.extend(overlay.context().map(str::to_owned));
         } else {
             match self.screen {
                 Screen::Vault => {
@@ -1809,30 +1868,9 @@ impl AppState {
                 Screen::Help | Screen::Messages => chain.push("help".to_owned()),
                 Screen::Starting | Screen::Error => {}
             }
-            chain.push("global".to_owned());
         }
-        if !chain.iter().any(|c| c == "global") {
-            chain.push("global".to_owned());
-        }
+        chain.push("global".to_owned());
         chain
-    }
-
-    fn messages_screen(&self) -> bool {
-        self.screen == Screen::Messages
-    }
-
-    /// True when the focused context accepts text.
-    #[must_use]
-    pub fn text_entry(&self) -> bool {
-        if self.search.active {
-            return true;
-        }
-        let chain = self.contexts();
-        chain.first().is_some_and(|c| {
-            crate::config::keymap::TEXT_CONTEXTS.contains(&c.as_str())
-                || c == "settings"
-                || c == "keymap_editor"
-        })
     }
 
     /// Adds a toast and logs it.
@@ -1946,21 +1984,12 @@ impl AppState {
         self.notes = None;
         self.detail = DetailState::default();
         self.detail_item = None;
-        self.history = None;
-        self.info = None;
-        self.quick_open = None;
-        self.remprompt = None;
+        self.overlay = None;
         self.reprompt_action = None;
         self.reprompt_once = None;
         self.reprompt_passed = None;
         self.yanked_item = None;
         self.pending_generate_target = None;
-        self.export = None;
-        self.import = None;
-        self.prompt = None;
-        self.confirm = None;
-        self.picker = None;
-        self.cmdline = None;
         self.search = SearchState::default();
         self.health = HealthState::default();
         self.last_totp_code = None;

@@ -6,8 +6,8 @@
 
 use lazybw::app::state::{
     AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, ExportState,
-    FormKey, FormKind, FormRow, HistoryState, ImportState, InfoState, MessageLevel, PickerEntry,
-    PickerKind, PickerState, QuickOpenState, RepromptState, Screen, SessionPhase, Tab,
+    FormKey, FormKind, FormRow, HistoryState, ImportState, InfoState, MessageLevel, Overlay,
+    PickerEntry, PickerKind, PickerState, QuickOpenState, RepromptState, Screen, SessionPhase, Tab,
     WhichKeyState,
 };
 use lazybw::bw::models::{Folder, Item, ItemType, Login, LoginUri};
@@ -460,7 +460,7 @@ fn messages_screen() {
 #[test]
 fn quick_open_overlay() {
     let mut state = state("tokyonight-night");
-    state.quick_open = Some(QuickOpenState {
+    state.open(QuickOpenState {
         input: "git".into(),
         cursor: 3,
         results: vec!["id-github".into(), "id-gmail".into()],
@@ -474,7 +474,7 @@ fn quick_open_overlay() {
 #[test]
 fn picker_overlay() {
     let mut state = state("tokyonight-night");
-    state.picker = Some(PickerState::new(
+    state.open(PickerState::new(
         "New item",
         PickerKind::ItemType,
         vec![
@@ -507,7 +507,7 @@ fn picker_overlay() {
 #[test]
 fn confirm_overlay() {
     let mut state = state("tokyonight-night");
-    state.confirm = Some(ConfirmState {
+    state.open(ConfirmState {
         title: "Delete permanently?".into(),
         message: "“Old forum” will be deleted for good. This cannot be undone.".into(),
         confirm_label: "Delete".into(),
@@ -531,7 +531,7 @@ fn too_small_screen() {
 #[test]
 fn export_wizard_snapshot() {
     let mut state = state("tokyonight-night");
-    state.export = Some(ExportState {
+    state.open(ExportState {
         step: 0,
         format: lazybw::bw::service::ExportFormat::Json,
         path: "~/bitwarden_export_20261030140000.json".into(),
@@ -571,14 +571,14 @@ fn import_preview_snapshot() {
         },
     ];
     import.skip = import.duplicates.iter().map(|d| d.index).collect();
-    state.import = Some(import);
+    state.open(import);
     insta::assert_snapshot!("import_preview_120x36", render(&state, 120, 36));
 }
 
 #[test]
 fn history_popup_snapshot() {
     let mut state = state("tokyonight-night");
-    state.history = Some(HistoryState {
+    state.open(HistoryState {
         item_id: "id-github".into(),
         entries: vec![
             lazybw::bw::models::PasswordHistory {
@@ -602,7 +602,7 @@ fn history_popup_snapshot() {
 #[test]
 fn info_popup_snapshot() {
     let mut state = state("tokyonight-night");
-    state.info = Some(InfoState {
+    state.open(InfoState {
         item_id: "id-github".into(),
         lines: vec![
             ("Name".into(), "GitHub".into()),
@@ -620,7 +620,7 @@ fn info_popup_snapshot() {
 #[test]
 fn reprompt_popup_snapshot() {
     let mut state = state("tokyonight-night");
-    state.remprompt = Some(RepromptState {
+    state.open(RepromptState {
         item_id: "id-github".into(),
         item_name: "Bank".into(),
         password: "secret".into(),
@@ -653,7 +653,7 @@ fn which_key_snapshot() {
 #[test]
 fn wildmenu_snapshot() {
     let mut state = state("tokyonight-night");
-    state.cmdline = Some(CmdlineState {
+    state.open(CmdlineState {
         input: "theme tok".into(),
         cursor: 9,
         completions: vec![
@@ -696,7 +696,7 @@ fn picker_window_follows_the_cursor() {
             accelerator: None,
         })
         .collect();
-    state.picker = Some(PickerState::new("Go to folder", PickerKind::FolderJump, entries));
+    state.open(PickerState::new("Go to folder", PickerKind::FolderJump, entries));
     let selected_line = |state: &AppState| {
         render(state, 120, 36)
             .lines()
@@ -704,7 +704,8 @@ fn picker_window_follows_the_cursor() {
             .map(str::to_owned)
     };
     for index in [0, 11, 12, 20, 29, 0] {
-        state.picker.as_mut().unwrap().index = index;
+        let Some(Overlay::Picker(picker)) = &mut state.overlay else { panic!("picker") };
+        picker.index = index;
         let line =
             selected_line(&state).unwrap_or_else(|| panic!("cursor at {index} is not drawn"));
         assert!(line.contains(&format!("Folder {index:02}")), "{index}: {line}");
@@ -803,10 +804,10 @@ fn docked_popups_leave_the_statusline_and_command_line_alone() {
         completion_index: 0,
         show_completions: false,
     };
-    state.cmdline = Some(cmdline.clone());
+    state.open(cmdline.clone());
     let typing = bottom_rows(&state, 120, 36);
     cmdline.show_completions = true;
-    state.cmdline = Some(cmdline);
+    state.open(cmdline);
     assert_eq!(bottom_rows(&state, 120, 36), typing, "the wildmenu changed the bottom rows");
 }
 
@@ -849,7 +850,7 @@ fn narrow_terminals_keep_the_essentials() {
 
     // Quick open at 80 columns: the way out is always listed, and each row
     // carries its subtitle when there is no preview pane.
-    state.quick_open = Some(QuickOpenState {
+    state.open(QuickOpenState {
         input: "g".into(),
         cursor: 1,
         results: vec!["id-github".into(), "id-gmail".into()],
@@ -860,7 +861,7 @@ fn narrow_terminals_keep_the_essentials() {
     let screen = text_of(&state, 80, 24);
     assert!(screen.contains("Esc close"), "{screen}");
     assert!(screen.contains("dev-example"), "{screen}");
-    state.quick_open = None;
+    state.take_quick_open();
 
     // Health at 60 columns: all five categories stay visible.
     state.screen = Screen::Health;

@@ -183,7 +183,7 @@ pub(crate) fn editable(state: &mut AppState, item: &Item) -> bool {
 /// Asks to replace the password of `item` with a freshly generated one.
 pub(crate) fn confirm_generate(state: &mut AppState, item: &Item) -> Vec<Effect> {
     let id = item.id.clone().unwrap_or_default();
-    state.confirm = Some(ConfirmState {
+    state.open(ConfirmState {
         title: "New password".to_owned(),
         message: format!(
             "Replace the password saved in “{}” with a generated one? This changes the vault item only: change it on the website too. The current password moves to its history; u undoes it.",
@@ -292,7 +292,7 @@ pub(crate) fn reprompt(state: &mut AppState, action: Action) -> Vec<Effect> {
 pub(crate) fn reprompt_for(state: &mut AppState, item: &Item, action: Action) -> Vec<Effect> {
     let (id, name) = (item.id.clone().unwrap_or_default(), item.name.clone());
     state.reprompt_action = Some(action);
-    state.remprompt = Some(RepromptState {
+    state.open(RepromptState {
         item_id: id,
         item_name: name.clone(),
         password: crate::input::secret::SecretInput::new(),
@@ -628,7 +628,7 @@ pub(crate) fn open_folder_picker(state: &mut AppState) {
             accelerator: None,
         });
     }
-    state.picker = Some(PickerState::new("Move to folder", PickerKind::Folder, entries));
+    state.open(PickerState::new("Move to folder", PickerKind::Folder, entries));
 }
 
 pub(crate) fn move_items(state: &mut AppState, folder: &str, count: Option<u32>) -> Vec<Effect> {

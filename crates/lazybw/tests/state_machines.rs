@@ -1,0 +1,172 @@
+//! The app's state machines, driven through `update`: which overlay owns
+//! the keyboard, the wizards' steps, the login form, the master password
+//! re-prompt and the session lifecycle. Each test names a transition and
+//! checks where it lands, including the moves that must not happen.
+
+use lazybw::app::state::{
+    Action, ConfirmState, HistoryState, InfoState, Overlay, PickerEntry, PickerKind, PickerState,
+    PromptState, QuickOpenState,
+};
+use lazybw::app::update::update;
+use lazybw::app::{AppState, Effect, Msg, Screen, SessionPhase};
+use lazybw::bw::models::{Item, ItemType, Login};
+use lazybw::config::{Config, Paths};
+
+fn state() -> AppState {
+    let config = Config::default();
+    let theme = lazybw::theme::builtin::by_name("tokyonight-night").unwrap();
+    let (keymap, _) = lazybw::config::keymap::Keymap::build(&config.keys).unwrap();
+    let dir = std::env::temp_dir().join("lazybw-state-machines-unused");
+    let mut state =
+        AppState::new(config, theme, keymap, Paths { config_dir: dir.clone(), state_dir: dir });
+    state.clipboard = lazybw::clipboard::Clipboard::memory();
+    state.screen = Screen::Vault;
+    state.session = SessionPhase::Ready;
+    state.cache.load(vec![item("a"), item("b")], vec![], vec![], vec![]);
+    state
+}
+
+fn item(id: &str) -> Item {
+    let mut item = Item::new(ItemType::Login);
+    item.id = Some(id.into());
+    item.name = id.into();
+    item.login = Some(Login::default());
+    item
+}
+
+fn keys(state: &mut AppState, notation: &str) -> Vec<Effect> {
+    Msg::key(notation).into_iter().flat_map(|msg| update(state, msg)).collect()
+}
+
+fn paste(state: &mut AppState, text: &str) -> Vec<Effect> {
+    update(state, Msg::Paste(text.to_owned()))
+}
+
+fn confirm() -> ConfirmState {
+    ConfirmState {
+        title: "Delete".into(),
+        message: "Sure?".into(),
+        confirm_label: "Delete".into(),
+        danger: true,
+        requires_word: None,
+        input: String::new(),
+        on_confirm: Action::new("noop"),
+        on_deny: None,
+        also_subfolders: false,
+        subfolder_count: 0,
+    }
+}
+
+fn prompt() -> PromptState {
+    PromptState { title: "New folder".into(), on_accept: Action::new("noop"), ..Default::default() }
+}
+
+fn picker() -> PickerState {
+    let entry = |label: &str| PickerEntry {
+        label: label.into(),
+        note: String::new(),
+        filter: label.into(),
+        value: label.into(),
+        accelerator: None,
+    };
+    PickerState::new("Theme", PickerKind::Theme, vec![entry("nord"), entry("rose-pine")])
+}
+
+/// One of each overlay that a test can open directly, with the keymap
+/// context it should put first.
+fn every_overlay() -> Vec<(Overlay, &'static str)> {
+    vec![
+        (Overlay::QuickOpen(QuickOpenState::default()), "quick_open"),
+        (Overlay::Cmdline(Default::default()), "cmdline"),
+        (Overlay::Picker(picker()), "picker"),
+        (Overlay::Confirm(confirm()), "confirm"),
+        (Overlay::Reprompt(Default::default()), "unlock"),
+        (Overlay::Prompt(prompt()), "cmdline"),
+        (Overlay::History(HistoryState::default()), "help"),
+        (Overlay::Info(InfoState::default()), "help"),
+    ]
+}
+
+// ── Overlays ────────────────────────────────────────────────────────────
+
+#[test]
+fn an_open_overlay_leads_the_keymap_context_chain() {
+    for (overlay, context) in every_overlay() {
+        let mut s = state();
+        s.open(overlay.clone());
+        let chain = s.contexts();
+        assert_eq!(chain.first().map(String::as_str), Some(context), "{overlay:?}");
+        assert_eq!(chain.last().map(String::as_str), Some("global"), "{overlay:?}");
+    }
+}
+
+#[test]
+fn esc_closes_every_overlay() {
+    for (overlay, _) in every_overlay() {
+        let mut s = state();
+        s.open(overlay.clone());
+        keys(&mut s, "<Esc>");
+        assert!(s.overlay.is_none(), "Esc left {overlay:?} open");
+    }
+}
+
+#[test]
+fn opening_an_overlay_replaces_the_open_one() {
+    let mut s = state();
+    s.open(picker());
+    s.open(confirm());
+    assert!(s.picker().is_none());
+    assert!(s.confirm().is_some());
+}
+
+#[test]
+fn taking_an_overlay_leaves_other_kinds_open() {
+    let mut s = state();
+    s.open(picker());
+    assert!(s.take_confirm().is_none());
+    assert!(s.picker().is_some(), "closing a confirm closed the picker");
+    assert!(s.take_picker().is_some());
+    assert!(s.overlay.is_none());
+}
+
+#[test]
+fn a_paste_goes_into_the_open_prompt() {
+    let mut s = state();
+    s.open(prompt());
+    paste(&mut s, "Work\nignored second line");
+    assert_eq!(s.prompt().unwrap().input.text(), "Work");
+}
+
+#[test]
+fn a_paste_filters_the_open_picker() {
+    let mut s = state();
+    s.open(picker());
+    paste(&mut s, "rose");
+    let picker = s.picker().unwrap();
+    assert_eq!(picker.filter, "rose");
+    assert_eq!(picker.selected().map(|e| e.value.as_str()), Some("rose-pine"));
+}
+
+#[test]
+fn a_paste_never_reaches_the_editor_behind_a_popup() {
+    let mut s = state();
+    keys(&mut s, "al");
+    assert_eq!(s.screen, Screen::Editor);
+    keys(&mut s, "i");
+    assert!(s.editor.as_ref().unwrap().insert, "the editor is in INSERT");
+    let before = s.editor.as_ref().unwrap().rows.clone();
+    s.open(confirm());
+    paste(&mut s, "pasted");
+    assert_eq!(s.editor.as_ref().unwrap().rows, before, "the paste went behind the dialog");
+    assert!(s.confirm().unwrap().input.is_empty(), "a confirmation word is typed, not pasted");
+}
+
+#[test]
+fn locking_closes_any_overlay() {
+    for (overlay, _) in every_overlay() {
+        let mut s = state();
+        s.open(overlay.clone());
+        s.drop_secrets();
+        assert!(s.overlay.is_none(), "{overlay:?} survived the lock");
+    }
+}

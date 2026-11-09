@@ -3,9 +3,9 @@
 
 use super::{
     Action, AppState, CommandKind, Effect, ExportFormat, FieldKind, Filter, FormKey, ItemType, Key,
-    MessageLevel, Pending, PickerKind, PromptState, Query, Screen, SecretString, SessionPhase,
-    SuspendTask, UriMatch, apply, cancel, copy_value, ctrl_np_as_arrows, field_label, field_value,
-    move_items, next_id, open_new_editor, overlay_binding, rebuild_rows, reprompt_for,
+    MessageLevel, Overlay, Pending, PickerKind, PromptState, Query, Screen, SecretString,
+    SessionPhase, SuspendTask, UriMatch, apply, cancel, copy_value, ctrl_np_as_arrows, field_label,
+    field_value, move_items, next_id, open_new_editor, overlay_binding, rebuild_rows, reprompt_for,
     reprompt_required, request, select_item_by_id, sidebar_entries, sync_editor,
 };
 
@@ -14,25 +14,25 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     match overlay_binding(state, "picker", key) {
         Some(Some(action)) => return picker_action(state, &action),
         Some(None) => {
-            state.picker = None;
+            state.take_picker();
             return Vec::new();
         }
         None => {}
     }
     match key.code {
         Code::Esc => {
-            state.picker = None;
+            state.take_picker();
             return Vec::new();
         }
         Code::Up => return picker_action(state, &Action::new("picker.prev")),
         Code::Down => return picker_action(state, &Action::new("picker.next")),
         Code::Enter => return picker_action(state, &Action::new("picker.accept")),
         Code::Backspace => {
-            if let Some(picker) = &mut state.picker {
+            if let Some(Overlay::Picker(picker)) = &mut state.overlay {
                 if !picker.filter.is_empty() {
                     picker.filter.pop();
                 } else {
-                    state.picker = None;
+                    state.take_picker();
                     return Vec::new();
                 }
                 picker.refilter();
@@ -40,7 +40,7 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             return Vec::new();
         }
         Code::Char(c) if key.is_printable() => {
-            if let Some(picker) = &mut state.picker {
+            if let Some(Overlay::Picker(picker)) = &mut state.overlay {
                 if let Some(entry) = picker.entries.iter().find(|e| e.accelerator == Some(c)) {
                     let value = entry.value.clone();
                     return picker_accept_value(state, &value);
@@ -56,7 +56,7 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 pub(crate) fn picker_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
-    let Some(picker) = &mut state.picker else { return Vec::new() };
+    let Some(Overlay::Picker(picker)) = &mut state.overlay else { return Vec::new() };
     match action.id.as_str() {
         "picker.next" => {
             if !picker.filtered.is_empty() {
@@ -79,7 +79,7 @@ pub(crate) fn picker_action(state: &mut AppState, action: &Action) -> Vec<Effect
 }
 
 pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effect> {
-    let Some(picker) = state.picker.take() else { return Vec::new() };
+    let Some(picker) = state.take_picker() else { return Vec::new() };
     state.dirty = true;
     match picker.kind {
         PickerKind::FolderJump => {
@@ -100,7 +100,7 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
         }
         PickerKind::Folder => {
             if value == "__create__" {
-                state.prompt = Some(PromptState {
+                state.open(PromptState {
                     title: "New folder".to_owned(),
                     input: crate::input::line::Line::new(""),
                     on_accept: Action::new("folder.new"),
@@ -124,13 +124,13 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
             return apply(state, Action::with("theme.set", &[value]));
         }
         PickerKind::ExportFormat => {
-            if let Some(export) = &mut state.export {
+            if let Some(Overlay::Export(export)) = &mut state.overlay {
                 export.format = ExportFormat::parse(value).unwrap_or(ExportFormat::Json);
                 export.step = 1;
             }
         }
         PickerKind::ImportFormat => {
-            if let Some(import) = &mut state.import {
+            if let Some(Overlay::Import(import)) = &mut state.overlay {
                 import.format = value.to_owned();
                 import.step = 1;
             }
@@ -197,14 +197,14 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
     match key.code {
         Code::Esc => {
-            state.confirm = None;
+            state.take_confirm();
             Vec::new()
         }
         Code::Char('y') | Code::Char('n')
-            if state.confirm.as_ref().is_some_and(|c| c.requires_word.is_some()) =>
+            if state.confirm().is_some_and(|c| c.requires_word.is_some()) =>
         {
             // Typing the required word instead of y/n.
-            if let Some(confirm) = &mut state.confirm
+            if let Some(Overlay::Confirm(confirm)) = &mut state.overlay
                 && let Code::Char(c) = key.code
             {
                 confirm.input.push(c);
@@ -213,32 +213,32 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         }
         Code::Char('y') | Code::Enter => confirm_yes(state),
         Code::Char('n') => {
-            let deny = state.confirm.take().and_then(|confirm| confirm.on_deny);
+            let deny = state.take_confirm().and_then(|confirm| confirm.on_deny);
             match deny {
                 Some(action) => apply(state, action),
                 None => Vec::new(),
             }
         }
-        Code::Char('c') if state.confirm.as_ref().is_some_and(|c| c.on_deny.is_some()) => {
-            state.confirm = None;
+        Code::Char('c') if state.confirm().is_some_and(|c| c.on_deny.is_some()) => {
+            state.take_confirm();
             Vec::new()
         }
         Code::Char(' ') | Code::Char('x')
-            if state.confirm.as_ref().is_some_and(|confirm| confirm.subfolder_count > 0) =>
+            if state.confirm().is_some_and(|confirm| confirm.subfolder_count > 0) =>
         {
-            if let Some(confirm) = &mut state.confirm {
+            if let Some(Overlay::Confirm(confirm)) = &mut state.overlay {
                 confirm.also_subfolders = !confirm.also_subfolders;
             }
             Vec::new()
         }
         Code::Backspace => {
-            if let Some(confirm) = &mut state.confirm {
+            if let Some(Overlay::Confirm(confirm)) = &mut state.overlay {
                 confirm.input.pop();
             }
             Vec::new()
         }
         Code::Char(c) if key.is_printable() => {
-            if let Some(confirm) = &mut state.confirm {
+            if let Some(Overlay::Confirm(confirm)) = &mut state.overlay {
                 confirm.input.push(c);
             }
             Vec::new()
@@ -248,7 +248,7 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 pub(crate) fn confirm_yes(state: &mut AppState) -> Vec<Effect> {
-    let Some(confirm) = state.confirm.take() else { return Vec::new() };
+    let Some(confirm) = state.take_confirm() else { return Vec::new() };
     let mut on_confirm = confirm.on_confirm.clone();
     if on_confirm.id.starts_with("folder.") && on_confirm.id.ends_with(".confirm") {
         on_confirm.args.push(if confirm.also_subfolders { "also" } else { "no" }.to_owned());
@@ -257,7 +257,7 @@ pub(crate) fn confirm_yes(state: &mut AppState) -> Vec<Effect> {
         && confirm.input.trim() != word
     {
         state.message(MessageLevel::Error, format!("Type {word} to confirm."));
-        state.confirm = Some(confirm);
+        state.open(confirm);
         return Vec::new();
     }
     apply(state, on_confirm)
@@ -265,10 +265,10 @@ pub(crate) fn confirm_yes(state: &mut AppState) -> Vec<Effect> {
 
 pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
-    let Some(prompt) = &mut state.prompt else { return Vec::new() };
+    let Some(Overlay::Prompt(prompt)) = &mut state.overlay else { return Vec::new() };
     match key.code {
         Code::Esc => {
-            state.prompt = None;
+            state.take_prompt();
             return Vec::new();
         }
         Code::Enter => {
@@ -282,7 +282,7 @@ pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 let last = action.args.len() - 1;
                 action.args[last] = value;
             }
-            state.prompt = None;
+            state.take_prompt();
             return apply(state, action);
         }
         Code::Backspace => prompt.input.backspace(),
@@ -299,15 +299,15 @@ pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 
 pub(crate) fn reprompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
-    let Some(reprompt) = &mut state.remprompt else { return Vec::new() };
+    let Some(Overlay::Reprompt(reprompt)) = &mut state.overlay else { return Vec::new() };
     if is_ctrl_c(key) {
-        state.remprompt = None;
+        state.take_reprompt();
         state.reprompt_action = None;
         return Vec::new();
     }
     match key.code {
         Code::Esc => {
-            state.remprompt = None;
+            state.take_reprompt();
             state.reprompt_action = None;
             return Vec::new();
         }
@@ -320,7 +320,7 @@ pub(crate) fn reprompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             let password = reprompt.password.take_secret();
             let action = state.reprompt_action.take();
             let Some(action) = action else {
-                state.remprompt = None;
+                state.take_reprompt();
                 return Vec::new();
             };
             return vec![request(
@@ -343,21 +343,20 @@ pub(crate) fn popup_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     let key = ctrl_np_as_arrows(key);
     match key.code {
         Code::Esc | Code::Char('q') => {
-            state.history = None;
-            state.info = None;
+            state.overlay = None;
             if state.screen == Screen::Messages {
                 state.screen = state.tab.screen();
             }
         }
         Code::Char('j') | Code::Down => {
-            if let Some(history) = &mut state.history
+            if let Some(Overlay::History(history)) = &mut state.overlay
                 && !history.entries.is_empty()
             {
                 history.index = (history.index + 1) % history.entries.len();
             }
         }
         Code::Char('k') | Code::Up => {
-            if let Some(history) = &mut state.history
+            if let Some(Overlay::History(history)) = &mut state.overlay
                 && !history.entries.is_empty()
             {
                 history.index = (history.index + history.entries.len() - 1) % history.entries.len();
@@ -369,14 +368,14 @@ pub(crate) fn popup_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         }
         Code::Char('a') if state.showcmd == "z" => {
             state.showcmd.clear();
-            if let Some(history) = &mut state.history
+            if let Some(Overlay::History(history)) = &mut state.overlay
                 && !history.revealed.remove(&history.index)
             {
                 history.revealed.insert(history.index);
             }
         }
         Code::Char('y') => {
-            if let Some(history) = &state.history
+            if let Some(history) = state.history()
                 && let Some(entry) = history.entries.get(history.index)
             {
                 let value = entry.password.expose().to_owned();
@@ -395,14 +394,14 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     match overlay_binding(state, "quick_open", key) {
         Some(Some(action)) => return quick_open_action(state, &action),
         Some(None) => {
-            state.quick_open = None;
+            state.take_quick_open();
             return Vec::new();
         }
         None => {}
     }
     match key.code {
         Code::Esc => {
-            state.quick_open = None;
+            state.take_quick_open();
             return Vec::new();
         }
         Code::Enter => return quick_open_action(state, &Action::new("quick_open.accept")),
@@ -423,7 +422,7 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             return quick_open_action(state, &Action::new("quick_open.edit"));
         }
         Code::Backspace => {
-            if let Some(quick) = &mut state.quick_open
+            if let Some(Overlay::QuickOpen(quick)) = &mut state.overlay
                 && !quick.input.is_empty()
             {
                 quick.input.pop();
@@ -434,7 +433,7 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             return Vec::new();
         }
         Code::Char(c) if key.is_printable() => {
-            if let Some(quick) = &mut state.quick_open {
+            if let Some(Overlay::QuickOpen(quick)) = &mut state.overlay {
                 quick.input.push(c);
                 quick.cursor = quick.input.chars().count();
                 quick.index = 0;
@@ -448,7 +447,7 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 pub(crate) fn refresh_quick_open(state: &mut AppState) {
-    let Some(quick) = &mut state.quick_open else { return };
+    let Some(Overlay::QuickOpen(quick)) = &mut state.overlay else { return };
     let query = Query::parse(&quick.input);
     let mut matcher = crate::vault::query::QueryMatcher::new(&query);
     let mut hits: Vec<(std::sync::Arc<crate::vault::cache::Row>, u32)> = state
@@ -473,7 +472,7 @@ pub(crate) fn refresh_quick_open(state: &mut AppState) {
 }
 
 pub(crate) fn quick_open_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
-    let Some(quick) = &mut state.quick_open else { return Vec::new() };
+    let Some(Overlay::QuickOpen(quick)) = &mut state.overlay else { return Vec::new() };
     match action.id.as_str() {
         "quick_open.next" => {
             if !quick.results.is_empty() {
@@ -487,13 +486,13 @@ pub(crate) fn quick_open_action(state: &mut AppState, action: &Action) -> Vec<Ef
         }
         "quick_open.accept" => {
             if let Some(id) = quick.results.get(quick.index).cloned() {
-                state.quick_open = None;
+                state.take_quick_open();
                 select_item_by_id(state, &id);
             }
         }
         "quick_open.edit" => {
             if let Some(id) = quick.results.get(quick.index).cloned() {
-                state.quick_open = None;
+                state.take_quick_open();
                 select_item_by_id(state, &id);
                 return apply(state, Action::new("item.edit"));
             }
@@ -507,7 +506,7 @@ pub(crate) fn quick_open_action(state: &mut AppState, action: &Action) -> Vec<Ef
                     "quick_open.copy_username" => "username",
                     _ => "totp",
                 };
-                state.quick_open = None;
+                state.take_quick_open();
                 if field != "username" && reprompt_required(state, &item) {
                     // Select the item so the re-prompt and the copy target it.
                     select_item_by_id(state, &id);
