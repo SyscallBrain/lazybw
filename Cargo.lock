@@ -1268,7 +1268,7 @@ dependencies = [
 
 [[package]]
 name = "fake-bw"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "bytes",
  "http-body-util",
@@ -2014,7 +2014,7 @@ dependencies = [
 
 [[package]]
 name = "lazybw"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "arboard",
  "assert_fs",
