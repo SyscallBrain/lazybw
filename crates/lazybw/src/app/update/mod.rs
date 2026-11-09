@@ -1,6 +1,6 @@
 //! The update function: state transition from messages to effects.
 //!
-//! All user behaviour funnels through [`apply`], so an action triggered by a
+//! All user behaviour funnels through `apply`, so an action triggered by a
 //! key, a `:` command, a picker or the keymap editor behaves identically.
 
 mod apply;
