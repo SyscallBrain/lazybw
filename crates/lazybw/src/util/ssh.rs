@@ -26,9 +26,14 @@ pub fn generate_ed25519(comment: &str) -> Result<GeneratedKey, ssh_key::Error> {
     })
 }
 
-/// Parses an existing OpenSSH private key (no passphrase).
+/// Parses an existing OpenSSH private key (no passphrase). A key that has a
+/// passphrase is refused (`Error::Encrypted`): its public half reads without
+/// it, but the stored key would be unusable.
 pub fn parse_private_key(pem: &str) -> Result<GeneratedKey, ssh_key::Error> {
     let private = PrivateKey::from_openssh(pem)?;
+    if private.is_encrypted() {
+        return Err(ssh_key::Error::Encrypted);
+    }
     Ok(GeneratedKey {
         private_key: private.to_openssh(LineEnding::LF)?.to_string(),
         public_key: private.public_key().to_openssh()?,
@@ -50,10 +55,11 @@ pub fn parse_private_key_with_passphrase(
     })
 }
 
-/// True when a private key cannot be read without a passphrase.
+/// True when `pem` is an OpenSSH private key that has a passphrase. Text
+/// that is not a key at all is not "encrypted".
 #[must_use]
 pub fn is_encrypted(pem: &str) -> bool {
-    PrivateKey::from_openssh(pem).is_err() || pem.contains("ENCRYPTED")
+    PrivateKey::from_openssh(pem).is_ok_and(|key| key.is_encrypted())
 }
 
 /// The algorithm label used in the fingerprint line.
@@ -72,6 +78,39 @@ pub fn algorithm_label(pem: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn encrypted(passphrase: &str) -> (GeneratedKey, String) {
+        use ssh_key::rand_core::OsRng;
+        let plain = generate_ed25519("lazybw-test").unwrap();
+        let pem = PrivateKey::from_openssh(&plain.private_key)
+            .unwrap()
+            .encrypt(&mut OsRng, passphrase)
+            .unwrap()
+            .to_openssh(LineEnding::LF)
+            .unwrap()
+            .to_string();
+        (plain, pem)
+    }
+
+    /// The public half of an encrypted OpenSSH key reads without the
+    /// passphrase; the key must not be taken as usable for that.
+    #[test]
+    fn an_encrypted_key_is_refused_without_its_passphrase() {
+        let (plain, pem) = encrypted("hunter2");
+        assert!(is_encrypted(&pem));
+        assert!(parse_private_key(&pem).is_err());
+        let opened = parse_private_key_with_passphrase(&pem, "hunter2").unwrap();
+        assert_eq!(opened.fingerprint, plain.fingerprint);
+        assert!(!opened.private_key.contains("ENCRYPTED"));
+        assert!(!is_encrypted(&opened.private_key));
+    }
+
+    #[test]
+    fn text_that_is_not_a_key_is_not_called_encrypted() {
+        assert!(!is_encrypted("not a key"));
+        assert!(!is_encrypted(""));
+        assert!(!is_encrypted(&generate_ed25519("x").unwrap().private_key));
+    }
 
     #[test]
     fn generates_and_parses_ed25519() {

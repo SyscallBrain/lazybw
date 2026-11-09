@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verification codes work for authenticator keys of 16 characters (80
   bits), which many sites issue. lazybw refused them as too short, because
   the TOTP library asks for 128 bits; keys under 80 bits are still refused.
+- An SSH private key with a passphrase is refused with "private key is
+  encrypted" when it is imported or pasted into an SSH key item. It used to
+  be stored still encrypted, where nothing could use it.
 
 ## [1.1.0] - 2026-11-09
 
