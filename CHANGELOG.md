@@ -81,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - After unlocking, the vault opens straight away with a loading message,
   instead of an empty unlock screen followed by "No items".
 - Messages say "1 item" rather than "1 items".
+- With a `bw` that is too old or cannot be run, the start-up screen said
+  "Bitwarden CLI not found" and asked you to install it. It now says what
+  is wrong, and "Searched:" shows `bw.path` and `$LAZYBW_BW` when they are
+  set instead of always "unset".
 
 ## [1.0.0] - 2026-11-01
 
