@@ -181,9 +181,6 @@ pub(crate) fn draw_unlock(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ])
         .split(rect);
     let mut context = Vec::new();
-    if let Some(notice) = &state.lock_notice {
-        context.push(notice.clone());
-    }
     if let Some(last) = state.last_sync {
         context.push(format!("last sync {}", crate::util::time::relative(state.now, last)));
     }

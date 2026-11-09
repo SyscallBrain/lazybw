@@ -1582,8 +1582,6 @@ pub struct AppState {
     pub filter: Filter,
     /// Selected sidebar row.
     pub sidebar_row: usize,
-    /// Sidebar scroll offset.
-    pub sidebar_offset: usize,
     /// Collapsed folders.
     pub collapsed: BTreeSet<String>,
     /// Whether the sidebar is shown.
@@ -1652,9 +1650,9 @@ pub struct AppState {
     pub undo: UndoStack,
     /// Jump list.
     pub jump: JumpList,
-    /// Clipboard happy path.
+    /// The item yanked with `Y`, pasted as a copy with `p`.
     pub yanked_item: Option<Item>,
-    /// Remaining commands in a macro-ish sequence (count motions).
+    /// Set when lazybw should exit after this message.
     pub quit: bool,
     /// Dirty flag for redraw.
     pub dirty: bool,
@@ -1684,14 +1682,8 @@ pub struct AppState {
     pub backend_alive: bool,
     /// Last lock activity.
     pub last_input: Instant,
-    /// Last auto-lock notice.
-    pub lock_notice: Option<String>,
     /// When the last successful sync finished.
     pub last_sync_at: Option<Instant>,
-    /// True when the app is suspended for an interactive child.
-    pub suspended: bool,
-    /// Selection for `:g` style jumps.
-    pub last_visual: Option<(usize, usize)>,
     /// Item whose master password re-prompt just succeeded; consumed by the
     /// action that asked for it.
     pub reprompt_once: Option<String>,
@@ -1704,10 +1696,6 @@ pub struct AppState {
     pub last_import: Option<(usize, usize)>,
     /// Item id waiting for a generated password.
     pub pending_generate_target: Option<String>,
-    /// True while a filter reload is in progress.
-    pub filter_changed: bool,
-    /// The key sequence that was last displayed.
-    pub last_keys: String,
     /// Animation manager.
     pub fx: std::cell::RefCell<crate::ui::fx::Fx>,
     /// Scroll offsets the renderer settled on, per view, so scrolling is
@@ -1799,7 +1787,6 @@ impl AppState {
             cache: VaultCache::new(),
             filter: Filter::All,
             sidebar_row: 0,
-            sidebar_offset: 0,
             collapsed: BTreeSet::new(),
             sidebar_visible: true,
             list_row: 0,
@@ -1849,16 +1836,11 @@ impl AppState {
             keyboard_enhanced: true,
             backend_alive: false,
             last_input: Instant::now(),
-            lock_notice: None,
             last_sync_at: None,
-            suspended: false,
-            last_visual: None,
             reprompt_once: None,
             reprompt_passed: None,
             detail_item: None,
             pending_generate_target: None,
-            filter_changed: false,
-            last_keys: String::new(),
             help_chain: Vec::new(),
             last_import: None,
             ui_scroll: std::cell::RefCell::new(BTreeMap::new()),
