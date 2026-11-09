@@ -76,7 +76,7 @@ docker run -it --rm -v lazybw:/home/lazybw ghcr.io/syscallbrain/lazybw
 To build from source you need Rust 1.88 or newer:
 
 ```sh
-cargo install --git https://github.com/SyscallBrain/lazybw --tag v1.0.0 --locked lazybw
+cargo install --git https://github.com/SyscallBrain/lazybw --tag v1.1.0 --locked lazybw
 ```
 
 Android (Termux) and the other options are covered in the

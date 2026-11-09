@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-09
 
 ### Added
 
@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with 5,000 items. The health screen draws only the rows on screen, and
   the local password check scores a reused password once instead of once
   per item.
-
 - On the login screen, the API key form opens with `Enter` on "API key"
   and closes with `Esc`, and it marks the field being typed.
 - The export and import wizards dim the screen behind them, like the other
@@ -156,5 +155,5 @@ First public release.
 - Drawing an item, listing cards and building the health report borrow the
   vault data instead of copying passwords, card numbers and notes.
 
-[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/SyscallBrain/lazybw/releases/tag/v1.0.0
