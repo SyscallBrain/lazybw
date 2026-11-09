@@ -11,6 +11,10 @@ the login state, the clipboard backend, the terminal and the file paths. The
 log is in `~/.local/state/lazybw/lazybw.log`, and `Space` `m` shows the
 messages of the current session.
 
+The log records when lazybw starts and exits, which `bw` it found and what
+went wrong. For more detail, such as the error output of `bw`, start lazybw
+with `LAZYBW_LOG=debug lazybw` and repeat what failed.
+
 ## lazybw says `bw` was not found or is too old
 
 Install the Bitwarden CLI as described in [Installation](installation.md)

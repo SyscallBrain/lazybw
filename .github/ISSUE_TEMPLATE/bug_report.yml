@@ -59,7 +59,7 @@ body:
     id: log
     attributes:
       label: Last lines of the log
-      description: From `~/.local/state/lazybw/lazybw.log` (the path is also in the `doctor` output). It holds no vault data.
+      description: From `~/.local/state/lazybw/lazybw.log` (the path is also in the `doctor` output). It holds no vault data. If it says too little, run `LAZYBW_LOG=debug lazybw`, repeat what failed and copy the new lines.
       render: text
   - type: input
     id: os

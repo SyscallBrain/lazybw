@@ -2197,6 +2197,17 @@ impl AppState {
     /// - the vault data in memory: leaving Loading or Ready forgets it;
     /// - the requests in flight: only the session's own steps survive that.
     pub fn enter_session(&mut self, phase: SessionPhase) {
+        if let SessionPhase::Failed(error) = &phase {
+            // What the screen says, for bug reports. Its stderr rows are
+            // already in the log at `debug`, redacted, as they arrived.
+            let text: Vec<&str> = error
+                .lines
+                .iter()
+                .map(|line| line.trim())
+                .filter(|line| !line.is_empty())
+                .collect();
+            tracing::warn!(title = %error.title, "error screen: {}", text.join(" / "));
+        }
         if self.session.holds_vault_data() && !phase.holds_vault_data() {
             self.forget_vault();
         }

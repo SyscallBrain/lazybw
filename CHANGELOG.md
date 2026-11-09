@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lazybw doctor` shows the lazybw version, so its output is enough to
   tell which release a bug report is about.
 
+### Fixed
+
+- lazybw now writes the log that `lazybw doctor`, the troubleshooting guide
+  and the bug report form point to (`~/.local/state/lazybw/lazybw.log`).
+  It was never written before. It records start-up, the `bw` that was found
+  and errors; `LAZYBW_LOG=debug` adds the error output of `bw`. The file is
+  readable only by you, and when it passes 1 MiB it is moved to
+  `lazybw.log.1` at the next start.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added
