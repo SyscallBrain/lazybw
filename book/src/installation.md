@@ -143,10 +143,10 @@ On Arch Linux, the `lazybw` AUR package does this for you.
 lazybw doctor
 ```
 
-`doctor` prints what lazybw found: where `bw` is and which version, whether
-you are logged in, which clipboard backend it will use, the terminal size and
-colour depth, and the paths of the configuration, state and log files. Run it
-first whenever something does not work.
+`doctor` prints the lazybw version and what it found: where `bw` is and
+which version, whether you are logged in, which clipboard backend it will
+use, the terminal size and colour depth, and the paths of the configuration,
+state and log files. Run it first whenever something does not work.
 
 ## Where lazybw keeps its files
 

@@ -255,6 +255,7 @@ fn run_doctor() -> color_eyre::Result<()> {
     let paths = Paths::resolve();
     let (config, _warnings, _error) = load();
     println!("lazybw doctor");
+    println!("version      {}", env!("CARGO_PKG_VERSION"));
     println!("config       {}", paths.config_file().display());
     println!("state        {}", paths.state_dir.display());
     println!("log          {}", paths.log_file().display());

@@ -1099,6 +1099,7 @@ pub(crate) fn drive_folder_restore(state: &mut AppState) -> Vec<Effect> {
 
 pub(crate) fn doctor_lines(state: &AppState) -> Vec<(String, String)> {
     vec![
+        ("version".to_owned(), env!("CARGO_PKG_VERSION").to_owned()),
         (
             "bw".to_owned(),
             state

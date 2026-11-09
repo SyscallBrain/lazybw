@@ -6,10 +6,10 @@ Start with:
 lazybw doctor
 ```
 
-It shows what lazybw sees: the `bw` path and version, the login state, the
-clipboard backend, the terminal and the file paths. The log is in
-`~/.local/state/lazybw/lazybw.log`, and `Space` `m` shows the messages of the
-current session.
+It shows the lazybw version and what lazybw sees: the `bw` path and version,
+the login state, the clipboard backend, the terminal and the file paths. The
+log is in `~/.local/state/lazybw/lazybw.log`, and `Space` `m` shows the
+messages of the current session.
 
 ## lazybw says `bw` was not found or is too old
 
