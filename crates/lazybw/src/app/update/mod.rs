@@ -33,9 +33,9 @@ use crate::app::effect::Effect;
 use crate::app::msg::{EditorTarget, Msg, SuspendTask, Suspended};
 use crate::app::state::{
     Action, AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, FormKey,
-    FormKind, FormRow, HistoryState, InfoState, MessageLevel, Pending, PickerEntry, PickerKind,
-    PickerState, PromptState, QuickOpenState, RepromptState, Screen, SessionPhase, SettingKind,
-    SettingRow, Tab, UnlockState, WhichKeyState,
+    FormKind, FormRow, HistoryState, InfoState, MessageLevel, Overlay, Pending, PickerEntry,
+    PickerKind, PickerState, PromptState, QuickOpenState, RepromptState, Screen, SessionPhase,
+    SettingKind, SettingRow, Tab, UnlockState, WhichKeyState,
 };
 use crate::bw::models::{
     Card, Field, FieldKind, Identity, Item, ItemType, Login, LoginUri, SshKey, UriMatch,
@@ -353,32 +353,18 @@ fn on_key(state: &mut AppState, event: crossterm::event::KeyEvent) -> Vec<Effect
     if state.notes.is_some() && state.screen == Screen::Editor {
         return notes_key(state, key);
     }
-    if state.prompt.is_some() {
-        return prompt_key(state, key);
-    }
-    if state.cmdline.is_some() {
-        return cmdline_key(state, key);
-    }
-    if state.quick_open.is_some() {
-        return quick_open_key(state, key);
-    }
-    if state.picker.is_some() {
-        return picker_key(state, key);
-    }
-    if state.confirm.is_some() {
-        return confirm_key(state, key);
-    }
-    if state.remprompt.is_some() {
-        return reprompt_key(state, key);
-    }
-    if state.export.is_some() {
-        return export_key(state, key);
-    }
-    if state.import.is_some() {
-        return import_key(state, key);
-    }
-    if state.history.is_some() || state.info.is_some() {
-        return popup_key(state, key);
+    if let Some(overlay) = &state.overlay {
+        return match overlay {
+            Overlay::Prompt(_) => prompt_key(state, key),
+            Overlay::Cmdline(_) => cmdline_key(state, key),
+            Overlay::QuickOpen(_) => quick_open_key(state, key),
+            Overlay::Picker(_) => picker_key(state, key),
+            Overlay::Confirm(_) => confirm_key(state, key),
+            Overlay::Reprompt(_) => reprompt_key(state, key),
+            Overlay::Export(_) => export_key(state, key),
+            Overlay::Import(_) => import_key(state, key),
+            Overlay::History(_) | Overlay::Info(_) => popup_key(state, key),
+        };
     }
     if state.search.active {
         return search_key(state, key);
@@ -441,7 +427,7 @@ fn dispatch(state: &mut AppState, key: Key) -> Vec<Effect> {
         }
         crate::input::dispatcher::Dispatch::Text(ch) => {
             // Should not happen outside a text screen; insert where sensible.
-            if let Some(cmdline) = &mut state.cmdline {
+            if let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay {
                 cmdline.input.push(ch);
                 cmdline.cursor += 1;
             }
@@ -460,43 +446,62 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     // Password fields take the first line only (a trailing newline from a
     // password manager must not submit or corrupt the value).
     let first_line = text.lines().next().unwrap_or_default();
-    if let Some(reprompt) = &mut state.remprompt {
-        reprompt.password.push_str(first_line);
-        return Vec::new();
-    }
-    if let Some(export) = &mut state.export {
-        match (export.step, export.focus) {
-            (0, 1) => export.path.push_str(first_line),
-            (1, 0) => export.password.push_str(first_line),
-            (1, 1) => export.confirmation.push_str(first_line),
-            (2, _) => export.master.push_str(first_line),
-            _ => {}
+    match &mut state.overlay {
+        Some(Overlay::Reprompt(reprompt)) => {
+            reprompt.password.push_str(first_line);
+            return Vec::new();
         }
-        return Vec::new();
-    }
-    if let Some(import) = &mut state.import {
-        if import.step == 1 {
-            if import.password_focus {
-                import.password.push_str(first_line);
-            } else {
-                import.path.push_str(first_line);
+        Some(Overlay::Export(export)) => {
+            match (export.step, export.focus) {
+                (0, 1) => export.path.push_str(first_line),
+                (1, 0) => export.password.push_str(first_line),
+                (1, 1) => export.confirmation.push_str(first_line),
+                (2, _) => export.master.push_str(first_line),
+                _ => {}
             }
+            return Vec::new();
         }
-        return Vec::new();
+        Some(Overlay::Import(import)) => {
+            if import.step == 1 {
+                if import.password_focus {
+                    import.password.push_str(first_line);
+                } else {
+                    import.path.push_str(first_line);
+                }
+            }
+            return Vec::new();
+        }
+        Some(Overlay::Cmdline(cmdline)) => {
+            cmdline.input.push_str(&text);
+            cmdline.cursor = cmdline.input.chars().count();
+            return Vec::new();
+        }
+        Some(Overlay::QuickOpen(quick)) => {
+            quick.input.push_str(&text);
+            quick.cursor = quick.input.chars().count();
+            refresh_quick_open(state);
+            return Vec::new();
+        }
+        Some(Overlay::Prompt(prompt)) => {
+            prompt.input.insert_str(first_line);
+            return Vec::new();
+        }
+        Some(Overlay::Picker(picker)) => {
+            picker.filter.push_str(first_line);
+            picker.refilter();
+            return Vec::new();
+        }
+        // A confirmation word is typed on purpose, and the popups have no
+        // input; the paste must not reach the screen behind them either.
+        Some(Overlay::Confirm(_) | Overlay::History(_) | Overlay::Info(_)) => return Vec::new(),
+        None => {}
     }
-    if state.screen == Screen::Unlock && state.prompt.is_none() && state.confirm.is_none() {
+    if state.screen == Screen::Unlock {
         state.unlock.password.push_str(first_line);
         state.unlock.error = None;
         return Vec::new();
     }
-    if let Some(cmdline) = &mut state.cmdline {
-        cmdline.input.push_str(&text);
-        cmdline.cursor = cmdline.input.chars().count();
-    } else if let Some(quick) = &mut state.quick_open {
-        quick.input.push_str(&text);
-        quick.cursor = quick.input.chars().count();
-        refresh_quick_open(state);
-    } else if state.search.active {
+    if state.search.active {
         state.search.input.push_str(&text);
         state.search.query = Some(Query::parse(&state.search.input));
         state.search.index = 0;
@@ -510,25 +515,12 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     Vec::new()
 }
 fn cancel(state: &mut AppState) -> Vec<Effect> {
-    if state.generator_popup_open() && state.confirm.is_none() && state.picker.is_none() {
+    if let Some(overlay) = state.overlay.take() {
+        if matches!(overlay, Overlay::Reprompt(_)) {
+            state.reprompt_action = None;
+        }
+    } else if state.generator_popup_open() {
         state.generator.popup = false;
-    } else if state.confirm.is_some() {
-        state.confirm = None;
-    } else if state.picker.is_some() {
-        state.picker = None;
-    } else if state.remprompt.is_some() {
-        state.remprompt = None;
-        state.reprompt_action = None;
-    } else if state.prompt.is_some() {
-        state.prompt = None;
-    } else if state.history.is_some() {
-        state.history = None;
-    } else if state.info.is_some() {
-        state.info = None;
-    } else if state.quick_open.is_some() {
-        state.quick_open = None;
-    } else if state.cmdline.is_some() {
-        state.cmdline = None;
     } else if state.search.active {
         state.search.active = false;
         state.search.input.clear();

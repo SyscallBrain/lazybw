@@ -2,8 +2,8 @@
 
 use super::{
     Action, AppState, BTreeSet, CaptureState, Density, Effect, IconMode, Key, Keymap, MessageLevel,
-    PickerEntry, PickerKind, PickerState, Screen, SettingKind, SettingRow, SortOrder, Source,
-    apply, display_keys, parse_keys,
+    Overlay, PickerEntry, PickerKind, PickerState, Screen, SettingKind, SettingRow, SortOrder,
+    Source, apply, display_keys, parse_keys,
 };
 
 pub(crate) fn resolve_setting_key(key: &str) -> String {
@@ -879,7 +879,7 @@ pub(crate) fn open_theme_picker(state: &mut AppState) {
     if let Some(position) = picker.entries.iter().position(|e| e.value == current) {
         picker.index = position;
     }
-    state.picker = Some(picker);
+    state.open(picker);
     state.theme_preview_from = Some(current);
 }
 
@@ -901,7 +901,7 @@ pub(crate) fn preview_theme(state: &mut AppState, name: &str) {
 /// command line closes without choosing.
 pub(crate) fn update_theme_preview(state: &mut AppState) {
     let Some(from) = state.theme_preview_from.clone() else {
-        if let Some(cmdline) = &state.cmdline
+        if let Some(cmdline) = state.cmdline()
             && cmdline.show_completions
             && cmdline.input.trim_start().starts_with("theme ")
         {
@@ -910,11 +910,11 @@ pub(crate) fn update_theme_preview(state: &mut AppState) {
         }
         return;
     };
-    let highlighted = match (&state.picker, &state.cmdline) {
-        (Some(picker), _) if picker.kind == PickerKind::Theme => {
+    let highlighted = match &state.overlay {
+        Some(Overlay::Picker(picker)) if picker.kind == PickerKind::Theme => {
             picker.selected().map(|e| e.value.clone())
         }
-        (None, Some(cmdline)) if cmdline.input.trim_start().starts_with("theme ") => {
+        Some(Overlay::Cmdline(cmdline)) if cmdline.input.trim_start().starts_with("theme ") => {
             if cmdline.show_completions {
                 cmdline.completions.get(cmdline.completion_index).cloned()
             } else {

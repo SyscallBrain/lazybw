@@ -1,8 +1,8 @@
 //! Export and import wizards.
 
 use super::{
-    AppState, BTreeSet, CommandKind, Effect, ExportFormat, ImportRequest, Item, Key, PathBuf,
-    Pending, Screen, ctrl_np_as_arrows, request,
+    AppState, BTreeSet, CommandKind, Effect, ExportFormat, ImportRequest, Item, Key, Overlay,
+    PathBuf, Pending, Screen, ctrl_np_as_arrows, request,
 };
 
 pub(crate) fn open_export(state: &mut AppState, args: &[String]) -> Vec<Effect> {
@@ -25,8 +25,7 @@ pub(crate) fn open_export(state: &mut AppState, args: &[String]) -> Vec<Effect> 
         .display()
         .to_string()
     });
-    state.export =
-        Some(crate::app::state::ExportState { step: 0, format, path, ..Default::default() });
+    state.open(crate::app::state::ExportState { step: 0, format, path, ..Default::default() });
     state.screen = Screen::Vault;
     Vec::new()
 }
@@ -54,7 +53,7 @@ pub(crate) fn open_import(state: &mut AppState, args: &[String]) -> Vec<Effect> 
     let format_index = formats.iter().position(|f| *f == format).unwrap_or(0);
     // With a format given on the command line, start at the file step.
     let step = usize::from(!args.is_empty());
-    state.import = Some(crate::app::state::ImportState {
+    state.open(crate::app::state::ImportState {
         step,
         format,
         path,
@@ -68,10 +67,10 @@ pub(crate) fn open_import(state: &mut AppState, args: &[String]) -> Vec<Effect> 
 pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
     let key = ctrl_np_as_arrows(key);
-    let Some(export) = &mut state.export else { return Vec::new() };
+    let Some(Overlay::Export(export)) = &mut state.overlay else { return Vec::new() };
     match key.code {
         Code::Esc => {
-            state.export = None;
+            state.take_export();
             return Vec::new();
         }
         Code::Tab if export.step == 0 && export.focus == 1 => {
@@ -190,7 +189,7 @@ pub(crate) fn shellexpand_home(path: &str) -> String {
 pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::{Code, Mods};
     let key = ctrl_np_as_arrows(key);
-    let Some(import) = &mut state.import else { return Vec::new() };
+    let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
     if import.busy {
         return Vec::new();
     }
@@ -198,7 +197,7 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     match (import.step, key.code) {
         (_, Code::Esc) => {
             if import.step == 0 {
-                state.import = None;
+                state.take_import();
             } else {
                 import.step -= 1;
                 import.error = None;
@@ -333,7 +332,7 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 /// Runs `bw import` for the wizard's current choices; the wizard stays open
 /// (busy) until the CLI answers.
 pub(crate) fn start_import(state: &mut AppState) -> Vec<Effect> {
-    let Some(import) = &mut state.import else { return Vec::new() };
+    let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
     let format = import.format.clone();
     let mut path = PathBuf::from(shellexpand_home(&import.path));
     let mut temporary = false;

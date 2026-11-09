@@ -42,7 +42,7 @@ pub(crate) fn close_editor(state: &mut AppState) {
         } else {
             format!("“{}”", editor.item.name)
         };
-        state.confirm = Some(ConfirmState {
+        state.open(ConfirmState {
             title: "Unsaved changes".to_owned(),
             message: format!("Save changes to {name}?"),
             confirm_label: "Save".to_owned(),
@@ -777,7 +777,7 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
             }
             let mut picker = PickerState::new("Folder", PickerKind::Folder, entries);
             picker.from_editor = true;
-            state.picker = Some(picker);
+            state.open(picker);
             Vec::new()
         }
         FormKey::UriAdd => {
@@ -829,7 +829,7 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
             );
             picker.from_editor = true;
             let _ = index;
-            state.picker = Some(picker);
+            state.open(picker);
             Vec::new()
         }
         FormKey::FieldAdd => {
@@ -857,7 +857,7 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
                     .collect(),
             );
             picker.from_editor = true;
-            state.picker = Some(picker);
+            state.open(picker);
             Vec::new()
         }
         FormKey::SshGenerate => {
@@ -886,7 +886,7 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
             Vec::new()
         }
         FormKey::SshImport => {
-            state.prompt = Some(PromptState {
+            state.open(PromptState {
                 title: "Path to an OpenSSH private key".to_owned(),
                 input: crate::input::line::Line::new(""),
                 on_accept: Action::new("editor.ssh_import"),

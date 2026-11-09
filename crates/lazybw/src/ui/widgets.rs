@@ -423,12 +423,12 @@ pub(crate) fn draw_statusline(frame: &mut Frame<'_>, area: Rect, state: &AppStat
 
 pub(crate) fn draw_message_line(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let theme = &state.theme;
-    let line = if let Some(cmdline) = &state.cmdline {
+    let line = if let Some(cmdline) = state.cmdline() {
         Line::from(vec![
             Span::styled(":", theme.bold("accent")),
             Span::styled(cmdline.input.clone(), theme.style("fg")),
         ])
-    } else if let Some(prompt) = &state.prompt {
+    } else if let Some(prompt) = state.prompt() {
         Line::from(vec![
             Span::styled(format!("{}: ", prompt.title), theme.bold("accent")),
             Span::styled(prompt.input.text(), theme.style("fg")),
@@ -674,7 +674,7 @@ pub(crate) fn popup_frame(
 }
 
 pub(crate) fn draw_wildmenu(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
-    let Some(cmdline) = &state.cmdline else { return };
+    let Some(cmdline) = state.cmdline() else { return };
     if !cmdline.show_completions || cmdline.completions.is_empty() {
         return;
     }

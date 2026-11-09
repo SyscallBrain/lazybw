@@ -4,6 +4,7 @@ mod harness;
 
 use harness::{assert_message, ready_app};
 use lazybw::app::Screen;
+use lazybw::app::state::Overlay;
 use lazybw::bw::models::ItemType;
 use lazybw::vault::cache::Filter;
 
@@ -98,7 +99,7 @@ async fn quick_open_and_copy() {
 async fn create_a_new_login() {
     let mut app = ready_app().await;
     app.keys("a").await;
-    assert!(app.app.state.picker.is_some());
+    assert!(app.app.state.picker().is_some());
     app.keys("l").await;
     assert_eq!(app.app.state.screen, Screen::Editor);
     app.keys("iNew account<Esc>").await;
@@ -218,7 +219,7 @@ async fn export_json_writes_a_private_file() {
     let dir = tempfile::TempDir::new().unwrap();
     let path = dir.path().join("export.json");
     app.keys(&format!(":export json {}<CR>", path.display())).await;
-    assert!(app.app.state.export.is_some());
+    assert!(app.app.state.export().is_some());
     // Step 1: format and destination.
     app.keys("<CR>").await;
     // Step 2: master password.
@@ -252,10 +253,10 @@ async fn import_previews_duplicates_and_skips_them() {
     let body = serde_json::json!({"encrypted": false, "items": items, "folders": []});
     std::fs::write(&path, serde_json::to_vec(&body).unwrap()).unwrap();
     app.keys(&format!(":import bitwardenjson {}<CR>", path.display())).await;
-    assert!(app.app.state.import.is_some());
-    assert_eq!(app.app.state.import.as_ref().unwrap().step, 1);
+    assert!(app.app.state.import().is_some());
+    assert_eq!(app.app.state.import().unwrap().step, 1);
     app.keys("<CR>").await; // read the file -> preview
-    let import = app.app.state.import.as_ref().unwrap();
+    let import = app.app.state.import().unwrap();
     assert_eq!(import.step, 2);
     assert_eq!(import.duplicates.len(), 5);
     assert_eq!(import.count, 7);
@@ -388,7 +389,7 @@ async fn passkey_can_be_removed() {
         .expect("passkey field");
     app.app.state.detail.row = index;
     app.keys("dd").await;
-    assert!(app.app.state.confirm.is_some());
+    assert!(app.app.state.confirm().is_some());
     app.keys("y").await;
     app.wait_idle().await;
     let state = app.fake_state();
@@ -405,10 +406,10 @@ async fn folder_rename_and_delete_include_subfolders() {
     let work = entries.iter().position(|entry| entry.label == "Work").unwrap();
     app.app.state.sidebar_row = work;
     app.keys("r").await;
-    assert!(app.app.state.prompt.is_some());
+    assert!(app.app.state.prompt().is_some());
     // The prompt is prefilled with the current name; clear it first.
     app.keys("<BS><BS><BS><BS>Job<CR>").await;
-    assert!(app.app.state.confirm.is_some(), "rename confirmation");
+    assert!(app.app.state.confirm().is_some(), "rename confirmation");
     // Also-rename is on by default.
     app.keys("<CR>").await;
     app.wait_idle().await;
@@ -426,10 +427,10 @@ async fn folder_rename_and_delete_include_subfolders() {
     let job = entries.iter().position(|entry| entry.label == "Job").unwrap();
     app.app.state.sidebar_row = job;
     app.keys("dd").await;
-    assert!(app.app.state.confirm.is_some());
-    assert_eq!(app.app.state.confirm.as_ref().unwrap().subfolder_count, 1);
+    assert!(app.app.state.confirm().is_some());
+    assert_eq!(app.app.state.confirm().unwrap().subfolder_count, 1);
     app.keys(" ").await;
-    assert!(app.app.state.confirm.as_ref().unwrap().also_subfolders);
+    assert!(app.app.state.confirm().unwrap().also_subfolders);
     app.keys("<CR>").await;
     app.wait_idle().await;
     let names: Vec<String> = app.fake_state()["folders"]
@@ -492,7 +493,7 @@ async fn password_protected_export_goes_through_the_pty() {
     let dir = tempfile::TempDir::new().unwrap();
     let path = dir.path().join("export.enc.json");
     app.keys(&format!(":export encrypted {}<CR>", path.display())).await;
-    assert!(app.app.state.export.is_some());
+    assert!(app.app.state.export().is_some());
     app.keys("<CR>").await; // format -> password step
     app.keys("filepass").await;
     app.keys("<Tab>").await; // confirmation
@@ -536,7 +537,7 @@ async fn password_protected_import_uses_the_file_password() {
     std::fs::write(&path, serde_json::to_vec(&body).unwrap()).unwrap();
     app.keys(&format!(":import bitwardenpasswordprotected {}<CR>", path.display())).await;
     // With a format on the command line the wizard opens at the file step.
-    assert_eq!(app.app.state.import.as_ref().unwrap().step, 1);
+    assert_eq!(app.app.state.import().unwrap().step, 1);
     app.keys("<Tab>").await; // password field
     app.keys("filepass").await;
     app.keys("<CR>").await; // run the import through the subprocess
@@ -709,22 +710,22 @@ async fn reprompt_runs_the_action_once_and_reports_a_wrong_password() {
     app.app.state.detail.row = row;
     // Revealing a secret field asks for the master password first.
     app.keys("za").await;
-    assert!(app.app.state.remprompt.is_some(), "za must ask for the master password");
+    assert!(app.app.state.reprompt().is_some(), "za must ask for the master password");
     assert!(app.app.state.detail.revealed.is_empty());
     app.keys("<Esc>yy").await;
-    assert!(app.app.state.remprompt.is_some());
+    assert!(app.app.state.reprompt().is_some());
     assert_eq!(app.clipboard.contents(), None);
     app.keys("wrong<CR>").await;
     app.wait_idle().await;
-    let reprompt = app.app.state.remprompt.as_ref().expect("the dialog stays open");
+    let reprompt = app.app.state.reprompt().expect("the dialog stays open");
     assert!(reprompt.error.is_some(), "a wrong password is reported in the dialog");
     app.keys("correct horse<CR>").await;
     app.wait_idle().await;
-    assert!(app.app.state.remprompt.is_none(), "no second prompt after the right password");
+    assert!(app.app.state.reprompt().is_none(), "no second prompt after the right password");
     assert_eq!(app.clipboard.contents().as_deref(), Some("X1234567"));
     // The re-prompt was consumed: the next secret copy asks again.
     app.keys("yy").await;
-    assert!(app.app.state.remprompt.is_some());
+    assert!(app.app.state.reprompt().is_some());
 }
 
 #[tokio::test]
@@ -733,22 +734,24 @@ async fn export_checks_the_master_password() {
     app.keys("<Space>e").await;
     let destination = app.dir.path().join("export.json");
     {
-        let export = app.app.state.export.as_mut().expect("export wizard");
+        let Some(Overlay::Export(export)) = &mut app.app.state.overlay else {
+            panic!("export wizard")
+        };
         // This test is about the master password check: a plain export has
         // no file password step.
         export.format = lazybw::bw::service::ExportFormat::Json;
         export.path = destination.display().to_string();
     }
     app.keys("<CR>").await;
-    assert_eq!(app.app.state.export.as_ref().unwrap().step, 2);
+    assert_eq!(app.app.state.export().unwrap().step, 2);
     app.keys("not my password<CR>").await;
     app.wait_idle().await;
-    let export = app.app.state.export.as_ref().expect("the wizard stays open");
+    let export = app.app.state.export().expect("the wizard stays open");
     assert!(export.error.is_some(), "a wrong master password must stop the export");
     assert!(!destination.exists(), "nothing is written with a wrong master password");
     app.keys("correct horse<CR>").await;
     app.wait_idle().await;
-    assert!(app.app.state.export.is_none());
+    assert!(app.app.state.export().is_none());
     assert!(destination.exists());
 }
 
@@ -768,15 +771,14 @@ async fn lock_drops_every_copy_of_vault_data() {
 async fn import_wizard_filters_formats_and_keeps_folders() {
     let mut app = ready_app().await;
     app.keys("<Space>i").await;
-    let import = app.app.state.import.as_ref().expect("import wizard");
+    let import = app.app.state.import().expect("import wizard");
     assert_eq!(import.step, 0);
     assert_eq!(import.formats[0], "bitwardenjson", "Bitwarden formats come first");
     app.keys("keepass").await;
     let filtered: Vec<String> = app
         .app
         .state
-        .import
-        .as_ref()
+        .import()
         .unwrap()
         .filtered_formats()
         .iter()
@@ -784,7 +786,7 @@ async fn import_wizard_filters_formats_and_keeps_folders() {
         .collect();
     assert!(!filtered.is_empty() && filtered.iter().all(|f| f.contains("keepass")), "{filtered:?}");
     app.keys("<Esc>").await;
-    assert!(app.app.state.import.is_none());
+    assert!(app.app.state.import().is_none());
 
     // Skipping a duplicate keeps the file's folders and removes the
     // temporary copy afterwards.
@@ -814,17 +816,13 @@ async fn import_wizard_filters_formats_and_keeps_folders() {
     let before = temp_files();
     app.keys(&format!(":import bitwardenjson {}<CR>", path.display())).await;
     app.keys("<CR>").await;
-    let import = app.app.state.import.as_ref().unwrap();
+    let import = app.app.state.import().unwrap();
     assert_eq!(import.step, 2);
     assert_eq!(import.new_folders, vec!["Travel".to_owned()]);
     assert_eq!(import.duplicates.len(), 1);
     app.keys("<CR>").await;
     app.wait_idle().await;
-    assert!(
-        app.app.state.import.is_none(),
-        "{:?}",
-        app.app.state.import.as_ref().map(|i| &i.error)
-    );
+    assert!(app.app.state.import().is_none(), "{:?}", app.app.state.import().map(|i| &i.error));
     let folders: Vec<String> = app.fake_state()["folders"]
         .as_array()
         .unwrap()
@@ -871,12 +869,12 @@ async fn rail_keeps_the_cursor_visible_and_its_folder_icon_opens_the_picker() {
         .unwrap();
     app.app.state.sidebar_row = slots[folder_slot].entry().unwrap();
     app.keys("<CR>").await;
-    let picker = app.app.state.picker.as_ref().expect("folder picker");
+    let picker = app.app.state.picker().expect("folder picker");
     assert_eq!(picker.kind, lazybw::app::state::PickerKind::FolderJump);
     app.keys("Work/Projects<CR>").await;
     assert_eq!(app.app.state.filter, Filter::Folder("Work/Projects".to_owned()));
     assert_eq!(app.app.state.focus, lazybw::app::state::Focus::List);
-    assert!(app.app.state.picker.is_none());
+    assert!(app.app.state.picker().is_none());
 }
 
 #[tokio::test]
@@ -886,7 +884,7 @@ async fn go_to_folder_opens_it_without_moving_the_item() {
         app.app.state.cache.active_items().map(|i| (i.id.clone(), i.folder_id.clone())).collect();
     app.keys("<Space>ff").await;
     assert_eq!(
-        app.app.state.picker.as_ref().map(|p| p.kind),
+        app.app.state.picker().map(|p| p.kind),
         Some(lazybw::app::state::PickerKind::FolderJump)
     );
     app.keys("Work/Projects<CR>").await;
@@ -903,7 +901,7 @@ async fn move_to_folder_from_the_picker_reaches_the_backend() {
     let mut app = ready_app().await;
     app.keys("m").await;
     assert_eq!(
-        app.app.state.picker.as_ref().map(|p| p.kind),
+        app.app.state.picker().map(|p| p.kind),
         Some(lazybw::app::state::PickerKind::Folder)
     );
     app.keys("Work/Projects<CR>").await;
@@ -936,23 +934,23 @@ async fn za_from_the_list_reveals_the_password_instead_of_adding_an_item() {
     let item = app.app.state.selected_item().cloned().expect("selection");
     assert!(item.login.is_some(), "fixture starts on a login");
     app.keys("za").await;
-    assert!(app.app.state.picker.is_none(), "za opened a picker");
+    assert!(app.app.state.picker().is_none(), "za opened a picker");
     assert!(app.app.state.editor.is_none());
     // Either revealed, or (for a re-prompt item) asking for the password.
     assert!(
-        app.app.state.detail.revealed.contains("password") || app.app.state.remprompt.is_some(),
+        app.app.state.detail.revealed.contains("password") || app.app.state.reprompt().is_some(),
         "password not revealed"
     );
     // An unknown z-sequence does nothing at all.
     app.keys("zk").await;
-    assert!(app.app.state.picker.is_none());
+    assert!(app.app.state.picker().is_none());
 }
 
 #[tokio::test]
 async fn folders_cannot_be_named_like_the_no_folder_filter() {
     let mut app = ready_app().await;
     app.keys(":folder new<CR>").await;
-    assert!(app.app.state.prompt.is_some(), "folder name prompt");
+    assert!(app.app.state.prompt().is_some(), "folder name prompt");
     app.keys("No Folder<CR>").await;
     app.wait_idle().await;
     assert!(!app.requests().iter().any(|entry| entry["request"]["method"] == "POST"));
@@ -963,7 +961,7 @@ async fn folders_cannot_be_named_like_the_no_folder_filter() {
 async fn go_to_folder_lists_the_no_folder_filter_first() {
     let mut app = ready_app().await;
     app.keys("<Space>ff").await;
-    let picker = app.app.state.picker.as_ref().expect("picker");
+    let picker = app.app.state.picker().expect("picker");
     let first = &picker.entries[0];
     assert_eq!(first.label, "No folder");
     assert_eq!(first.value, "");
@@ -1027,10 +1025,10 @@ async fn closing_a_dirty_editor_offers_save_discard_and_cancel() {
     assert!(app.app.state.editor.as_ref().unwrap().dirty);
     // `:q` asks; `c` cancels and keeps the form.
     app.keys(":q<CR>").await;
-    let confirm = app.app.state.confirm.as_ref().expect("unsaved dialog");
+    let confirm = app.app.state.confirm().expect("unsaved dialog");
     assert!(confirm.message.contains("Throwaway"), "{}", confirm.message);
     app.keys("c").await;
-    assert!(app.app.state.confirm.is_none());
+    assert!(app.app.state.confirm().is_none());
     assert!(app.app.state.editor.is_some());
     assert!(!app.app.state.quit);
     // `n` discards: the editor closes, lazybw keeps running, nothing saved.
@@ -1270,7 +1268,7 @@ async fn theme_picker_previews_live_and_esc_restores() {
     let mut app = ready_app().await;
     let start = app.app.state.config.ui.theme.clone();
     app.keys("<Space>t").await;
-    let picker = app.app.state.picker.as_ref().expect("theme picker");
+    let picker = app.app.state.picker().expect("theme picker");
     assert_eq!(
         picker.selected().map(|e| e.value.clone()),
         Some(start.clone()),
@@ -1294,13 +1292,13 @@ async fn the_export_wizard_suggests_a_password_protected_file() {
     let mut app = ready_app().await;
     app.keys("<Space>e").await;
     assert_eq!(
-        app.app.state.export.as_ref().unwrap().format,
+        app.app.state.export().unwrap().format,
         lazybw::bw::service::ExportFormat::PasswordProtectedJson
     );
     app.keys("<Esc>").await;
     app.keys(":export json /tmp/never-written.json<CR>").await;
     assert_eq!(
-        app.app.state.export.as_ref().unwrap().format,
+        app.app.state.export().unwrap().format,
         lazybw::bw::service::ExportFormat::Json,
         "an explicit format is respected"
     );
@@ -1310,7 +1308,7 @@ async fn the_export_wizard_suggests_a_password_protected_file() {
 async fn pickers_move_with_ctrl_n_and_ctrl_p() {
     let mut app = ready_app().await;
     app.keys("m").await;
-    let index = |app: &harness::TestApp| app.app.state.picker.as_ref().expect("picker").index;
+    let index = |app: &harness::TestApp| app.app.state.picker().expect("picker").index;
     assert_eq!(index(&app), 0);
     app.keys("<C-n><C-n>").await;
     assert_eq!(index(&app), 2);
@@ -1332,5 +1330,5 @@ async fn settings_move_with_ctrl_n_and_ctrl_p() {
     assert_eq!(app.app.state.settings.index, before + 2);
     app.keys("<C-p>").await;
     assert_eq!(app.app.state.settings.index, before + 1);
-    assert!(app.app.state.quick_open.is_none(), "Ctrl-p opened quick open");
+    assert!(app.app.state.quick_open().is_none(), "Ctrl-p opened quick open");
 }

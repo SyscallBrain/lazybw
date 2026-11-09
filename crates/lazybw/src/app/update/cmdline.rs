@@ -1,7 +1,7 @@
 //! The `:` command line and session key mappings.
 
 use super::{
-    Action, AppState, Effect, Key, MessageLevel, Source, apply, apply_setting,
+    Action, AppState, Effect, Key, MessageLevel, Overlay, Source, apply, apply_setting,
     default_config_value, display_keys, overlay_binding, parse_keys, resolve_setting_key,
     setting_value, sidebar_entries,
 };
@@ -11,15 +11,15 @@ pub(crate) fn cmdline_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     match overlay_binding(state, "cmdline", key) {
         Some(Some(action)) => return apply(state, action),
         Some(None) => {
-            state.cmdline = None;
+            state.take_cmdline();
             return Vec::new();
         }
         None => {}
     }
-    let Some(cmdline) = &mut state.cmdline else { return Vec::new() };
+    let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
     match key.code {
         Code::Esc => {
-            state.cmdline = None;
+            state.take_cmdline();
             return Vec::new();
         }
         Code::Enter => return apply(state, Action::new("cmdline.execute")),
@@ -47,9 +47,9 @@ pub(crate) fn cmdline_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 pub(crate) fn refresh_completions(state: &mut AppState) {
-    let Some(input) = state.cmdline.as_ref().map(|c| c.input.clone()) else { return };
+    let Some(input) = state.cmdline().map(|c| c.input.clone()) else { return };
     let completions = crate::app::commands::completions(&input, state);
-    if let Some(cmdline) = &mut state.cmdline {
+    if let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay {
         cmdline.completions = completions;
         cmdline.completion_index = 0;
         cmdline.show_completions = !cmdline.completions.is_empty();
@@ -59,12 +59,12 @@ pub(crate) fn refresh_completions(state: &mut AppState) {
 pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
     match action.id.as_str() {
         "cmdline.execute" => {
-            let Some(cmdline) = state.cmdline.take() else { return Vec::new() };
+            let Some(cmdline) = state.take_cmdline() else { return Vec::new() };
             let command = crate::app::commands::parse(&cmdline.input);
             execute_command(state, command)
         }
         "cmdline.complete_next" | "cmdline.complete_prev" => {
-            let Some(cmdline) = &mut state.cmdline else { return Vec::new() };
+            let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
             if cmdline.completions.is_empty() {
                 refresh_completions(state);
                 return Vec::new();

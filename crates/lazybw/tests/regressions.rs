@@ -83,7 +83,7 @@ fn web_links_open_and_other_schemes_ask_first() {
         with_uri(&mut s, risky);
         let effects = keys(&mut s, "gx");
         assert_eq!(opened(&effects), None, "{risky} opened without asking");
-        assert!(s.confirm.is_some(), "{risky}: no confirmation");
+        assert!(s.confirm().is_some(), "{risky}: no confirmation");
         assert_eq!(opened(&keys(&mut s, "y")).as_deref(), Some(risky), "{risky} after yes");
         with_uri(&mut s, risky);
         keys(&mut s, "gx");
@@ -297,7 +297,7 @@ fn ctrl_o_logs_out_from_the_unlock_screen() {
     s.session = SessionPhase::Locked;
     keys(&mut s, "secret");
     keys(&mut s, "<C-o>");
-    assert!(s.confirm.is_some(), "Ctrl-o did not ask to log out");
+    assert!(s.confirm().is_some(), "Ctrl-o did not ask to log out");
 }
 
 #[test]
