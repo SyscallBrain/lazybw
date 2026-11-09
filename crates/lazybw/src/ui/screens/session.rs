@@ -30,7 +30,7 @@ pub(crate) fn draw_starting(frame: &mut Frame<'_>, area: Rect, state: &AppState)
 
 pub(crate) fn draw_error(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let theme = &state.theme;
-    let Some(error) = &state.error else { return };
+    let Some(error) = state.error() else { return };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
@@ -52,17 +52,18 @@ pub(crate) fn draw_error(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
 }
 
 pub(crate) fn draw_login(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
+    use crate::app::state::{LoginFocus, LoginMethod, LoginServer, Pending};
     let theme = &state.theme;
     let login = &state.login;
     let mut lines = logo(theme);
     lines.push(Line::from(Span::styled("Log in to Bitwarden", theme.bold("fg"))));
     lines.push(blank());
     let servers = [
-        ("bitwarden.com", "United States"),
-        ("bitwarden.eu", "European Union"),
-        ("Self-hosted…", "your server URL"),
+        (LoginServer::UnitedStates, "bitwarden.com", "United States"),
+        (LoginServer::EuropeanUnion, "bitwarden.eu", "European Union"),
+        (LoginServer::SelfHosted, "Self-hosted…", "your server URL"),
     ];
-    let server_focused = login.box_index == 0;
+    let server_focused = matches!(login.focus, LoginFocus::Server | LoginFocus::ServerUrl);
     let rect = centered(area, 56, (lines.len() + 14) as u16);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -76,8 +77,8 @@ pub(crate) fn draw_login(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     frame.render_widget(Paragraph::new(lines).alignment(Alignment::Center), chunks[0]);
     let block = pane_block("Server", "", server_focused, theme);
     let mut server_lines = Vec::new();
-    for (index, (name, note)) in servers.iter().enumerate() {
-        let selected = login.server_index == index;
+    for (server, name, note) in servers {
+        let selected = login.server == server;
         let style = if selected && server_focused {
             theme.selected_row()
         } else if selected {
@@ -93,16 +94,16 @@ pub(crate) fn draw_login(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ]));
     }
     frame.render_widget(Paragraph::new(server_lines).block(block), chunks[1]);
-    let method_focused = login.box_index == 1;
+    let method_focused = !server_focused;
     let block = pane_block("Method", "", method_focused, theme);
     let methods = [
-        ("Email and password", "two-step login"),
-        ("Single sign-on", "opens a browser"),
-        ("API key", "id and secret"),
+        (LoginMethod::Password, "Email and password", "two-step login"),
+        (LoginMethod::Sso, "Single sign-on", "opens a browser"),
+        (LoginMethod::ApiKey, "API key", "id and secret"),
     ];
     let mut method_lines = Vec::new();
-    for (index, (name, note)) in methods.iter().enumerate() {
-        let selected = login.method_index == index;
+    for (method, name, note) in methods {
+        let selected = login.method == method;
         let style = if selected && method_focused {
             theme.selected_row()
         } else if selected {
@@ -118,15 +119,25 @@ pub(crate) fn draw_login(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         ]));
     }
     frame.render_widget(Paragraph::new(method_lines).block(block), chunks[2]);
-    let hint = if login.editing_server {
+    let cursor = |focus: LoginFocus| if login.focus == focus { "▏" } else { "" };
+    let hint = if login.focus == LoginFocus::ServerUrl {
         format!("Server URL: {}▏", login.server_input)
+    } else if state.logging_in() {
+        let doing = if state.awaiting(|p| matches!(p, Pending::ConfigServer)) {
+            "Saving the server…"
+        } else {
+            "Logging in…"
+        };
+        format!("{} {doing}", spinner_frame(tick(state)))
     } else if let Some(error) = &login.error {
         error.clone()
-    } else if login.method_index == 2 && login.box_index == 1 {
+    } else if matches!(login.focus, LoginFocus::ClientId | LoginFocus::ClientSecret) {
         format!(
-            "client_id: {}   client_secret: {}",
+            "client_id: {}{}   client_secret: {}{}",
             login.client_id,
-            "•".repeat(login.client_secret.char_count().min(20))
+            cursor(LoginFocus::ClientId),
+            "•".repeat(login.client_secret.char_count().min(20)),
+            cursor(LoginFocus::ClientSecret),
         )
     } else {
         "Enter continue · j k move · Tab switch box · q quit".to_owned()
@@ -193,7 +204,7 @@ pub(crate) fn draw_unlock(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Paragraph::new(Span::styled(shown, theme.style("fg"))).block(block),
         input_rect,
     );
-    let line = if unlock.busy {
+    let line = if state.unlocking() {
         Line::from(Span::styled(
             format!("{} Unlocking…", spinner_frame(tick(state))),
             theme.style("info"),

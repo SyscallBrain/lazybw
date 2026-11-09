@@ -33,9 +33,10 @@ use crate::app::effect::Effect;
 use crate::app::msg::{EditorTarget, Msg, SuspendTask, Suspended};
 use crate::app::state::{
     Action, AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, FormKey,
-    FormKind, FormRow, HistoryState, ImportPreview, ImportStep, InfoState, MessageLevel, Overlay,
-    Pending, PickerEntry, PickerKind, PickerState, PromptState, QuickOpenState, RepromptState,
-    Screen, SessionPhase, SettingKind, SettingRow, Tab, UnlockState, WhichKeyState,
+    FormKind, FormRow, HistoryState, ImportPreview, ImportStep, InfoState, LoginMethod,
+    LoginServer, MessageLevel, Overlay, Pending, PickerEntry, PickerKind, PickerState, PromptState,
+    QuickOpenState, RepromptState, Screen, SessionPhase, SettingKind, SettingRow, Tab, UnlockState,
+    WhichKeyState,
 };
 use crate::bw::models::{
     Card, Field, FieldKind, Identity, Item, ItemType, Login, LoginUri, SshKey, UriMatch,
@@ -327,8 +328,7 @@ fn show_backend_error(state: &mut AppState, err: &crate::bw::BwError) {
         return;
     }
     if err.requires_login() {
-        state.session = SessionPhase::LoggedOut;
-        state.screen = Screen::Login;
+        state.enter_session(SessionPhase::LoggedOut);
         state.toast(MessageLevel::Warn, "You are not logged in.");
         return;
     }
@@ -446,20 +446,19 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     // Password fields take the first line only (a trailing newline from a
     // password manager must not submit or corrupt the value).
     let first_line = text.lines().next().unwrap_or_default();
+    let wizard_busy = state.exporting() || state.importing();
     match &mut state.overlay {
         Some(Overlay::Reprompt(reprompt)) => {
             reprompt.password.push_str(first_line);
             return Vec::new();
         }
+        Some(Overlay::Export(_) | Overlay::Import(_)) if wizard_busy => return Vec::new(),
         Some(Overlay::Export(export)) => {
-            if !export.busy {
-                export.insert(first_line);
-            }
+            export.insert(first_line);
             return Vec::new();
         }
         Some(Overlay::Import(import)) => {
             match import.step {
-                _ if import.busy => {}
                 ImportStep::Path => import.path.push_str(first_line),
                 ImportStep::Password => import.password.push_str(first_line),
                 ImportStep::Format | ImportStep::Preview(_) => {}
@@ -510,10 +509,9 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     Vec::new()
 }
 fn cancel(state: &mut AppState) -> Vec<Effect> {
-    if let Some(overlay) = state.overlay.take() {
-        if matches!(overlay, Overlay::Reprompt(_)) {
-            state.reprompt_action = None;
-        }
+    if state.overlay.is_some() {
+        // For the re-prompt, closing also drops an answer still on its way.
+        state.overlay = None;
     } else if state.generator_popup_open() {
         state.generator.popup = false;
     } else if state.search.active {
@@ -549,8 +547,7 @@ fn switch_tab(state: &mut AppState, tab: Tab) -> Vec<Effect> {
                 Pending::Generate,
             )];
         }
-        Tab::Health if state.health.report.is_none() && !state.health.running => {
-            state.health.running = true;
+        Tab::Health if state.health.report.is_none() && !state.checking_health() => {
             return vec![request(state, CommandKind::Health, Pending::Health)];
         }
         _ => {}

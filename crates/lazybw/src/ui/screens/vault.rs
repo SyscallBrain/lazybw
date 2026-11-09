@@ -5,8 +5,8 @@ use crate::ui::{
     Alignment, AppState, Block, BorderType, Borders, Frame, Icons, Item, ItemType, LayoutPlan,
     Line, Modifier, Paragraph, Rect, Role, Row, SidebarRole, Span, Style, Theme, blank,
     draw_scrollbar, fill_line, follow, group_code, icons, inner, layout, masked, meter_spans, pad,
-    pane_block, pane_block_counted, password_spans, section_label, spans_width, strength_label,
-    text_line, totp_bar, truncate, truncate_left, type_label, wrap_text,
+    pane_block, pane_block_counted, password_spans, section_label, spans_width, spinner_frame,
+    strength_label, text_line, tick, totp_bar, truncate, truncate_left, type_label, wrap_text,
 };
 
 pub(crate) fn draw_vault(frame: &mut Frame<'_>, plan: &LayoutPlan, state: &AppState) {
@@ -239,7 +239,13 @@ pub(crate) fn draw_list(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let row_height = if comfortable { 2 } else { 1 };
     let visible = (content.height as usize / row_height).max(1);
     if rows.is_empty() {
+        let loading;
         let (what, how) = match &state.filter {
+            // Nothing has arrived yet: the vault is not empty.
+            _ if state.session == crate::app::state::SessionPhase::Loading => {
+                loading = format!("{} Loading the vault…", spinner_frame(tick(state)));
+                (loading.as_str(), "")
+            }
             crate::vault::cache::Filter::Trash => {
                 ("No items in Trash", "Press dd on an item to move it to the trash.")
             }

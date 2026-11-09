@@ -162,7 +162,7 @@ async fn health_report_runs() {
         "messages={:?} pending={:?} running={}",
         app.app.state.messages.iter().map(|m| m.text.clone()).collect::<Vec<_>>(),
         app.app.state.pending,
-        app.app.state.health.running
+        app.app.state.checking_health()
     );
     let report = app.app.state.health.report.as_ref().unwrap();
     assert_eq!(report.checked, 2);

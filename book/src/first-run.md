@@ -19,15 +19,17 @@ If `bw` has no account yet, you get the login screen. It has two boxes:
 - Method: email and password, single sign-on, or an API key.
 
 Move with `j` and `k`, switch between the boxes with `Tab` and press `Enter`
-to continue.
+to continue. `Esc` goes back to the server box, and `q` quits.
 
 For email and password, and for single sign-on, lazybw steps aside and runs
 `bw login` in the terminal, so you see Bitwarden's own prompts, including
 two-step login. When `bw login` finishes, lazybw comes back and opens the
 vault. You are not asked for the master password a second time.
 
-For an API key, lazybw asks for the client id and secret in its own form.
-You will find both in the Bitwarden web vault under Settings, Security, Keys.
+For an API key, lazybw asks for the client id and secret in its own form:
+`Tab` moves between the two, `Enter` logs in and `Esc` goes back to the
+methods. You will find both in the Bitwarden web vault under Settings,
+Security, Keys.
 
 ## Unlocking
 

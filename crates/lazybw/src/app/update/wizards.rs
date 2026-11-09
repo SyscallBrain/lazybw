@@ -70,15 +70,15 @@ pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     };
     use crate::config::keymap::Code;
     let key = ctrl_np_as_arrows(key);
-    let Some(Overlay::Export(export)) = &mut state.overlay else { return Vec::new() };
     if key.code == Code::Esc {
-        state.overlay = None;
+        state.take_export();
         return Vec::new();
     }
     // While the CLI works the wizard only shows progress; Esc still closes it.
-    if export.busy {
+    if state.exporting() {
         return Vec::new();
     }
+    let Some(Overlay::Export(export)) = &mut state.overlay else { return Vec::new() };
     match (export.step, key.code) {
         (Format, Code::Char('j') | Code::Down) => export.format = next_format(export.format, true),
         (Format, Code::Char('k') | Code::Up) => export.format = next_format(export.format, false),
@@ -115,7 +115,6 @@ pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             export.error = None;
             // The wizard stays open until the CLI answers, so a wrong
             // master password is shown in place.
-            export.busy = true;
             return vec![request(
                 state,
                 CommandKind::Export { format, destination, password, master },
@@ -155,10 +154,10 @@ pub(crate) fn shellexpand_home(path: &str) -> String {
 pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::{Code, Mods};
     let key = ctrl_np_as_arrows(key);
-    let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
-    if import.busy {
+    if state.importing() {
         return Vec::new();
     }
+    let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
     let ctrl = key.mods.contains(Mods::CTRL);
     match (&mut import.step, key.code) {
         // Esc goes back a step, and closes the wizard from the first.
@@ -298,7 +297,7 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 /// Runs `bw import` for the wizard's current choices; the wizard stays open
-/// (busy) until the CLI answers.
+/// (and ignores keys) until the CLI answers.
 pub(crate) fn start_import(state: &mut AppState) -> Vec<Effect> {
     let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
     let format = import.format.clone();
@@ -326,7 +325,6 @@ pub(crate) fn start_import(state: &mut AppState) -> Vec<Effect> {
     state.last_import = counts;
     let password = import.needs_password().then(|| import.password.take_secret());
     let password_protected = password.is_some();
-    import.busy = true;
     import.error = None;
     vec![request(
         state,

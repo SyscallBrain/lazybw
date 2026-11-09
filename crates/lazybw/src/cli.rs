@@ -2,7 +2,7 @@
 //! `doctor`.
 
 use crate::app::msg::{Msg, SuspendTask, Suspended};
-use crate::app::{App, AppState, Effect, Screen};
+use crate::app::{App, AppState, Effect, SessionPhase};
 use crate::bw::{locate, service};
 use crate::config::{Config, Paths};
 use crate::theme::loader;
@@ -385,15 +385,14 @@ async fn run_tui_async() -> color_eyre::Result<()> {
         state.message(crate::app::state::MessageLevel::Warn, warning);
     }
     if let Some(error) = error {
-        state.error = Some(crate::app::state::ErrorScreen {
+        state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
             title: "Configuration error".to_owned(),
             lines: error.lines().map(str::to_owned).collect(),
             detail: Vec::new(),
             actions: "e edit config   r retry   q quit".to_owned(),
             retry: true,
             open_file: Some(paths.config_file()),
-        });
-        state.screen = Screen::Error;
+        })));
     }
 
     let mut app = App::new(state);
@@ -431,8 +430,8 @@ async fn run_tui_async() -> color_eyre::Result<()> {
         };
     // A configuration error is shown first: fixing config.toml (which may
     // well be what sets bw.path) comes before installing the CLI.
-    if let Some(error) = locate_error.filter(|_| app.state.error.is_none()) {
-        app.state.error = Some(crate::app::state::ErrorScreen {
+    if let Some(error) = locate_error.filter(|_| app.state.error().is_none()) {
+        app.state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
             title: "Bitwarden CLI not found".to_owned(),
             lines: vec![
                 "lazybw needs the official Bitwarden CLI (bw) 2025.9.0 or newer.".to_owned(),
@@ -443,13 +442,16 @@ async fn run_tui_async() -> color_eyre::Result<()> {
                 String::new(),
                 "Searched: bw.path (unset) · $LAZYBW_BW (unset) · $PATH".to_string(),
                 error,
+                String::new(),
+                // lazybw looks for bw once, at start-up, so a retry here
+                // could only fail again.
+                "Then start lazybw again.".to_owned(),
             ],
             detail: Vec::new(),
-            actions: "r retry   q quit".to_owned(),
-            retry: true,
+            actions: "q quit".to_owned(),
+            retry: false,
             open_file: None,
-        });
-        app.state.screen = Screen::Error;
+        })));
     }
     if let Some(location) = &location {
         app.state.bw_path = Some(location.path.clone());

@@ -2,11 +2,12 @@
 //! screens.
 
 use super::{
-    Action, AppState, CommandKind, Effect, FieldKind, Filter, FormKey, ItemType, Key, MessageLevel,
-    Overlay, Pending, PickerKind, PromptState, Query, Screen, SecretString, SessionPhase,
-    SuspendTask, UriMatch, apply, cancel, copy_value, ctrl_np_as_arrows, field_label, field_value,
-    move_items, next_id, open_new_editor, overlay_binding, rebuild_rows, reprompt_for,
-    reprompt_required, request, select_item_by_id, sidebar_entries, sync_editor,
+    Action, AppState, CommandKind, Effect, FieldKind, Filter, FormKey, ItemType, Key, LoginMethod,
+    LoginServer, MessageLevel, Overlay, Pending, PickerKind, PromptState, Query, Screen,
+    SecretString, SessionPhase, SuspendTask, UriMatch, apply, cancel, copy_value,
+    ctrl_np_as_arrows, field_label, field_value, move_items, next_id, open_new_editor,
+    overlay_binding, rebuild_rows, reprompt_for, reprompt_required, request, select_item_by_id,
+    sidebar_entries, sync_editor,
 };
 
 pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
@@ -287,35 +288,24 @@ pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 
 pub(crate) fn reprompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
-    let Some(Overlay::Reprompt(reprompt)) = &mut state.overlay else { return Vec::new() };
-    if is_ctrl_c(key) {
+    if is_ctrl_c(key) || key.code == Code::Esc {
+        // Closing the dialog also drops an answer still on its way: only
+        // the request recorded in the open dialog may run the action.
         state.take_reprompt();
-        state.reprompt_action = None;
         return Vec::new();
     }
+    let verifying = state.verifying_reprompt();
+    let Some(Overlay::Reprompt(reprompt)) = &mut state.overlay else { return Vec::new() };
     match key.code {
-        Code::Esc => {
-            state.take_reprompt();
-            state.reprompt_action = None;
-            return Vec::new();
-        }
         Code::Enter => {
-            if reprompt.busy || reprompt.password.is_empty() {
+            if verifying || reprompt.password.is_empty() {
                 return Vec::new();
             }
-            reprompt.busy = true;
             reprompt.error = None;
             let password = reprompt.password.take_secret();
-            let action = state.reprompt_action.take();
-            let Some(action) = action else {
-                state.take_reprompt();
-                return Vec::new();
-            };
-            return vec![request(
-                state,
-                CommandKind::Unlock(password),
-                Pending::Reprompt(Box::new(action)),
-            )];
+            let id = state.next_request_id;
+            reprompt.request = Some(id);
+            return vec![request(state, CommandKind::Unlock(password), Pending::Reprompt)];
         }
         Code::Backspace => {
             reprompt.password.pop();
@@ -515,10 +505,8 @@ pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         return apply(state, Action::new("app.quit"));
     }
     match key.code {
-        Code::Char('r') if state.error.as_ref().is_some_and(|e| e.retry) => {
-            state.error = None;
-            state.screen = Screen::Starting;
-            state.session = SessionPhase::Starting;
+        Code::Char('r') if state.error().is_some_and(|e| e.retry) => {
+            state.enter_session(SessionPhase::Starting);
             let id = next_id(state);
             state.pending.insert(id, Pending::Starting);
             vec![Effect::StartBackend { id }]
@@ -528,7 +516,7 @@ pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             vec![Effect::Quit]
         }
         Code::Char('e') => {
-            if let Some(path) = state.error.as_ref().and_then(|e| e.open_file.clone()) {
+            if let Some(path) = state.error().and_then(|e| e.open_file.clone()) {
                 return vec![Effect::OpenFile(path)];
             }
             Vec::new()
@@ -538,107 +526,72 @@ pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 }
 
 pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
+    use crate::app::state::LoginFocus::{ClientId, ClientSecret, Method, Server, ServerUrl};
     use crate::config::keymap::Code;
     if is_ctrl_c(key) {
         return apply(state, Action::new("app.quit"));
     }
-    if state.login.box_index == 1 && state.login.method_index == 2 {
-        match key.code {
-            Code::Esc => state.login.box_index = 0,
-            Code::Tab | Code::BackTab | Code::Up | Code::Down => {
-                state.login.form_index = (state.login.form_index + 1) % 2;
-            }
-            Code::Enter => return login_submit(state),
-            Code::Backspace => {
-                if state.login.form_index == 0 {
-                    state.login.client_id.pop();
-                } else {
-                    state.login.client_secret.pop();
-                }
-            }
-            Code::Char(c) if key.is_printable() => {
-                if state.login.form_index == 0 {
-                    state.login.client_id.push(c);
-                } else {
-                    state.login.client_secret.push(c);
-                }
-            }
-            _ => {}
-        }
+    // While the CLI works on a login or the server URL, the form waits.
+    if state.logging_in() {
         return Vec::new();
     }
-    if state.login.editing_server {
-        match key.code {
-            Code::Esc => state.login.editing_server = false,
-            Code::Enter => {
-                state.login.editing_server = false;
-                state.login.server_index = 2;
-                let url = state.login.server_input.clone();
-                if !url.is_empty() {
-                    state.login.busy = true;
-                    return vec![request(
-                        state,
-                        CommandKind::ConfigServer(url),
-                        Pending::ConfigServer,
-                    )];
-                }
-            }
-            Code::Backspace => {
-                state.login.server_input.pop();
-            }
-            Code::Char(c) if key.is_printable() => state.login.server_input.push(c),
-            _ => {}
-        }
-        return Vec::new();
+    // Keys bound in the `login` context (none by default) come first, as on
+    // the unlock screen; printable keys stay text for the URL and API fields.
+    if !key.is_printable()
+        && let Some(call) = state.keymap.action("login", &[key])
+    {
+        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
+        return apply(state, action);
     }
-    match key.code {
-        Code::Esc => {
-            if state.login.box_index == 1 {
-                state.login.box_index = 0;
+    let key = ctrl_np_as_arrows(key);
+    let login = &mut state.login;
+    match (login.focus, key.code) {
+        (_, Code::Enter) => return login_action(state, Action::new("login.submit")),
+        (Server | Method | ClientId, Code::Tab)
+        | (Server | Method | ClientSecret, Code::BackTab) => {
+            return login_action(state, Action::new("login.next"));
+        }
+        (ClientSecret, Code::Tab) | (ClientId, Code::BackTab) => {
+            return login_action(state, Action::new("login.prev"));
+        }
+        (_, Code::Esc) => return login_action(state, Action::new("login.back")),
+        (Server | Method, Code::Char('q')) => return apply(state, Action::new("app.quit")),
+        (Server, Code::Char('j') | Code::Down) => {
+            login.server = login.server.next();
+            if login.server == LoginServer::SelfHosted && login.server_input.is_empty() {
+                login.focus = ServerUrl;
             }
         }
-        Code::Tab => state.login.box_index = (state.login.box_index + 1) % 2,
-        Code::BackTab => state.login.box_index = (state.login.box_index + 1) % 2,
-        Code::Char('j') | Code::Down => {
-            if state.login.box_index == 0 {
-                state.login.server_index = (state.login.server_index + 1) % 3;
-                if state.login.server_index == 2 && state.login.server_input.is_empty() {
-                    state.login.editing_server = true;
-                }
-            } else {
-                state.login.method_index = (state.login.method_index + 1) % 3;
-            }
+        (Server, Code::Char('k') | Code::Up) => login.server = login.server.prev(),
+        (Method, Code::Char('j') | Code::Down) => login.method = login.method.next(),
+        (Method, Code::Char('k') | Code::Up) => login.method = login.method.prev(),
+        (ClientId, Code::Up | Code::Down) => login.focus = ClientSecret,
+        (ClientSecret, Code::Up | Code::Down) => login.focus = ClientId,
+        (ServerUrl, Code::Backspace) => {
+            login.server_input.pop();
         }
-        Code::Char('k') | Code::Up => {
-            if state.login.box_index == 0 {
-                state.login.server_index = (state.login.server_index + 2) % 3;
-            } else {
-                state.login.method_index = (state.login.method_index + 2) % 3;
-            }
+        (ClientId, Code::Backspace) => {
+            login.client_id.pop();
         }
-        Code::Enter => return login_submit(state),
+        (ClientSecret, Code::Backspace) => {
+            login.client_secret.pop();
+        }
+        (ServerUrl, Code::Char(c)) if key.is_printable() => login.server_input.push(c),
+        (ClientId, Code::Char(c)) if key.is_printable() => login.client_id.push(c),
+        (ClientSecret, Code::Char(c)) if key.is_printable() => login.client_secret.push(c),
         _ => {}
     }
     Vec::new()
 }
 
+/// Runs the login method chosen on the method list.
 pub(crate) fn login_submit(state: &mut AppState) -> Vec<Effect> {
-    if state.login.box_index == 0 {
-        if state.login.server_index == 2 && state.login.server_input.is_empty() {
-            state.login.editing_server = true;
-            return Vec::new();
-        }
-        state.login.box_index = 1;
-        return Vec::new();
-    }
-    state.login.busy = true;
     state.login.error = None;
-    match state.login.method_index {
-        0 => vec![Effect::Suspend(SuspendTask::Login { sso: false })],
-        1 => vec![Effect::Suspend(SuspendTask::Login { sso: true })],
-        _ => {
+    match state.login.method {
+        LoginMethod::Password => vec![Effect::Suspend(SuspendTask::Login { sso: false })],
+        LoginMethod::Sso => vec![Effect::Suspend(SuspendTask::Login { sso: true })],
+        LoginMethod::ApiKey => {
             if state.login.client_id.is_empty() || state.login.client_secret.is_empty() {
-                state.login.busy = false;
                 state.login.error = Some("Enter the client id and secret.".to_owned());
                 return Vec::new();
             }
@@ -653,28 +606,44 @@ pub(crate) fn login_submit(state: &mut AppState) -> Vec<Effect> {
     }
 }
 
+/// The login screen's transitions; keys and the `login.*` actions both
+/// land here. See [`crate::app::state::LoginFocus`].
 pub(crate) fn login_action(state: &mut AppState, action: Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "login.submit" => login_submit(state),
-        "login.next" => {
-            if state.login.box_index == 0 {
-                state.login.box_index = 1;
-            } else {
-                state.login.form_index = (state.login.form_index + 1) % 2;
-            }
-            Vec::new()
-        }
-        "login.prev" => {
-            if state.login.box_index == 1 {
-                state.login.box_index = 0;
-            } else {
-                state.login.form_index = (state.login.form_index + 1) % 2;
-            }
-            Vec::new()
-        }
-        "login.back" => Vec::new(),
-        _ => Vec::new(),
+    use crate::app::state::LoginFocus::{ClientId, ClientSecret, Method, Server, ServerUrl};
+    if state.logging_in() {
+        return Vec::new();
     }
+    let login = &mut state.login;
+    match (action.id.as_str(), login.focus) {
+        // Enter: move on to the next part, or log in from the last one.
+        ("login.submit", Server) => {
+            login.focus =
+                if login.server == LoginServer::SelfHosted && login.server_input.is_empty() {
+                    ServerUrl
+                } else {
+                    Method
+                };
+        }
+        ("login.submit", ServerUrl) => {
+            login.focus = Server;
+            login.server = LoginServer::SelfHosted;
+            let url = login.server_input.clone();
+            if !url.is_empty() {
+                return vec![request(state, CommandKind::ConfigServer(url), Pending::ConfigServer)];
+            }
+        }
+        ("login.submit", Method) if login.method == LoginMethod::ApiKey => login.focus = ClientId,
+        ("login.submit", Method | ClientId | ClientSecret) => return login_submit(state),
+        ("login.next" | "login.prev", Server) => login.focus = Method,
+        ("login.next" | "login.prev", Method) => login.focus = Server,
+        ("login.next" | "login.prev", ClientId) => login.focus = ClientSecret,
+        ("login.next" | "login.prev", ClientSecret) => login.focus = ClientId,
+        // Back out of the API key form or the URL, then from the methods.
+        ("login.back", ClientId | ClientSecret) => login.focus = Method,
+        ("login.back", ServerUrl | Method) => login.focus = Server,
+        _ => {}
+    }
+    Vec::new()
 }
 
 pub(crate) fn unlock_key(state: &mut AppState, key: Key) -> Vec<Effect> {
