@@ -503,7 +503,10 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
         "editor.next_field" | "editor.prev_field" | "editor.first_field" | "editor.last_field" => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
             if !editor.rows.is_empty() {
-                editor.insert = false;
+                // Tab and Shift-Tab keep INSERT, so a form can be filled in
+                // one go; gg and G are NORMAL-mode moves.
+                editor.insert &=
+                    matches!(action.id.as_str(), "editor.next_field" | "editor.prev_field");
                 editor.row = match action.id.as_str() {
                     "editor.next_field" => (editor.row + 1) % editor.rows.len(),
                     "editor.prev_field" => (editor.row + editor.rows.len() - 1) % editor.rows.len(),
@@ -687,9 +690,17 @@ pub(crate) fn editor_insert_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     }
 }
 
+/// Whether typing in INSERT changes this row. Choices, checkboxes and
+/// buttons keep INSERT while the cursor passes over them but take no text.
+fn takes_text(kind: &FormKind) -> bool {
+    matches!(kind, FormKind::Text | FormKind::Secret | FormKind::Notes)
+}
+
 pub(crate) fn editor_value_insert(state: &mut AppState, text: &str) {
     let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row) else { return };
+    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
+        return;
+    };
     let mut chars: Vec<char> = row.value.chars().collect();
     let at = editor.cursor.min(chars.len());
     for (offset, ch) in text.chars().enumerate() {
@@ -703,7 +714,9 @@ pub(crate) fn editor_value_insert(state: &mut AppState, text: &str) {
 
 pub(crate) fn editor_value_backspace(state: &mut AppState) {
     let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row) else { return };
+    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
+        return;
+    };
     let mut chars: Vec<char> = row.value.chars().collect();
     if editor.cursor > 0 && editor.cursor <= chars.len() {
         let at = editor.cursor - 1;
@@ -717,7 +730,9 @@ pub(crate) fn editor_value_backspace(state: &mut AppState) {
 
 pub(crate) fn editor_value_delete(state: &mut AppState) {
     let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row) else { return };
+    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
+        return;
+    };
     let mut chars: Vec<char> = row.value.chars().collect();
     if editor.cursor < chars.len() {
         chars.remove(editor.cursor);

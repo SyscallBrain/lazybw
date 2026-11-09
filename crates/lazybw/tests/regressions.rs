@@ -372,3 +372,27 @@ fn a_too_small_terminal_drops_running_effects() {
     assert!(s.animating());
     settle(&mut s, 40, 10);
 }
+
+#[test]
+fn tab_in_insert_moves_to_the_next_field_and_keeps_typing() {
+    use lazybw::app::state::FormKey;
+    let mut s = state();
+    keys(&mut s, "al");
+    keys(&mut s, "iLinear<Tab>");
+    let editor = s.editor.as_ref().unwrap();
+    assert!(editor.insert, "Tab left INSERT");
+    assert_eq!(editor.rows[editor.row].key, FormKey::Folder);
+    // The folder is a choice: typing on it changes nothing.
+    keys(&mut s, "x<BS>");
+    keys(&mut s, "<Tab>jane@example.com<S-Tab><Tab>");
+    let editor = s.editor.as_ref().unwrap();
+    let value = |key| editor.rows.iter().find(|row| row.key == key).unwrap().value.clone();
+    assert_eq!(value(FormKey::Name), "Linear");
+    assert_eq!(value(FormKey::Folder), "");
+    assert_eq!(value(FormKey::Username), "jane@example.com");
+    assert!(editor.insert);
+    assert_eq!(editor.rows[editor.row].key, FormKey::Username);
+    // gg is a NORMAL-mode move and leaves INSERT behind.
+    keys(&mut s, "<Esc>gg");
+    assert!(!s.editor.as_ref().unwrap().insert);
+}
