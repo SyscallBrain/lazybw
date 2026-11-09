@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In the editor, `Tab` and `Shift-Tab` left INSERT mode, although the guide
+  says they keep it. A form can now be filled in one go: `Tab` moves to the
+  next field and typing carries on. Typing on a choice or a checkbox changes
+  nothing.
 - After unlocking, the panes took about two seconds to fill in, the right
   one last, instead of a quarter of a second. Animations only moved when
   something else redrew the screen, at worst once a second. The same delay
