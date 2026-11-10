@@ -409,6 +409,9 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     let (input_tx, mut input_rx) = tokio::sync::mpsc::channel::<Msg>(512);
 
     init_terminal(&config)?;
+    // From here on the terminal is ours: whatever ends this function (a
+    // failed draw, a signal handler that cannot be installed) gives it back.
+    let terminal_guard = TerminalGuard;
     let input_thread = spawn_input_thread(input_tx.clone());
     let mut sigusr1 =
         tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1())?;
@@ -416,10 +419,13 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
     let mut terminal = ratatui::init();
     silence_stderr();
-    // Put stderr back before any panic report is printed.
+    // Give the whole terminal back before a panic report is printed: stderr,
+    // and the modes ratatui's own hook leaves on (mouse capture, bracketed
+    // paste, focus events, the keyboard protocol), which would otherwise
+    // follow the user into their shell.
     let report = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
-        restore_stderr();
+        restore_terminal();
         report(info);
     }));
     let mut ticker = tokio::time::interval(Duration::from_secs(1));
@@ -565,7 +571,7 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     // Close the clipboard (and the backend) while stderr is still silenced.
     drop(app);
     let _ = &mut result;
-    restore_terminal();
+    drop(terminal_guard);
     input_thread.stop();
     result
 }
@@ -626,7 +632,11 @@ async fn handle_suspended_effects(
                 };
                 *terminal = ratatui::init();
                 silence_stderr();
-                let _ = init_terminal_extras(config);
+                // Everything `restore_terminal` turned off, not only the
+                // mouse and the keyboard protocol: without bracketed paste a
+                // pasted text arrives as keys and runs as commands, and
+                // without focus events `hide_on_focus_lost` stops working.
+                let _ = init_terminal(config);
                 input.resume();
                 // Time in the editor is activity: the idle lock must not
                 // fire the moment it closes and throw the edit away.
@@ -815,6 +825,17 @@ fn restore_stderr() {
     }
 }
 
+/// Gives the terminal back when dropped, so every way out of the TUI does.
+struct TerminalGuard;
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        restore_terminal();
+    }
+}
+
+/// Undoes [`init_terminal`] and `ratatui::init`. Safe to call more than
+/// once: the panic hook and [`TerminalGuard`] may both get to it.
 fn restore_terminal() {
     restore_stderr();
     let mut out = std::io::stdout();
