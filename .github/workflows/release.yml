@@ -109,7 +109,7 @@ jobs:
             dnf install -y -q /dist/lazybw-*.x86_64.rpm
             lazybw --version'
           docker run --rm -v "$PWD/dist:/dist:ro" archlinux:base-devel bash -euc '
-            pacman -Sy --noconfirm --needed namcap >/dev/null
+            pacman -Syu --noconfirm --needed namcap >/dev/null
             namcap /dist/lazybw-*-x86_64.pkg.tar.zst
             pacman -U --noconfirm /dist/lazybw-*-x86_64.pkg.tar.zst
             lazybw --version'
