@@ -69,20 +69,18 @@ pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effec
                 refresh_completions(state);
                 return Vec::new();
             }
-            if cmdline.completion_index == 0 {
-                // Replace the last word with the first completion.
-                let prefix_end =
-                    cmdline.input.rfind(char::is_whitespace).map(|i| i + 1).unwrap_or(0);
-                let head = cmdline.input[..prefix_end].to_owned();
-                let selected = cmdline.completions[0].clone();
-                cmdline.input = format!("{head}{selected}");
-            } else {
-                let prefix_end =
-                    cmdline.input.rfind(char::is_whitespace).map(|i| i + 1).unwrap_or(0);
-                let head = cmdline.input[..prefix_end].to_owned();
-                let selected = cmdline.completions[cmdline.completion_index].clone();
-                cmdline.input = format!("{head}{selected}");
-            }
+            // A completion replaces everything after the command name, which
+            // is what it was matched against: a folder name has spaces, and
+            // replacing only the last word would pile the names up
+            // (`:move Social Work` after `Social media`).
+            let trimmed_start = cmdline.input.len() - cmdline.input.trim_start().len();
+            let prefix_end = cmdline.input[trimmed_start..]
+                .find(char::is_whitespace)
+                .map(|i| trimmed_start + i + 1)
+                .unwrap_or(trimmed_start);
+            let head = cmdline.input[..prefix_end].to_owned();
+            let selected = cmdline.completions[cmdline.completion_index].clone();
+            cmdline.input = format!("{head}{selected}");
             cmdline.completion_index = (cmdline.completion_index + 1) % cmdline.completions.len();
             cmdline.cursor = cmdline.input.chars().count();
             Vec::new()

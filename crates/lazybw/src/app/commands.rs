@@ -101,9 +101,10 @@ pub fn parse(line: &str) -> Command {
         "restore" => Command::Action(Action::new("item.restore")),
         "fav" => Command::Action(Action::new("item.favorite")),
         "move" => {
+            // The whole rest of the line: folder names have spaces.
             let mut action = Action::new("item.move");
-            if let Some(folder) = args.first() {
-                action.args.push((*folder).to_owned());
+            if !rest.is_empty() {
+                action.args.push(rest.to_owned());
             }
             Command::Action(action)
         }
@@ -119,9 +120,9 @@ pub fn parse(line: &str) -> Command {
                 }
             }
             if args.first() == Some(&"field")
-                && let Some(name) = args.get(1)
+                && let Some(name) = after_first_word(rest)
             {
-                action.args.push((*name).to_owned());
+                action.args.push(name.to_owned());
             }
             Command::Action(action)
         }
@@ -135,9 +136,9 @@ pub fn parse(line: &str) -> Command {
         "history" => Command::Action(Action::new("item.history")),
         "gen" => Command::Action(Action::new("generator.open")),
         "folder" => match args.first().copied() {
-            Some("new") => folder_action("folder.new", args.get(1).copied()),
-            Some("rename") => folder_action("folder.rename", args.get(1).copied()),
-            Some("delete") => folder_action("folder.delete", args.get(1).copied()),
+            Some("new") => folder_action("folder.new", after_first_word(rest)),
+            Some("rename") => folder_action("folder.rename", after_first_word(rest)),
+            Some("delete") => folder_action("folder.delete", after_first_word(rest)),
             _ => Command::Message(
                 MessageLevel::Error,
                 "E492: Not an editor command: folder".to_owned(),
@@ -180,8 +181,8 @@ pub fn parse(line: &str) -> Command {
             if let Some(format) = args.first() {
                 action.args.push((*format).to_owned());
             }
-            if let Some(path) = args.get(1) {
-                action.args.push((*path).to_owned());
+            if let Some(path) = after_first_word(rest) {
+                action.args.push(path.to_owned());
             }
             Command::Action(action)
         }
@@ -190,8 +191,8 @@ pub fn parse(line: &str) -> Command {
             if let Some(format) = args.first() {
                 action.args.push((*format).to_owned());
             }
-            if let Some(path) = args.get(1) {
-                action.args.push((*path).to_owned());
+            if let Some(path) = after_first_word(rest) {
+                action.args.push(path.to_owned());
             }
             Command::Action(action)
         }
@@ -203,6 +204,13 @@ pub fn parse(line: &str) -> Command {
         "doctor" => Command::Action(Action::new("app.doctor")),
         _ => Command::Message(MessageLevel::Error, format!("E492: Not an editor command: {line}")),
     }
+}
+
+/// What follows the first word of `text`, when there is anything: a folder
+/// name, a field name or a path, spaces included (`:folder new Social media`).
+fn after_first_word(text: &str) -> Option<&str> {
+    let (_, tail) = text.split_once(char::is_whitespace)?;
+    Some(tail.trim()).filter(|tail| !tail.is_empty())
 }
 
 fn folder_action(id: &str, name: Option<&str>) -> Command {
@@ -451,7 +459,7 @@ mod tests {
             parse("copy field Recovery codes"),
             Command::Action(Action {
                 id: "item.copy".into(),
-                args: vec!["field".into(), "Recovery".into()],
+                args: vec!["field".into(), "Recovery codes".into()],
                 count: None
             })
         );
@@ -463,6 +471,31 @@ mod tests {
         );
         assert_eq!(parse("12"), Command::Action(Action::new("nav.bottom").counted(Some(12))));
         assert_eq!(parse("trash"), Command::SetFilter(Filter::Trash));
+    }
+
+    #[test]
+    fn names_and_paths_keep_their_spaces() {
+        assert_eq!(
+            parse("move Social media"),
+            Command::Action(Action::with("item.move", &["Social media"]))
+        );
+        assert_eq!(parse("move"), Command::Action(Action::new("item.move")));
+        assert_eq!(
+            parse("folder new Work/Side projects"),
+            Command::Action(Action::with("folder.new", &["Work/Side projects"]))
+        );
+        assert_eq!(parse("folder delete"), Command::Action(Action::new("folder.delete")));
+        assert_eq!(
+            parse("export csv ~/My backups/vault.csv"),
+            Command::Action(Action::with("vault.export", &["csv", "~/My backups/vault.csv"]))
+        );
+        assert_eq!(
+            parse("import bitwardenjson  /tmp/an export.json "),
+            Command::Action(Action::with(
+                "vault.import",
+                &["bitwardenjson", "/tmp/an export.json"]
+            ))
+        );
     }
 
     #[test]

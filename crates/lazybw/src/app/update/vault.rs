@@ -638,7 +638,18 @@ pub(crate) fn move_items(state: &mut AppState, folder: &str, count: Option<u32>)
     let folder_id = if folder.is_empty() {
         None
     } else {
-        state.cache.folders().iter().find(|f| f.name == folder).and_then(|f| f.id.clone())
+        // A name that matches no folder is a typo, not "No folder": moving
+        // on would take the items out of the folder they are in.
+        let found =
+            state.cache.folders().iter().find(|f| f.name == folder).and_then(|f| f.id.clone());
+        if found.is_none() {
+            state.toast(
+                MessageLevel::Error,
+                format!("No folder named “{folder}”. Nothing was moved."),
+            );
+            return Vec::new();
+        }
+        found
     };
     let folder_path = folder.to_owned();
     let ids = state.target_ids(count);

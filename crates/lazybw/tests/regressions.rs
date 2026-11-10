@@ -550,3 +550,32 @@ fn the_mouse_does_not_reach_behind_a_dialog_or_the_editor() {
     assert_eq!(state.screen, Screen::Editor);
     assert!(effects.is_empty());
 }
+
+fn typed(state: &mut AppState, text: &str) -> Vec<Effect> {
+    let mut out = Vec::new();
+    for ch in text.chars() {
+        let notation = if ch == ' ' { "<Space>".to_owned() } else { ch.to_string() };
+        out.extend(keys(state, &notation));
+    }
+    out
+}
+
+fn command(state: &mut AppState, line: &str) -> Vec<Effect> {
+    keys(state, ":");
+    typed(state, line);
+    keys(state, "<CR>")
+}
+
+#[test]
+fn moving_to_a_folder_that_does_not_exist_moves_nothing() {
+    let mut state = five_items();
+    let effects = command(&mut state, "move Socail media");
+    assert!(effects.is_empty(), "{effects:?}");
+    let toast = state.toasts.last().map(|t| t.title.clone()).unwrap_or_default();
+    assert_eq!(toast, "No folder named “Socail media”. Nothing was moved.");
+
+    // The real name, spaces and all, does move it.
+    let effects = command(&mut state, "move Social media");
+    assert_eq!(effects.len(), 1);
+    assert_eq!(state.cache.item("a").unwrap().folder_id.as_deref(), Some("f-social"));
+}
