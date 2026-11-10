@@ -1370,3 +1370,49 @@ async fn a_new_item_saved_after_using_the_generator_is_clean() {
     assert!(app.app.state.confirm().is_none(), "q asked about unsaved changes");
     assert!(app.app.state.editor.is_none());
 }
+
+/// One action on a few hundred items queues a few hundred requests. The
+/// queue to the backend used to hold 64: the interface waited on it from its
+/// own loop, where nothing read the answers any more, and past a few hundred
+/// items neither side could move again.
+#[tokio::test]
+async fn an_action_on_hundreds_of_items_reaches_the_backend_without_hanging() {
+    const ITEMS: usize = 400;
+    let mut app = ready_app().await;
+    // fake-bw reads its state file on every request: swap the vault and reload.
+    let mut state = app.fake_state();
+    state["items"] = (0..ITEMS)
+        .map(|n| {
+            serde_json::json!({
+                "object": "item", "id": format!("bulk-{n:04}"), "type": 2,
+                "name": format!("Bulk {n:04}"), "secureNote": {"type": 0},
+                "favorite": false, "reprompt": 0
+            })
+        })
+        .collect();
+    std::fs::write(&app.state_path, serde_json::to_vec(&state).unwrap()).unwrap();
+    app.keys("R").await;
+    app.wait_idle().await;
+    assert_eq!(app.app.state.visible_rows().len(), ITEMS);
+
+    app.keys("ggVG").await;
+    let trash = async {
+        app.keys("dd").await;
+        while !app.app.state.pending.is_empty() {
+            app.pump().await;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(120), trash)
+        .await
+        .expect("the bulk trash hung");
+
+    let trashed = app.fake_state()["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| !item["deletedDate"].is_null())
+        .count();
+    assert_eq!(trashed, ITEMS);
+    assert_eq!(app.app.state.cache.count(&Filter::Trash), ITEMS);
+}

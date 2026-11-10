@@ -317,13 +317,18 @@ pub struct BackendEvent {
 /// Clonable handle used by the UI.
 #[derive(Debug, Clone)]
 pub struct Backend {
-    sender: mpsc::Sender<Command>,
+    sender: mpsc::UnboundedSender<Command>,
 }
 
 impl Backend {
-    /// Sends a command; a closed backend is reported to the caller.
+    /// Queues a command; a closed backend is reported to the caller.
+    ///
+    /// The queue has no limit, so this never waits. The interface sends
+    /// from its own loop, and a full queue there would stop it reading the
+    /// answers that empty the queue: one action on a few hundred items was
+    /// enough to freeze it, and on a thousand to hang it for good.
     pub async fn send(&self, id: u64, kind: CommandKind) -> Result<(), BwError> {
-        self.sender.send(Command { id, kind }).await.map_err(|_| BwError::Disconnected)
+        self.sender.send(Command { id, kind }).map_err(|_| BwError::Disconnected)
     }
 }
 
@@ -721,7 +726,7 @@ impl Service {
 /// Spawns the backend task and returns a handle plus the event receiver.
 #[must_use]
 pub fn spawn(config: BackendConfig) -> (Backend, mpsc::Receiver<BackendEvent>) {
-    let (command_tx, mut command_rx) = mpsc::channel::<Command>(64);
+    let (command_tx, mut command_rx) = mpsc::unbounded_channel::<Command>();
     let (event_tx, event_rx) = mpsc::channel::<BackendEvent>(256);
     tokio::spawn(async move {
         let mut service = Service::new(config);
@@ -769,6 +774,24 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The interface queues commands from its own loop; a send that waited
+    /// for the backend would stop it there, with nothing left to read the
+    /// answers.
+    #[tokio::test]
+    async fn sending_never_waits_for_the_backend() {
+        // Nothing reads the queue: every send must still return at once.
+        let (sender, _receiver) = mpsc::unbounded_channel();
+        let backend = Backend { sender };
+        for id in 0..5_000 {
+            let sent = tokio::time::timeout(
+                Duration::from_millis(200),
+                backend.send(id, CommandKind::DeleteItem { id: id.to_string(), permanent: false }),
+            )
+            .await;
+            assert!(matches!(sent, Ok(Ok(()))), "send {id} waited for the backend");
+        }
+    }
 
     #[test]
     fn export_format_names() {
