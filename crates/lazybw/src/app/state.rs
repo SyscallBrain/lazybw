@@ -4,6 +4,7 @@
 //! effects. Every piece of UI state lives here so integration tests can drive
 //! the app without a terminal.
 
+use crate::app::actions::ActionId;
 use crate::bw::models::{HealthEntry, Item};
 use crate::bw::service::VaultSnapshot;
 use crate::clipboard::Clipboard;
@@ -266,11 +267,11 @@ pub struct ConfirmState {
     pub requires_word: Option<String>,
     /// What has been typed so far.
     pub input: String,
-    /// The action to run on confirmation.
-    pub on_confirm: Action,
+    /// What runs on confirmation.
+    pub on_confirm: Deferred,
     /// When set, `n` runs this instead of cancelling, and `c`/Esc cancel
     /// (three-way dialogs such as "y save · n discard · c cancel").
-    pub on_deny: Option<Action>,
+    pub on_deny: Option<Deferred>,
     /// Delete/rename subfolders as well.
     pub also_subfolders: bool,
     /// How many subfolders the operation would affect.
@@ -284,7 +285,7 @@ impl ConfirmState {
         title: impl Into<String>,
         message: impl Into<String>,
         confirm_label: impl Into<String>,
-        on_confirm: Action,
+        on_confirm: impl Into<Deferred>,
     ) -> Self {
         Self {
             title: title.into(),
@@ -293,7 +294,7 @@ impl ConfirmState {
             danger: false,
             requires_word: None,
             input: String::new(),
-            on_confirm,
+            on_confirm: on_confirm.into(),
             on_deny: None,
             also_subfolders: false,
             subfolder_count: 0,
@@ -322,8 +323,8 @@ impl ConfirmState {
 
     /// A three-way dialog: `n` runs `action`, `c` and Esc cancel.
     #[must_use]
-    pub fn deny(mut self, action: Action) -> Self {
-        self.on_deny = Some(action);
+    pub fn deny(mut self, action: impl Into<Deferred>) -> Self {
+        self.on_deny = Some(action.into());
         self
     }
 
@@ -357,11 +358,11 @@ pub enum DragTarget {
     List,
 }
 
-/// A pending action.
+/// A pending action: a registry action with its arguments and count.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Action {
     /// Action id.
-    pub id: String,
+    pub id: ActionId,
     /// Arguments.
     pub args: Vec<String>,
     /// Count from the key sequence.
@@ -371,14 +372,23 @@ pub struct Action {
 impl Action {
     /// Builds an action.
     #[must_use]
-    pub fn new(id: impl Into<String>) -> Self {
-        Self { id: id.into(), args: Vec::new(), count: None }
+    pub fn new(id: ActionId) -> Self {
+        Self { id, args: Vec::new(), count: None }
     }
 
     /// Builds an action with arguments.
     #[must_use]
-    pub fn with(id: impl Into<String>, args: &[&str]) -> Self {
-        Self { id: id.into(), args: args.iter().map(|s| (*s).to_owned()).collect(), count: None }
+    pub fn with(id: ActionId, args: &[&str]) -> Self {
+        Self { id, args: args.iter().map(|s| (*s).to_owned()).collect(), count: None }
+    }
+
+    /// The action a key binding stands for; `None` for an id that is not in
+    /// the registry (the config loader refuses those, so only a stale
+    /// session binding gets here).
+    #[must_use]
+    pub fn from_call(call: &crate::config::keymap::ActionCall) -> Option<Self> {
+        let id = ActionId::parse(&call.id)?;
+        Some(Self { id, args: call.args.clone(), count: None })
     }
 
     /// Adds a count.
@@ -387,6 +397,97 @@ impl Action {
         self.count = count;
         self
     }
+}
+
+/// What a dialog runs once it is answered: a registry action, or one of the
+/// steps only a dialog can start. The steps carry the items and folders the
+/// dialog named, so the answer acts on what was shown, whatever the
+/// selection is by then; none of them can be bound to a key or typed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Deferred {
+    /// Runs a registry action.
+    Run(Action),
+    /// Quits, giving up the editor's unsaved changes.
+    QuitDiscarding,
+    /// Logs out.
+    Logout,
+    /// Renames the folders of a sidebar row (and, with `also`, the folders
+    /// under it). A row can hold several folders: Bitwarden allows two
+    /// folders with the same name.
+    RenameFolder {
+        /// The row's folders, as (id, new full path).
+        folders: Vec<(String, String)>,
+        /// The folders under it, as (id, new full path).
+        subfolders: Vec<(String, String)>,
+        /// Rename the subfolders too.
+        also: bool,
+    },
+    /// Deletes the folders of a sidebar row (and, with `also`, the folders
+    /// under it).
+    DeleteFolder {
+        /// The row's folder ids.
+        ids: Vec<String>,
+        /// The ids of the folders under it.
+        subfolders: Vec<String>,
+        /// Delete the subfolders too.
+        also: bool,
+    },
+    /// Deletes everything in the trash for good.
+    EmptyTrash,
+    /// Moves these items to the trash.
+    TrashItems(Vec<String>),
+    /// Deletes these items for good.
+    DeleteItems(Vec<String>),
+    /// Opens a link that is not a website.
+    OpenUri(String),
+    /// Asks to replace this item's password with a new one.
+    ConfirmGeneratePassword(String),
+    /// Generates a password and puts it in this item.
+    GeneratePassword(String),
+    /// Asks to put the generator's password in this item.
+    ConfirmUseGenerated(String),
+    /// Puts the generator's password in this item.
+    UseGenerated(String),
+    /// Removes the passkey of this item.
+    RemovePasskey(String),
+}
+
+impl Default for Deferred {
+    fn default() -> Self {
+        Self::Run(Action::default())
+    }
+}
+
+impl From<Action> for Deferred {
+    fn from(action: Action) -> Self {
+        Self::Run(action)
+    }
+}
+
+impl From<ActionId> for Deferred {
+    fn from(id: ActionId) -> Self {
+        Self::Run(Action::new(id))
+    }
+}
+
+/// What a one-line prompt does with the text typed into it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PromptAction {
+    /// Nothing (a closed prompt).
+    #[default]
+    None,
+    /// Creates a folder with this name.
+    NewFolder,
+    /// Renames the current folder to this path.
+    RenameFolder,
+    /// Filters the help screen.
+    FilterHelp,
+    /// Filters the keymap editor.
+    FilterKeymap,
+    /// Reads an SSH private key from this path into the editor.
+    ImportSshKey,
+    /// Sets this setting to the text.
+    Setting(&'static str),
 }
 
 /// The unlock screen state.
@@ -1300,8 +1401,8 @@ pub enum UndoOp {
     },
     /// Folder rename.
     FolderRename {
-        /// Old and new paths.
-        folders: Vec<(String, String)>,
+        /// Folder id, old path and new path.
+        folders: Vec<(String, String, String)>,
     },
     /// Folder delete, with the items that lived in each folder.
     FolderDelete {
@@ -2551,7 +2652,7 @@ pub struct RepromptState {
     /// Error.
     pub error: Option<String>,
     /// What runs once the password is right.
-    pub action: Action,
+    pub action: Deferred,
     /// The unlock request checking the typed password, once sent. Only the
     /// answer to this request may run the action, so an answer that comes
     /// back after the dialog was closed (or replaced) does nothing.
@@ -2597,18 +2698,21 @@ pub struct PromptState {
     pub title: String,
     /// The input.
     pub input: crate::input::line::Line,
-    /// The action run on Enter; its last argument is replaced by the input.
-    pub on_accept: Action,
-    /// Insert the input as the first argument instead of the last.
-    pub replace_first_arg: bool,
+    /// What Enter does with the text.
+    pub on_accept: PromptAction,
     /// Error message.
     pub error: Option<String>,
 }
 
-impl Action {
-    /// A placeholder action.
+impl PromptState {
+    /// A prompt starting with `text`.
     #[must_use]
-    pub fn none() -> Self {
-        Self { id: String::new(), args: Vec::new(), count: None }
+    pub fn new(title: impl Into<String>, text: &str, on_accept: PromptAction) -> Self {
+        Self {
+            title: title.into(),
+            input: crate::input::line::Line::new(text),
+            on_accept,
+            error: None,
+        }
     }
 }

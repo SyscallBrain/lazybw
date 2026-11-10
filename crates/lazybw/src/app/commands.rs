@@ -1,6 +1,7 @@
 //! The `:` command line: a parser from command text to actions and settings
 //! changes, plus completion candidates.
 
+use crate::app::actions::ActionId;
 use crate::app::state::{Action, AppState, MessageLevel};
 use crate::config::SortOrder;
 use crate::vault::cache::Filter;
@@ -52,6 +53,13 @@ pub enum Command {
     },
     /// Switch the sidebar filter.
     SetFilter(Filter),
+    /// Generate a password (or a passphrase) and copy it (`:gen 32`).
+    Generate {
+        /// A passphrase instead of a password.
+        passphrase: bool,
+        /// The length, or the word count.
+        size: Option<u8>,
+    },
     /// Nothing.
     None,
 }
@@ -69,20 +77,20 @@ pub fn parse(line: &str) -> Command {
     let args: Vec<&str> = rest.split_whitespace().collect();
 
     if let Ok(number) = name.parse::<u32>() {
-        return Command::Action(Action::new("nav.bottom").counted(Some(number)));
+        return Command::Action(Action::new(ActionId::NavBottom).counted(Some(number)));
     }
 
     match name {
-        "q" | "quit" => Command::Action(Action::new("app.quit")),
-        "q!" => Command::Action(Action::new("app.quit_force")),
+        "q" | "quit" => Command::Action(Action::new(ActionId::AppQuit)),
+        "q!" => Command::Action(Action::new(ActionId::AppQuitForce)),
         // `:qa` quits lazybw even from the editor (`:q` only closes it).
-        "qa" | "qall" => Command::Action(Action::with("app.quit", &["all"])),
-        "qa!" | "qall!" => Command::Action(Action::with("app.quit_force", &["all"])),
-        "w" | "write" => Command::Action(Action::new("editor.save")),
-        "wq" | "x" => Command::Action(Action::new("editor.save_close")),
-        "e!" => Command::Action(Action::new("editor.reload")),
+        "qa" | "qall" => Command::Action(Action::with(ActionId::AppQuit, &["all"])),
+        "qa!" | "qall!" => Command::Action(Action::with(ActionId::AppQuitForce, &["all"])),
+        "w" | "write" => Command::Action(Action::new(ActionId::EditorSave)),
+        "wq" | "x" => Command::Action(Action::new(ActionId::EditorSaveClose)),
+        "e!" => Command::Action(Action::new(ActionId::EditorReload)),
         "new" => {
-            let mut action = Action::new("item.new");
+            let mut action = Action::new(ActionId::ItemNew);
             if let Some(kind) = args.first() {
                 action.args.push((*kind).to_owned());
             }
@@ -90,25 +98,25 @@ pub fn parse(line: &str) -> Command {
         }
         "edit" => {
             if args.first() == Some(&"json") {
-                Command::Action(Action::new("item.edit_json"))
+                Command::Action(Action::new(ActionId::ItemEditJson))
             } else {
-                Command::Action(Action::new("item.edit"))
+                Command::Action(Action::new(ActionId::ItemEdit))
             }
         }
-        "delete" => Command::Action(Action::new("item.trash")),
-        "delete!" => Command::Action(Action::new("item.delete")),
-        "restore" => Command::Action(Action::new("item.restore")),
-        "fav" => Command::Action(Action::new("item.favorite")),
+        "delete" => Command::Action(Action::new(ActionId::ItemTrash)),
+        "delete!" => Command::Action(Action::new(ActionId::ItemDelete)),
+        "restore" => Command::Action(Action::new(ActionId::ItemRestore)),
+        "fav" => Command::Action(Action::new(ActionId::ItemFavorite)),
         "move" => {
             // The whole rest of the line: folder names have spaces.
-            let mut action = Action::new("item.move");
+            let mut action = Action::new(ActionId::ItemMove);
             if !rest.is_empty() {
                 action.args.push(rest.to_owned());
             }
             Command::Action(action)
         }
         "copy" => {
-            let mut action = Action::new("item.copy");
+            let mut action = Action::new(ActionId::ItemCopy);
             match args.first() {
                 Some(field) => action.args.push((*field).to_owned()),
                 None => {
@@ -126,25 +134,23 @@ pub fn parse(line: &str) -> Command {
             Command::Action(action)
         }
         "open" => {
-            let mut action = Action::new("item.open_uri");
+            let mut action = Action::new(ActionId::ItemOpenUri);
             if let Some(number) = args.first() {
                 action.args.push((*number).to_owned());
             }
             Command::Action(action)
         }
-        "history" => Command::Action(Action::new("item.history")),
+        "history" => Command::Action(Action::new(ActionId::ItemHistory)),
         // `:gen` opens the generator (ADR-010); `:gen 32` and
         // `:gen phrase 6` make one and copy it without leaving the screen.
         "gen" => match args.as_slice() {
-            [] => Command::Action(Action::new("generator.open")),
-            ["phrase" | "passphrase"] => {
-                Command::Action(Action::with("generator.quick", &["phrase"]))
-            }
+            [] => Command::Action(Action::new(ActionId::GeneratorOpen)),
+            ["phrase" | "passphrase"] => Command::Generate { passphrase: true, size: None },
             ["phrase" | "passphrase", n] if n.parse::<u8>().is_ok() => {
-                Command::Action(Action::with("generator.quick", &["phrase", n]))
+                Command::Generate { passphrase: true, size: n.parse().ok() }
             }
             [n] if n.parse::<u8>().is_ok() => {
-                Command::Action(Action::with("generator.quick", &["password", n]))
+                Command::Generate { passphrase: false, size: n.parse().ok() }
             }
             _ => Command::Message(
                 MessageLevel::Error,
@@ -152,9 +158,9 @@ pub fn parse(line: &str) -> Command {
             ),
         },
         "folder" => match args.first().copied() {
-            Some("new") => folder_action("folder.new", after_first_word(rest)),
-            Some("rename") => folder_action("folder.rename", after_first_word(rest)),
-            Some("delete") => folder_action("folder.delete", after_first_word(rest)),
+            Some("new") => folder_action(ActionId::FolderNew, after_first_word(rest)),
+            Some("rename") => folder_action(ActionId::FolderRename, after_first_word(rest)),
+            Some("delete") => folder_action(ActionId::FolderDelete, after_first_word(rest)),
             _ => Command::Message(
                 MessageLevel::Error,
                 "E492: Not an editor command: folder".to_owned(),
@@ -166,9 +172,9 @@ pub fn parse(line: &str) -> Command {
             let text = rest.trim_end_matches('!').trim();
             match SortOrder::parse(text) {
                 Some(order) if reverse => {
-                    Command::Action(Action::with("sort.set", &[order.label(), "reverse"]))
+                    Command::Action(Action::with(ActionId::SortSet, &[order.label(), "reverse"]))
                 }
-                Some(order) => Command::Action(Action::with("sort.set", &[order.label()])),
+                Some(order) => Command::Action(Action::with(ActionId::SortSet, &[order.label()])),
                 None => Command::Message(
                     MessageLevel::Error,
                     format!("E492: Not an editor command: sort {rest}"),
@@ -177,9 +183,9 @@ pub fn parse(line: &str) -> Command {
         }
         "theme" => {
             let mut action = if rest.is_empty() {
-                Action::new("theme.pick")
+                Action::new(ActionId::ThemePick)
             } else {
-                Action::with("theme.set", &[rest])
+                Action::with(ActionId::ThemeSet, &[rest])
             };
             action.args.retain(|a| !a.is_empty());
             Command::Action(action)
@@ -187,18 +193,18 @@ pub fn parse(line: &str) -> Command {
         "set" => parse_set(rest),
         "map" => parse_map(rest),
         "unmap" => parse_unmap(rest),
-        "keymap" => Command::Action(Action::new("app.keymap")),
+        "keymap" => Command::Action(Action::new(ActionId::AppKeymap)),
         "sync" => {
-            let mut action = Action::new("vault.sync");
+            let mut action = Action::new(ActionId::VaultSync);
             if rest == "!" {
                 action.args.push("force".to_owned());
             }
             Command::Action(action)
         }
-        "lock" => Command::Action(Action::new("vault.lock")),
-        "logout" => Command::Action(Action::new("vault.logout")),
+        "lock" => Command::Action(Action::new(ActionId::VaultLock)),
+        "logout" => Command::Action(Action::new(ActionId::VaultLogout)),
         "export" => {
-            let mut action = Action::new("vault.export");
+            let mut action = Action::new(ActionId::VaultExport);
             if let Some(format) = args.first() {
                 action.args.push((*format).to_owned());
             }
@@ -208,7 +214,7 @@ pub fn parse(line: &str) -> Command {
             Command::Action(action)
         }
         "import" => {
-            let mut action = Action::new("vault.import");
+            let mut action = Action::new(ActionId::VaultImport);
             if let Some(format) = args.first() {
                 action.args.push((*format).to_owned());
             }
@@ -217,12 +223,12 @@ pub fn parse(line: &str) -> Command {
             }
             Command::Action(action)
         }
-        "health" => Command::Action(Action::new("health.open")),
+        "health" => Command::Action(Action::new(ActionId::HealthOpen)),
         "trash" => Command::SetFilter(Filter::Trash),
-        "empty-trash" => Command::Action(Action::new("trash.empty")),
-        "messages" => Command::Action(Action::new("app.messages")),
-        "help" => Command::Action(Action::new("app.help")),
-        "doctor" => Command::Action(Action::new("app.doctor")),
+        "empty-trash" => Command::Action(Action::new(ActionId::TrashEmpty)),
+        "messages" => Command::Action(Action::new(ActionId::AppMessages)),
+        "help" => Command::Action(Action::new(ActionId::AppHelp)),
+        "doctor" => Command::Action(Action::new(ActionId::AppDoctor)),
         _ => Command::Message(MessageLevel::Error, format!("E492: Not an editor command: {line}")),
     }
 }
@@ -234,7 +240,7 @@ fn after_first_word(text: &str) -> Option<&str> {
     Some(tail.trim()).filter(|tail| !tail.is_empty())
 }
 
-fn folder_action(id: &str, name: Option<&str>) -> Command {
+fn folder_action(id: ActionId, name: Option<&str>) -> Command {
     let mut action = Action::new(id);
     if let Some(name) = name {
         action.args.push(name.to_owned());
@@ -244,7 +250,7 @@ fn folder_action(id: &str, name: Option<&str>) -> Command {
 
 fn parse_set(rest: &str) -> Command {
     if rest.is_empty() {
-        return Command::Action(Action::new("app.settings"));
+        return Command::Action(Action::new(ActionId::AppSettings));
     }
     let (mode, body) = match rest.chars().last() {
         Some('?') => (SetMode::Show, &rest[..rest.len() - 1]),
@@ -265,7 +271,7 @@ fn parse_set(rest: &str) -> Command {
 fn parse_map(rest: &str) -> Command {
     let parts: Vec<&str> = rest.split_whitespace().collect();
     if parts.is_empty() {
-        return Command::Action(Action::new("app.keymap"));
+        return Command::Action(Action::new(ActionId::AppKeymap));
     }
     if parts.len() == 1 {
         return Command::Map { context: None, keys: None, action: Some(parts[0].to_owned()) };
@@ -454,43 +460,43 @@ mod tests {
 
     #[test]
     fn parses_quit_variants() {
-        assert_eq!(parse("q"), Command::Action(Action::new("app.quit")));
-        assert_eq!(parse("qa!"), Command::Action(Action::with("app.quit_force", &["all"])));
-        assert_eq!(parse("wq"), Command::Action(Action::new("editor.save_close")));
+        assert_eq!(parse("q"), Command::Action(Action::new(ActionId::AppQuit)));
+        assert_eq!(parse("qa!"), Command::Action(Action::with(ActionId::AppQuitForce, &["all"])));
+        assert_eq!(parse("wq"), Command::Action(Action::new(ActionId::EditorSaveClose)));
     }
 
     #[test]
     fn parses_item_commands() {
         assert_eq!(
             parse("copy password"),
-            Command::Action(Action::with("item.copy", &["password"]))
+            Command::Action(Action::with(ActionId::ItemCopy, &["password"]))
         );
         assert_eq!(
             parse("copy field Recovery codes"),
             Command::Action(Action {
-                id: "item.copy".into(),
+                id: ActionId::ItemCopy,
                 args: vec!["field".into(), "Recovery codes".into()],
                 count: None
             })
         );
-        assert_eq!(parse("new login"), Command::Action(Action::with("item.new", &["login"])));
-        assert_eq!(parse("delete!"), Command::Action(Action::new("item.delete")));
+        assert_eq!(
+            parse("new login"),
+            Command::Action(Action::with(ActionId::ItemNew, &["login"]))
+        );
+        assert_eq!(parse("delete!"), Command::Action(Action::new(ActionId::ItemDelete)));
         assert_eq!(
             parse("sort modified!"),
-            Command::Action(Action::with("sort.set", &["modified", "reverse"]))
+            Command::Action(Action::with(ActionId::SortSet, &["modified", "reverse"]))
         );
-        assert_eq!(parse("sort name"), Command::Action(Action::with("sort.set", &["name"])));
-        assert_eq!(parse("gen"), Command::Action(Action::new("generator.open")));
-        assert_eq!(
-            parse("gen 32"),
-            Command::Action(Action::with("generator.quick", &["password", "32"]))
-        );
-        assert_eq!(
-            parse("gen phrase 6"),
-            Command::Action(Action::with("generator.quick", &["phrase", "6"]))
-        );
+        assert_eq!(parse("sort name"), Command::Action(Action::with(ActionId::SortSet, &["name"])));
+        assert_eq!(parse("gen"), Command::Action(Action::new(ActionId::GeneratorOpen)));
+        assert_eq!(parse("gen 32"), Command::Generate { passphrase: false, size: Some(32) });
+        assert_eq!(parse("gen phrase 6"), Command::Generate { passphrase: true, size: Some(6) });
         assert!(matches!(parse("gen lots"), Command::Message(MessageLevel::Error, _)));
-        assert_eq!(parse("12"), Command::Action(Action::new("nav.bottom").counted(Some(12))));
+        assert_eq!(
+            parse("12"),
+            Command::Action(Action::new(ActionId::NavBottom).counted(Some(12)))
+        );
         assert_eq!(parse("trash"), Command::SetFilter(Filter::Trash));
     }
 
@@ -498,22 +504,25 @@ mod tests {
     fn names_and_paths_keep_their_spaces() {
         assert_eq!(
             parse("move Social media"),
-            Command::Action(Action::with("item.move", &["Social media"]))
+            Command::Action(Action::with(ActionId::ItemMove, &["Social media"]))
         );
-        assert_eq!(parse("move"), Command::Action(Action::new("item.move")));
+        assert_eq!(parse("move"), Command::Action(Action::new(ActionId::ItemMove)));
         assert_eq!(
             parse("folder new Work/Side projects"),
-            Command::Action(Action::with("folder.new", &["Work/Side projects"]))
+            Command::Action(Action::with(ActionId::FolderNew, &["Work/Side projects"]))
         );
-        assert_eq!(parse("folder delete"), Command::Action(Action::new("folder.delete")));
+        assert_eq!(parse("folder delete"), Command::Action(Action::new(ActionId::FolderDelete)));
         assert_eq!(
             parse("export csv ~/My backups/vault.csv"),
-            Command::Action(Action::with("vault.export", &["csv", "~/My backups/vault.csv"]))
+            Command::Action(Action::with(
+                ActionId::VaultExport,
+                &["csv", "~/My backups/vault.csv"]
+            ))
         );
         assert_eq!(
             parse("import bitwardenjson  /tmp/an export.json "),
             Command::Action(Action::with(
-                "vault.import",
+                ActionId::VaultImport,
                 &["bitwardenjson", "/tmp/an export.json"]
             ))
         );

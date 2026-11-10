@@ -2,10 +2,12 @@
 //! trash, favorites, moves, search, navigation, undo.
 
 use super::{
-    Action, AppState, BTreeMap, CommandKind, ConfirmState, DetailState, Effect, FieldKind, Filter,
-    Instant, Item, ItemType, Key, MessageLevel, Pending, PickerEntry, PickerKind, PickerState,
-    Query, RepromptState, Screen, copy_value, keymap_rows, request, settings_rows, toast,
+    Action, AppState, BTreeMap, CommandKind, ConfirmState, Deferred, DetailState, Effect,
+    FieldKind, Filter, Instant, Item, ItemType, Key, MessageLevel, Pending, PickerEntry,
+    PickerKind, PickerState, Query, RepromptState, Screen, copy_value, keymap_rows, request,
+    settings_rows, toast,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn sidebar_entries(state: &AppState) -> Vec<crate::vault::filter::SidebarEntry> {
     crate::vault::filter::entries(
@@ -39,7 +41,7 @@ pub(crate) fn rail_active(state: &AppState) -> bool {
 }
 
 /// Moves the sidebar cursor over the rail's icons (folders are one icon).
-fn move_rail(state: &mut AppState, action: &str, count: Option<usize>) {
+fn move_rail(state: &mut AppState, action: ActionId, count: Option<usize>) {
     let entries = sidebar_entries(state);
     let slots = crate::vault::filter::rail_slots(&entries);
     let selectable: Vec<usize> = slots.iter().filter_map(|slot| slot.entry()).collect();
@@ -55,7 +57,7 @@ fn move_rail(state: &mut AppState, action: &str, count: Option<usize>) {
     state.sidebar_row = selectable[next];
 }
 
-pub(crate) fn fold_action(state: &mut AppState, id: &str) -> Vec<Effect> {
+pub(crate) fn fold_action(state: &mut AppState, id: ActionId) -> Vec<Effect> {
     let entries = sidebar_entries(state);
     let Some(entry) = entries.get(state.sidebar_row) else { return Vec::new() };
     let crate::vault::filter::SidebarRole::Folder { path, has_children, .. } = &entry.role else {
@@ -64,19 +66,19 @@ pub(crate) fn fold_action(state: &mut AppState, id: &str) -> Vec<Effect> {
     let path = path.clone();
     let has_children = *has_children;
     match id {
-        "fold.toggle" if has_children => {
+        ActionId::FoldToggle if has_children => {
             if !state.collapsed.remove(&path) {
                 state.collapsed.insert(path);
             }
         }
-        "fold.open" => {
+        ActionId::FoldOpen => {
             state.collapsed.remove(&path);
         }
-        "fold.close" if has_children => {
+        ActionId::FoldClose if has_children => {
             state.collapsed.insert(path);
         }
-        "fold.open_all" => state.collapsed.clear(),
-        "fold.close_all" => {
+        ActionId::FoldOpenAll => state.collapsed.clear(),
+        ActionId::FoldCloseAll => {
             let tree = crate::vault::filter::folder_tree(&state.cache);
             state.collapsed = crate::vault::folders::all_paths(&tree);
         }
@@ -194,7 +196,7 @@ format!(
             item.name
         ),
 "Replace",
-Action::with("item.generate_password.run", &[&id]),
+Deferred::GeneratePassword(id),
 ));
     Vec::new()
 }
@@ -280,21 +282,25 @@ pub(crate) fn detail_value(state: &AppState, item: &Item, key: &str) -> String {
     }
 }
 
-pub(crate) fn reprompt(state: &mut AppState, action: Action) -> Vec<Effect> {
+pub(crate) fn reprompt(state: &mut AppState, action: impl Into<Deferred>) -> Vec<Effect> {
     match state.selected_item().cloned() {
         Some(item) => reprompt_for(state, &item, action),
         None => Vec::new(),
     }
 }
 
-pub(crate) fn reprompt_for(state: &mut AppState, item: &Item, action: Action) -> Vec<Effect> {
+pub(crate) fn reprompt_for(
+    state: &mut AppState,
+    item: &Item,
+    action: impl Into<Deferred>,
+) -> Vec<Effect> {
     let (id, name) = (item.id.clone().unwrap_or_default(), item.name.clone());
     state.open(RepromptState {
         item_id: id,
         item_name: name.clone(),
         password: crate::input::secret::SecretInput::new(),
         error: None,
-        action,
+        action: action.into(),
         request: None,
     });
     state.message(MessageLevel::Info, format!("“{name}” asks for your master password."));
@@ -310,7 +316,7 @@ pub(crate) fn copy_action(state: &mut AppState, args: &[String]) -> Vec<Effect> 
         "password" | "totp" | "number" | "code" | "primary" | "private_key" | "field" | "notes"
     );
     if secret && reprompt_required(state, &item) {
-        let action = Action { id: "item.copy".to_owned(), args: args.to_vec(), count: None };
+        let action = Action { id: ActionId::ItemCopy, args: args.to_vec(), count: None };
         return reprompt(state, action);
     }
     let value = field_value(&item, field, args.get(1).map(String::as_str), state);
@@ -406,9 +412,9 @@ pub(crate) fn field_value(item: &Item, field: &str, arg: Option<&str>, state: &A
     }
 }
 
-pub(crate) fn reveal_action(state: &mut AppState, id: &str) -> Vec<Effect> {
+pub(crate) fn reveal_action(state: &mut AppState, id: ActionId) -> Vec<Effect> {
     match id {
-        "item.reveal_all" => {
+        ActionId::ItemRevealAll => {
             let rows = detail_fields(state);
             for (key, _, secret) in rows {
                 if secret {
@@ -418,7 +424,7 @@ pub(crate) fn reveal_action(state: &mut AppState, id: &str) -> Vec<Effect> {
             state.detail.hide_at =
                 state.config.security.reveal_timeout.get().map(|d| Instant::now() + d);
         }
-        "item.hide_all" => {
+        ActionId::ItemHideAll => {
             state.detail.revealed.clear();
             state.detail.hide_at = None;
         }
@@ -619,7 +625,13 @@ pub(crate) fn open_folder_picker(state: &mut AppState) {
         let unfiled = state.selected_item().is_some_and(|item| item.folder_id.is_none());
         entry.note = if unfiled { "current" } else { "" }.to_owned();
     }
+    // Bitwarden allows two folders with the same name; the sidebar shows
+    // them as one row, and so does the picker.
+    let mut seen = std::collections::BTreeSet::new();
     for folder in state.cache.folders() {
+        if !seen.insert(folder.name.as_str()) {
+            continue;
+        }
         let note = if folder.name == current { "current".to_owned() } else { String::new() };
         entries.push(PickerEntry {
             label: folder.name.clone(),
@@ -676,14 +688,14 @@ pub(crate) fn move_items(state: &mut AppState, folder: &str, count: Option<u32>)
 }
 
 pub(crate) fn search_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "search.start" => {
+    match action.id {
+        ActionId::SearchStart => {
             state.search.active = true;
             state.search.query = Some(Query::parse(&state.search.input));
             state.screen = Screen::Vault;
             state.focus = crate::app::state::Focus::List;
         }
-        "search.next" => {
+        ActionId::SearchNext => {
             if state.search.query.is_some() {
                 let len = state.visible_rows().len();
                 if len > 0 {
@@ -691,7 +703,7 @@ pub(crate) fn search_action(state: &mut AppState, action: &Action) -> Vec<Effect
                 }
             }
         }
-        "search.prev" => {
+        ActionId::SearchPrev => {
             if state.search.query.is_some() {
                 let len = state.visible_rows().len();
                 if len > 0 {
@@ -699,7 +711,7 @@ pub(crate) fn search_action(state: &mut AppState, action: &Action) -> Vec<Effect
                 }
             }
         }
-        "search.clear" => {
+        ActionId::SearchClear => {
             state.search = crate::app::state::SearchState::default();
             state.list_row = 0;
         }
@@ -732,7 +744,7 @@ pub(crate) fn search_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 
 pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
     let count = action.count.map(|c| c as usize);
-    let id = action.id.as_str();
+    let id = action.id;
     // Each list moves by its own height: the rows the renderer last showed
     // (`AppState::page`), so a page is a page at any terminal size.
     let view = |state: &AppState, key: &'static str| View::of(state, key);
@@ -825,7 +837,7 @@ pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
     }
     // zz, zt, zb scroll the pane around its cursor; the renderer keeps the
     // offset as long as the cursor stays in view.
-    if id.starts_with("view.") {
+    if matches!(id, ActionId::ViewCenter | ActionId::ViewTop | ActionId::ViewBottom) {
         let cursor = match state.focus {
             crate::app::state::Focus::Sidebar => state.sidebar_row,
             crate::app::state::Focus::List => state.list_row,
@@ -833,8 +845,8 @@ pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
         };
         let page = state.page(pane);
         let offset = match id {
-            "view.center" => cursor.saturating_sub(page / 2),
-            "view.top" => cursor,
+            ActionId::ViewCenter => cursor.saturating_sub(page / 2),
+            ActionId::ViewTop => cursor,
             _ => (cursor + 1).saturating_sub(page),
         };
         state.ui_scroll.borrow_mut().insert(pane, offset);
@@ -859,7 +871,7 @@ impl View {
 }
 
 /// Scrolls the help and message screens, which have no cursor.
-fn scroll_text(state: &mut AppState, id: &str, count: Option<usize>) {
+fn scroll_text(state: &mut AppState, id: ActionId, count: Option<usize>) {
     let key = if state.screen == Screen::Help { "help" } else { "messages" };
     let page = state.page(key);
     let max = state
@@ -871,14 +883,14 @@ fn scroll_text(state: &mut AppState, id: &str, count: Option<usize>) {
     let offset = if key == "help" { state.help_offset } else { state.messages_offset };
     let step = count.unwrap_or(1);
     let next = match id {
-        "nav.down" => offset + step,
-        "nav.up" => offset.saturating_sub(step),
-        "nav.half_down" => offset + (page / 2).max(1) * step,
-        "nav.half_up" => offset.saturating_sub((page / 2).max(1) * step),
-        "nav.page_down" => offset + page.max(1) * step,
-        "nav.page_up" => offset.saturating_sub(page.max(1) * step),
-        "nav.top" => 0,
-        "nav.bottom" => max,
+        ActionId::NavDown => offset + step,
+        ActionId::NavUp => offset.saturating_sub(step),
+        ActionId::NavHalfDown => offset + (page / 2).max(1) * step,
+        ActionId::NavHalfUp => offset.saturating_sub((page / 2).max(1) * step),
+        ActionId::NavPageDown => offset + page.max(1) * step,
+        ActionId::NavPageUp => offset.saturating_sub(page.max(1) * step),
+        ActionId::NavTop => 0,
+        ActionId::NavBottom => max,
         _ => offset,
     }
     .min(max);
@@ -896,7 +908,7 @@ fn scroll_text(state: &mut AppState, id: &str, count: Option<usize>) {
 pub(crate) fn move_index(
     current: usize,
     len: usize,
-    action: &str,
+    action: ActionId,
     count: Option<usize>,
     view: View,
 ) -> usize {
@@ -910,17 +922,17 @@ pub(crate) fn move_index(
     let top = view.top.min(last);
     let bottom = (top + page - 1).min(last);
     match action {
-        "nav.down" => (current + step).min(last),
-        "nav.up" => current.saturating_sub(step),
-        "nav.top" => count.unwrap_or(1).saturating_sub(1).min(last),
-        "nav.bottom" => count.unwrap_or(len).saturating_sub(1).min(last),
-        "nav.half_down" => (current + half * step).min(last),
-        "nav.half_up" => current.saturating_sub(half * step),
-        "nav.page_down" => (current + page * step).min(last),
-        "nav.page_up" => current.saturating_sub(page * step),
-        "nav.screen_top" => (top + count.unwrap_or(1) - 1).min(bottom),
-        "nav.screen_middle" => top + (bottom - top) / 2,
-        "nav.screen_bottom" => bottom.saturating_sub(count.unwrap_or(1) - 1).max(top),
+        ActionId::NavDown => (current + step).min(last),
+        ActionId::NavUp => current.saturating_sub(step),
+        ActionId::NavTop => count.unwrap_or(1).saturating_sub(1).min(last),
+        ActionId::NavBottom => count.unwrap_or(len).saturating_sub(1).min(last),
+        ActionId::NavHalfDown => (current + half * step).min(last),
+        ActionId::NavHalfUp => current.saturating_sub(half * step),
+        ActionId::NavPageDown => (current + page * step).min(last),
+        ActionId::NavPageUp => current.saturating_sub(page * step),
+        ActionId::NavScreenTop => (top + count.unwrap_or(1) - 1).min(bottom),
+        ActionId::NavScreenMiddle => top + (bottom - top) / 2,
+        ActionId::NavScreenBottom => bottom.saturating_sub(count.unwrap_or(1) - 1).max(top),
         _ => current,
     }
 }
@@ -1051,18 +1063,14 @@ pub(crate) fn undo(state: &mut AppState, is_undo: bool) -> Vec<Effect> {
             }
         }
         UndoOp::FolderRename { folders } => {
-            let mut pairs = folders;
-            // Deepest paths first so a parent rename never invalidates a
-            // child name that is still to be renamed.
-            pairs.sort_by_key(|(_, new_name)| std::cmp::Reverse(new_name.len()));
-            for (old, new) in pairs {
-                let (source, destination) = if is_undo { (new, old) } else { (old, new) };
-                if let Some(folder) = state.cache.folders().iter().find(|f| f.name == source)
-                    && let Some(id) = folder.id.clone()
-                {
+            // By id: a rename keeps the id, and two folders with the same
+            // name stay apart.
+            for (id, old, new) in folders {
+                let name = if is_undo { old } else { new };
+                if state.cache.folder(&id).is_some() {
                     effects.push(request(
                         state,
-                        CommandKind::RenameFolder { id, name: destination },
+                        CommandKind::RenameFolder { id, name },
                         Pending::Folder,
                     ));
                 }
@@ -1082,10 +1090,15 @@ pub(crate) fn undo(state: &mut AppState, is_undo: bool) -> Vec<Effect> {
                 let mut targets = folders;
                 targets.sort_by_key(|folder| std::cmp::Reverse(folder.name.len()));
                 for folder in targets {
-                    if let Some(found) =
-                        state.cache.folders().iter().find(|f| f.name == folder.name)
-                        && let Some(id) = found.id.clone()
-                    {
+                    // Every folder the undo recreated under this name.
+                    let ids: Vec<String> = state
+                        .cache
+                        .folders()
+                        .iter()
+                        .filter(|f| f.name == folder.name)
+                        .filter_map(|f| f.id.clone())
+                        .collect();
+                    for id in ids {
                         effects.push(request(
                             state,
                             CommandKind::DeleteFolder(id),

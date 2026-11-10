@@ -2,13 +2,14 @@
 //! screens.
 
 use super::{
-    Action, AppState, CommandKind, Effect, FieldKind, Filter, FormKey, ItemType, Key, LoginMethod,
-    LoginServer, MessageLevel, Overlay, Pending, PickerKind, PromptState, Query, Screen,
-    SecretString, SessionPhase, SuspendTask, UriMatch, apply, cancel, copy_value,
-    ctrl_np_as_arrows, field_label, field_value, move_items, next_id, open_new_editor,
-    overlay_binding, rebuild_rows, reprompt_for, reprompt_required, request, select_item_by_id,
-    sidebar_entries, sync_editor,
+    Action, AppState, CommandKind, Deferred, Effect, FieldKind, Filter, FormKey, ItemType, Key,
+    LoginMethod, LoginServer, MessageLevel, Overlay, Pending, PickerKind, PromptAction,
+    PromptState, Query, Screen, SecretString, SessionPhase, SuspendTask, UriMatch, accept_prompt,
+    apply, cancel, copy_value, ctrl_np_as_arrows, field_label, field_value, move_items, next_id,
+    open_new_editor, overlay_binding, rebuild_rows, reprompt_for, reprompt_required, request, run,
+    select_item_by_id, sidebar_entries, sync_editor,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
@@ -25,9 +26,9 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.take_picker();
             return Vec::new();
         }
-        Code::Up => return picker_action(state, &Action::new("picker.prev")),
-        Code::Down => return picker_action(state, &Action::new("picker.next")),
-        Code::Enter => return picker_action(state, &Action::new("picker.accept")),
+        Code::Up => return picker_action(state, &Action::new(ActionId::PickerPrev)),
+        Code::Down => return picker_action(state, &Action::new(ActionId::PickerNext)),
+        Code::Enter => return picker_action(state, &Action::new(ActionId::PickerAccept)),
         Code::Backspace => {
             if let Some(Overlay::Picker(picker)) = &mut state.overlay {
                 if !picker.filter.is_empty() {
@@ -64,18 +65,18 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 
 pub(crate) fn picker_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
     let Some(Overlay::Picker(picker)) = &mut state.overlay else { return Vec::new() };
-    match action.id.as_str() {
-        "picker.next" => {
+    match action.id {
+        ActionId::PickerNext => {
             if !picker.filtered.is_empty() {
                 picker.index = (picker.index + 1) % picker.filtered.len();
             }
         }
-        "picker.prev" => {
+        ActionId::PickerPrev => {
             if !picker.filtered.is_empty() {
                 picker.index = (picker.index + picker.filtered.len() - 1) % picker.filtered.len();
             }
         }
-        "picker.accept" => {
+        ActionId::PickerAccept => {
             if let Some(value) = picker.selected().map(|e| e.value.clone()) {
                 return picker_accept_value(state, &value);
             }
@@ -106,13 +107,7 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
         }
         PickerKind::Folder => {
             if value == "__create__" {
-                state.open(PromptState {
-                    title: "New folder".to_owned(),
-                    input: crate::input::line::Line::new(""),
-                    on_accept: Action::new("folder.new"),
-                    replace_first_arg: true,
-                    error: None,
-                });
+                state.open(PromptState::new("New folder", "", PromptAction::NewFolder));
             } else if picker.from_editor {
                 if let Some(editor) = &mut state.editor
                     && let Some(row) = editor.rows.get_mut(editor.row)
@@ -195,8 +190,7 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     if !(typing && key.is_printable())
         && let Some(call) = state.keymap.action("confirm", &[key])
     {
-        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
-        return apply(state, action);
+        return Action::from_call(call).map(|action| apply(state, action)).unwrap_or_default();
     }
     match key.code {
         Code::Esc => {
@@ -218,7 +212,7 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         Code::Char('n') => {
             let deny = state.take_confirm().and_then(|confirm| confirm.on_deny);
             match deny {
-                Some(action) => apply(state, action),
+                Some(deferred) => run(state, deferred),
                 None => Vec::new(),
             }
         }
@@ -253,8 +247,10 @@ pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 pub(crate) fn confirm_yes(state: &mut AppState) -> Vec<Effect> {
     let Some(confirm) = state.take_confirm() else { return Vec::new() };
     let mut on_confirm = confirm.on_confirm.clone();
-    if on_confirm.id.starts_with("folder.") && on_confirm.id.ends_with(".confirm") {
-        on_confirm.args.push(if confirm.also_subfolders { "also" } else { "no" }.to_owned());
+    if let Deferred::RenameFolder { also, .. } | Deferred::DeleteFolder { also, .. } =
+        &mut on_confirm
+    {
+        *also = confirm.also_subfolders;
     }
     if let Some(word) = confirm.requires_word.clone()
         && confirm.input.trim() != word
@@ -263,7 +259,7 @@ pub(crate) fn confirm_yes(state: &mut AppState) -> Vec<Effect> {
         state.open(confirm);
         return Vec::new();
     }
-    apply(state, on_confirm)
+    run(state, on_confirm)
 }
 
 pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
@@ -276,17 +272,9 @@ pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         }
         Code::Enter => {
             let value = prompt.input.text();
-            let mut action = prompt.on_accept.clone();
-            if action.args.is_empty() {
-                action.args.push(value);
-            } else if prompt.replace_first_arg {
-                action.args[0] = value;
-            } else {
-                let last = action.args.len() - 1;
-                action.args[last] = value;
-            }
+            let on_accept = prompt.on_accept;
             state.take_prompt();
-            return apply(state, action);
+            return accept_prompt(state, on_accept, value);
         }
         _ => {
             prompt.input.edit_key(key);
@@ -392,22 +380,24 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.take_quick_open();
             return Vec::new();
         }
-        Code::Enter => return quick_open_action(state, &Action::new("quick_open.accept")),
-        Code::Down | Code::Tab => return quick_open_action(state, &Action::new("quick_open.next")),
+        Code::Enter => return quick_open_action(state, &Action::new(ActionId::QuickOpenAccept)),
+        Code::Down | Code::Tab => {
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenNext));
+        }
         Code::Up | Code::BackTab => {
-            return quick_open_action(state, &Action::new("quick_open.prev"));
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenPrev));
         }
         Code::Char('y') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            return quick_open_action(state, &Action::new("quick_open.copy_password"));
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenCopyPassword));
         }
         Code::Char('u') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            return quick_open_action(state, &Action::new("quick_open.copy_username"));
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenCopyUsername));
         }
         Code::Char('t') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            return quick_open_action(state, &Action::new("quick_open.copy_totp"));
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenCopyTotp));
         }
         Code::Char('e') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            return quick_open_action(state, &Action::new("quick_open.edit"));
+            return quick_open_action(state, &Action::new(ActionId::QuickOpenEdit));
         }
         _ => {
             if let Some(Overlay::QuickOpen(quick)) = &mut state.overlay
@@ -450,44 +440,46 @@ pub(crate) fn refresh_quick_open(state: &mut AppState) {
 
 pub(crate) fn quick_open_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
     let Some(Overlay::QuickOpen(quick)) = &mut state.overlay else { return Vec::new() };
-    match action.id.as_str() {
-        "quick_open.next" => {
+    match action.id {
+        ActionId::QuickOpenNext => {
             if !quick.results.is_empty() {
                 quick.index = (quick.index + 1) % quick.results.len();
             }
         }
-        "quick_open.prev" => {
+        ActionId::QuickOpenPrev => {
             if !quick.results.is_empty() {
                 quick.index = (quick.index + quick.results.len() - 1) % quick.results.len();
             }
         }
-        "quick_open.accept" => {
+        ActionId::QuickOpenAccept => {
             if let Some(id) = quick.results.get(quick.index).cloned() {
                 state.take_quick_open();
                 select_item_by_id(state, &id);
             }
         }
-        "quick_open.edit" => {
+        ActionId::QuickOpenEdit => {
             if let Some(id) = quick.results.get(quick.index).cloned() {
                 state.take_quick_open();
                 select_item_by_id(state, &id);
-                return apply(state, Action::new("item.edit"));
+                return apply(state, Action::new(ActionId::ItemEdit));
             }
         }
-        "quick_open.copy_password" | "quick_open.copy_username" | "quick_open.copy_totp" => {
+        ActionId::QuickOpenCopyPassword
+        | ActionId::QuickOpenCopyUsername
+        | ActionId::QuickOpenCopyTotp => {
             if let Some(id) = quick.results.get(quick.index).cloned()
                 && let Some(item) = state.cache.item(&id).cloned()
             {
-                let field = match action.id.as_str() {
-                    "quick_open.copy_password" => "password",
-                    "quick_open.copy_username" => "username",
+                let field = match action.id {
+                    ActionId::QuickOpenCopyPassword => "password",
+                    ActionId::QuickOpenCopyUsername => "username",
                     _ => "totp",
                 };
                 state.take_quick_open();
                 if field != "username" && reprompt_required(state, &item) {
                     // Select the item so the re-prompt and the copy target it.
                     select_item_by_id(state, &id);
-                    return reprompt_for(state, &item, Action::with("item.copy", &[field]));
+                    return reprompt_for(state, &item, Action::with(ActionId::ItemCopy, &[field]));
                 }
                 let value = field_value(&item, field, None, state);
                 return copy_value(state, &value, field_label(field), &item.name);
@@ -501,7 +493,7 @@ pub(crate) fn quick_open_action(state: &mut AppState, action: &Action) -> Vec<Ef
 pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
     if is_ctrl_c(key) {
-        return apply(state, Action::new("app.quit"));
+        return apply(state, Action::new(ActionId::AppQuit));
     }
     match key.code {
         Code::Char('r') if state.error().is_some_and(|e| e.retry) => {
@@ -533,7 +525,7 @@ pub(crate) fn error_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 pub(crate) fn starting_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
     if is_ctrl_c(key) {
-        return apply(state, Action::new("app.quit"));
+        return apply(state, Action::new(ActionId::AppQuit));
     }
     let unlock = &mut state.unlock;
     match key.code {
@@ -560,7 +552,7 @@ pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::app::state::LoginFocus::{ClientId, ClientSecret, Method, Server, ServerUrl};
     use crate::config::keymap::Code;
     if is_ctrl_c(key) {
-        return apply(state, Action::new("app.quit"));
+        return apply(state, Action::new(ActionId::AppQuit));
     }
     // While the CLI works on a login or the server URL, the form waits.
     if state.logging_in() {
@@ -571,22 +563,21 @@ pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     if !key.is_printable()
         && let Some(call) = state.keymap.action("login", &[key])
     {
-        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
-        return apply(state, action);
+        return Action::from_call(call).map(|action| apply(state, action)).unwrap_or_default();
     }
     let key = ctrl_np_as_arrows(key);
     let login = &mut state.login;
     match (login.focus, key.code) {
-        (_, Code::Enter) => return login_action(state, Action::new("login.submit")),
+        (_, Code::Enter) => return login_action(state, Action::new(ActionId::LoginSubmit)),
         (Server | Method | ClientId, Code::Tab)
         | (Server | Method | ClientSecret, Code::BackTab) => {
-            return login_action(state, Action::new("login.next"));
+            return login_action(state, Action::new(ActionId::LoginNext));
         }
         (ClientSecret, Code::Tab) | (ClientId, Code::BackTab) => {
-            return login_action(state, Action::new("login.prev"));
+            return login_action(state, Action::new(ActionId::LoginPrev));
         }
-        (_, Code::Esc) => return login_action(state, Action::new("login.back")),
-        (Server | Method, Code::Char('q')) => return apply(state, Action::new("app.quit")),
+        (_, Code::Esc) => return login_action(state, Action::new(ActionId::LoginBack)),
+        (Server | Method, Code::Char('q')) => return apply(state, Action::new(ActionId::AppQuit)),
         // Passing over "Self-hosted" does not open its URL field: Enter does
         // (`login.submit`), so the next `k` still moves instead of typing.
         (Server, Code::Char('j') | Code::Down) => login.server = login.server.next(),
@@ -675,9 +666,9 @@ pub(crate) fn login_action(state: &mut AppState, action: Action) -> Vec<Effect> 
         return Vec::new();
     }
     let login = &mut state.login;
-    match (action.id.as_str(), login.focus) {
+    match (action.id, login.focus) {
         // Enter: move on to the next part, or log in from the last one.
-        ("login.submit", Server) => {
+        (ActionId::LoginSubmit, Server) => {
             login.focus =
                 if login.server == LoginServer::SelfHosted && login.server_input.is_empty() {
                     ServerUrl
@@ -685,7 +676,7 @@ pub(crate) fn login_action(state: &mut AppState, action: Action) -> Vec<Effect> 
                     Method
                 };
         }
-        ("login.submit", ServerUrl) => {
+        (ActionId::LoginSubmit, ServerUrl) => {
             login.focus = Server;
             login.server = LoginServer::SelfHosted;
             let url = login.server_input.trim().to_owned();
@@ -693,15 +684,17 @@ pub(crate) fn login_action(state: &mut AppState, action: Action) -> Vec<Effect> 
                 return configure_server(state, url);
             }
         }
-        ("login.submit", Method) if login.method == LoginMethod::ApiKey => login.focus = ClientId,
-        ("login.submit", Method | ClientId | ClientSecret) => return login_submit(state),
-        ("login.next" | "login.prev", Server) => login.focus = Method,
-        ("login.next" | "login.prev", Method) => login.focus = Server,
-        ("login.next" | "login.prev", ClientId) => login.focus = ClientSecret,
-        ("login.next" | "login.prev", ClientSecret) => login.focus = ClientId,
+        (ActionId::LoginSubmit, Method) if login.method == LoginMethod::ApiKey => {
+            login.focus = ClientId
+        }
+        (ActionId::LoginSubmit, Method | ClientId | ClientSecret) => return login_submit(state),
+        (ActionId::LoginNext | ActionId::LoginPrev, Server) => login.focus = Method,
+        (ActionId::LoginNext | ActionId::LoginPrev, Method) => login.focus = Server,
+        (ActionId::LoginNext | ActionId::LoginPrev, ClientId) => login.focus = ClientSecret,
+        (ActionId::LoginNext | ActionId::LoginPrev, ClientSecret) => login.focus = ClientId,
         // Back out of the API key form or the URL, then from the methods.
-        ("login.back", ClientId | ClientSecret) => login.focus = Method,
-        ("login.back", ServerUrl | Method) => login.focus = Server,
+        (ActionId::LoginBack, ClientId | ClientSecret) => login.focus = Method,
+        (ActionId::LoginBack, ServerUrl | Method) => login.focus = Server,
         _ => {}
     }
     Vec::new()
@@ -714,11 +707,10 @@ pub(crate) fn unlock_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     if !key.is_printable()
         && let Some(call) = state.keymap.action("unlock", &[key])
     {
-        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
-        return apply(state, action);
+        return Action::from_call(call).map(|action| apply(state, action)).unwrap_or_default();
     }
     match key.code {
-        Code::Enter => apply(state, Action::new("unlock.submit")),
+        Code::Enter => apply(state, Action::new(ActionId::UnlockSubmit)),
         Code::Esc => cancel(state),
         Code::Backspace => {
             state.unlock.password.pop();

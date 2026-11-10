@@ -3,8 +3,9 @@
 use super::{
     AppState, CommandKind, Effect, Filter, FormKey, Instant, Item, MessageLevel, Overlay, Pending,
     Screen, SessionPhase, SortOrder, Suspended, UnlockState, animate, apply, drive_folder_restore,
-    next_id, ordered_import_formats, rebuild_rows, request, show_backend_error, start_login,
+    next_id, ordered_import_formats, rebuild_rows, request, run, show_backend_error, start_login,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn on_backend(
     state: &mut AppState,
@@ -49,7 +50,8 @@ pub(crate) fn on_backend(
             if state.session != SessionPhase::Locked {
                 state.unlock = UnlockState::default();
             } else if std::mem::take(&mut state.unlock.submit_when_ready) {
-                effects.extend(apply(state, crate::app::state::Action::new("unlock.submit")));
+                effects
+                    .extend(apply(state, crate::app::state::Action::new(ActionId::UnlockSubmit)));
             }
         }
         BwEvent::SessionSet(result) => match result {
@@ -76,7 +78,7 @@ pub(crate) fn on_backend(
                             Some((reprompt.item_id.clone(), Instant::now() + grace));
                     }
                     state.reprompt_once = Some(reprompt.item_id);
-                    effects.extend(apply(state, reprompt.action));
+                    effects.extend(run(state, reprompt.action));
                     state.reprompt_once = None;
                 }
                 Err(err) => {

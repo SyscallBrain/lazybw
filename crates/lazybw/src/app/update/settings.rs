@@ -2,9 +2,10 @@
 
 use super::{
     Action, AppState, BTreeSet, CaptureState, Density, Effect, IconMode, Key, Keymap, MessageLevel,
-    Overlay, PickerEntry, PickerKind, PickerState, Screen, SettingKind, SettingRow, SortOrder,
-    Source, apply, display_keys, parse_keys,
+    Overlay, PickerEntry, PickerKind, PickerState, PromptAction, Screen, SettingKind, SettingRow,
+    SortOrder, Source, apply, display_keys, parse_keys,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn resolve_setting_key(key: &str) -> String {
     if key.contains('.') {
@@ -153,7 +154,7 @@ pub(crate) fn apply_setting(state: &mut AppState, dotted: &str, value: &str) -> 
     let parsed_bool = |v: &str| v == "true";
     let ok = match dotted {
         "ui.theme" => {
-            let _ = apply(state, Action::with("theme.set", &[value]));
+            let _ = apply(state, Action::with(ActionId::ThemeSet, &[value]));
             // A theme that does not load leaves the old one, and the config.
             state.config.ui.theme == value
         }
@@ -397,13 +398,13 @@ pub(crate) fn settings_action(state: &mut AppState, action: Action) -> Vec<Effec
         return Vec::new();
     }
     state.settings.index = state.settings.index.min(rows.len() - 1);
-    match action.id.as_str() {
-        "settings.activate" | "settings.next_value" | "settings.prev_value" => {
+    match action.id {
+        ActionId::SettingsActivate | ActionId::SettingsNextValue | ActionId::SettingsPrevValue => {
             let row = rows[state.settings.index].clone();
-            let forward = action.id != "settings.prev_value";
+            let forward = action.id != ActionId::SettingsPrevValue;
             change_setting(state, &row, forward)
         }
-        "settings.reset" => {
+        ActionId::SettingsReset => {
             let row = rows[state.settings.index].clone();
             let default = default_config_value(row.key);
             apply_setting(state, row.key, &default)
@@ -447,13 +448,11 @@ pub(crate) fn change_setting(state: &mut AppState, row: &SettingRow, forward: bo
         }
         SettingKind::Text => {
             // Typed in a prompt; the answer comes back as `settings.set`.
-            state.open(crate::app::state::PromptState {
-                title: row.label.to_owned(),
-                input: crate::input::line::Line::new(&row.value),
-                on_accept: Action::with("settings.set", &[row.key, ""]),
-                replace_first_arg: false,
-                error: None,
-            });
+            state.open(crate::app::state::PromptState::new(
+                row.label,
+                &row.value,
+                PromptAction::Setting(row.key),
+            ));
             return Vec::new();
         }
         SettingKind::Duration => {
@@ -751,36 +750,36 @@ pub fn keymap_rows(state: &AppState) -> Vec<(String, String, String, String)> {
 
 pub(crate) fn keymap_action(state: &mut AppState, action: Action) -> Vec<Effect> {
     let rows = keymap_rows(state);
-    match action.id.as_str() {
-        "keymap.next_context" => {
+    match action.id {
+        ActionId::KeymapNextContext => {
             state.keymap_editor.context_index =
                 (state.keymap_editor.context_index + 1) % state.keymap_editor.contexts.len();
             state.keymap_editor.index = 0;
         }
-        "keymap.prev_context" => {
+        ActionId::KeymapPrevContext => {
             let len = state.keymap_editor.contexts.len();
             state.keymap_editor.context_index = (state.keymap_editor.context_index + len - 1) % len;
             state.keymap_editor.index = 0;
         }
-        "keymap.rebind" | "keymap.add" => {
+        ActionId::KeymapRebind | ActionId::KeymapAdd => {
             if let Some((description, action_text, keys, context)) =
                 rows.get(state.keymap_editor.index)
             {
                 state.keymap_editor.capture = Some(CaptureState {
                     action: action_text.clone(),
                     context: context.clone(),
-                    keys: if action.id == "keymap.rebind" {
+                    keys: if action.id == ActionId::KeymapRebind {
                         keys.split_whitespace().map(str::to_owned).collect()
                     } else {
                         Vec::new()
                     },
                     conflict: None,
-                    adding: action.id == "keymap.add",
+                    adding: action.id == ActionId::KeymapAdd,
                 });
                 state.message(MessageLevel::Info, format!("Rebind “{description}” ({context})."));
             }
         }
-        "keymap.remove" => {
+        ActionId::KeymapRemove => {
             if let Some((_, action_text, keys, context)) = rows.get(state.keymap_editor.index) {
                 let first = keys.split_whitespace().next().unwrap_or("");
                 if let Ok(parsed) = parse_keys(first) {
@@ -790,13 +789,13 @@ pub(crate) fn keymap_action(state: &mut AppState, action: Action) -> Vec<Effect>
                 }
             }
         }
-        "keymap.reset" => {
+        ActionId::KeymapReset => {
             if let Some((_, action_text, _, context)) = rows.get(state.keymap_editor.index) {
                 reset_action_bindings(state, context, action_text);
                 state.keymap_editor.dirty = true;
             }
         }
-        "keymap.reset_all" => {
+        ActionId::KeymapResetAll => {
             let context = state
                 .keymap_editor
                 .contexts
@@ -814,7 +813,7 @@ pub(crate) fn keymap_action(state: &mut AppState, action: Action) -> Vec<Effect>
             }
             state.keymap_editor.dirty = true;
         }
-        "keymap.save" => {
+        ActionId::KeymapSave => {
             let updates = keymap_diff(state);
             state.keymap_editor.dirty = false;
             state.message(MessageLevel::Ok, "Keybindings saved.");

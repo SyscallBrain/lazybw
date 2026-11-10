@@ -4,7 +4,7 @@
 //! checks where it lands, including the moves that must not happen.
 
 use lazybw::app::state::{
-    Action, ConfirmState, ExportStep, HistoryState, ImportStep, InfoState, LoginFocus, LoginMethod,
+    ConfirmState, ExportStep, HistoryState, ImportStep, InfoState, LoginFocus, LoginMethod,
     LoginServer, Overlay, PickerEntry, PickerKind, PickerState, PromptState, QuickOpenState,
 };
 use lazybw::app::update::update;
@@ -44,11 +44,15 @@ fn paste(state: &mut AppState, text: &str) -> Vec<Effect> {
 }
 
 fn confirm() -> ConfirmState {
-    ConfirmState::new("Delete", "Sure?", "Delete", Action::new("noop")).danger()
+    ConfirmState::new("Delete", "Sure?", "Delete", lazybw::app::actions::ActionId::Noop).danger()
 }
 
 fn prompt() -> PromptState {
-    PromptState { title: "New folder".into(), on_accept: Action::new("noop"), ..Default::default() }
+    PromptState {
+        title: "New folder".into(),
+        on_accept: lazybw::app::state::PromptAction::NewFolder,
+        ..Default::default()
+    }
 }
 
 fn picker() -> PickerState {

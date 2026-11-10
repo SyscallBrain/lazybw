@@ -1,32 +1,35 @@
 //! Generator and health tab actions.
 
 use super::{
-    Action, AppState, CommandKind, Effect, FormKind, HealthCategory, ItemType, MessageLevel,
-    Pending, Screen, Tab, apply, copy_value, editable, generate, reprompt_for, reprompt_required,
-    request, select_item_by_id, switch_tab,
+    Action, AppState, CommandKind, Deferred, Effect, FormKind, HealthCategory, ItemType,
+    MessageLevel, Pending, Screen, Tab, copy_value, editable, generate, request, run,
+    select_item_by_id, switch_tab,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "generator.regenerate" => {
+    match action.id {
+        ActionId::GeneratorRegenerate => {
             vec![generate(state, true, false)]
         }
-        "generator.copy" => {
+        ActionId::GeneratorCopy => {
             let value = state.generator.output.clone();
             if !value.is_empty() {
                 return copy_value(state, &value, "password", "the generator");
             }
             Vec::new()
         }
-        "generator.toggle_mode" => {
+        ActionId::GeneratorToggleMode => {
             state.generator.request.passphrase = !state.generator.request.passphrase;
             state.generator.row = 0;
             vec![generate(state, true, false)]
         }
-        "generator.increase" | "generator.decrease" | "generator.toggle_option" => {
-            let delta: i16 = match action.id.as_str() {
-                "generator.increase" => 1,
-                "generator.decrease" => -1,
+        ActionId::GeneratorIncrease
+        | ActionId::GeneratorDecrease
+        | ActionId::GeneratorToggleOption => {
+            let delta: i16 = match action.id {
+                ActionId::GeneratorIncrease => 1,
+                ActionId::GeneratorDecrease => -1,
                 _ => 0,
             };
             let row = state.generator.row;
@@ -69,7 +72,7 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
             }
             vec![generate(state, false, false)]
         }
-        "generator.use" => {
+        ActionId::GeneratorUse => {
             if state.generator.popup {
                 let value = state.generator.output.clone();
                 if let Some(editor) = &mut state.editor
@@ -93,11 +96,8 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
                             return Vec::new();
                         }
                         let id = item.id.clone().unwrap_or_default();
-                        let action = Action::with("generator.use.confirm", &[&id]);
-                        if reprompt_required(state, &item) {
-                            return reprompt_for(state, &item, action);
-                        }
-                        return apply(state, action);
+                        // Asks for the master password first when the item wants it.
+                        return run(state, Deferred::ConfirmUseGenerated(id));
                     }
                     _ => state.message(
                         MessageLevel::Info,
@@ -112,28 +112,28 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
 }
 
 pub(crate) fn health_action(state: &mut AppState, action: Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "health.rerun" if state.checking_health() => Vec::new(),
-        "health.rerun" => vec![request(
+    match action.id {
+        ActionId::HealthRerun if state.checking_health() => Vec::new(),
+        ActionId::HealthRerun => vec![request(
             state,
             CommandKind::Health { check_exposed: state.config.health.check_exposed },
             Pending::Health,
         )],
-        "health.next_category" => {
+        ActionId::HealthNextCategory => {
             let categories = HealthCategory::ALL;
             let index = categories.iter().position(|c| *c == state.health.category).unwrap_or(0);
             state.health.category = categories[(index + 1) % categories.len()];
             state.health.index = 0;
             Vec::new()
         }
-        "health.prev_category" => {
+        ActionId::HealthPrevCategory => {
             let categories = HealthCategory::ALL;
             let index = categories.iter().position(|c| *c == state.health.category).unwrap_or(0);
             state.health.category = categories[(index + categories.len() - 1) % categories.len()];
             state.health.index = 0;
             Vec::new()
         }
-        "health.open_item" => {
+        ActionId::HealthOpenItem => {
             if let Some(report) = &state.health.report
                 && let Some(record) = report.item_in(state.health.category, state.health.index)
             {
@@ -142,7 +142,7 @@ pub(crate) fn health_action(state: &mut AppState, action: Action) -> Vec<Effect>
             }
             Vec::new()
         }
-        "health.open" => switch_tab(state, Tab::Health),
+        ActionId::HealthOpen => switch_tab(state, Tab::Health),
         _ => Vec::new(),
     }
 }

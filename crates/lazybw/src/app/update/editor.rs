@@ -3,9 +3,11 @@
 use super::{
     Action, AppState, BTreeMap, Card, CommandKind, ConfirmState, DetailState, EditorState,
     EditorTarget, Effect, Field, FieldKind, FormKey, FormKind, FormRow, Identity, Item, ItemType,
-    Key, Login, LoginUri, MessageLevel, Pending, PickerEntry, PickerKind, PickerState, PromptState,
-    Screen, SshKey, SuspendTask, UriMatch, apply, current_folder_id, generate, request,
+    Key, Login, LoginUri, MessageLevel, Pending, PickerEntry, PickerKind, PickerState,
+    PromptAction, PromptState, Screen, SshKey, SuspendTask, UriMatch, apply, current_folder_id,
+    generate, request,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn open_editor(state: &mut AppState, item: Item, is_new: bool) {
     let rows = build_rows(state, &item);
@@ -81,9 +83,9 @@ pub(crate) fn close_editor(state: &mut AppState) {
                 "Unsaved changes",
                 format!("Save changes to {name}?"),
                 "Save",
-                Action::new("editor.save_close"),
+                Action::new(ActionId::EditorSaveClose),
             )
-            .deny(Action::new("editor.discard")),
+            .deny(Action::new(ActionId::EditorDiscard)),
         );
         return;
     }
@@ -447,16 +449,16 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
 }
 
 pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "editor.save" => return editor_save(state, false),
-        "editor.save_close" => return editor_save(state, true),
-        "editor.discard" => {
+    match action.id {
+        ActionId::EditorSave => return editor_save(state, false),
+        ActionId::EditorSaveClose => return editor_save(state, true),
+        ActionId::EditorDiscard => {
             state.editor = None;
             state.notes = None;
             state.screen = Screen::Vault;
             return Vec::new();
         }
-        "editor.column_left" | "editor.column_right" => {
+        ActionId::EditorColumnLeft | ActionId::EditorColumnRight => {
             let width = crate::ui::layout::editor_content_width(
                 state.size,
                 state.sidebar_visible,
@@ -469,7 +471,7 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
             let Some(editor) = &mut state.editor else { return Vec::new() };
             let Some(current) = editor.rows.get(editor.row) else { return Vec::new() };
             let right = current.key.in_right_column();
-            let to_right = action.id == "editor.column_right";
+            let to_right = action.id == ActionId::EditorColumnRight;
             if right == to_right {
                 return Vec::new();
             }
@@ -490,18 +492,18 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
             }
             return Vec::new();
         }
-        "editor.close" => {
+        ActionId::EditorClose => {
             close_notes(state);
             close_editor(state);
             return Vec::new();
         }
-        "editor.reload" => {
+        ActionId::EditorReload => {
             if let Some(id) = state.editor.as_ref().and_then(|e| e.item.id.clone()) {
                 return vec![request(state, CommandKind::GetItem(id), Pending::GetItem)];
             }
             return Vec::new();
         }
-        "editor.normal" => {
+        ActionId::EditorNormal => {
             if let Some(editor) = &mut state.editor {
                 editor.insert = false;
                 editor.cursor = editor.cursor.saturating_sub(1);
@@ -509,19 +511,22 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
             sync_editor(state);
             return Vec::new();
         }
-        "editor.insert" | "editor.append" | "editor.insert_start" | "editor.append_end" => {
+        ActionId::EditorInsert
+        | ActionId::EditorAppend
+        | ActionId::EditorInsertStart
+        | ActionId::EditorAppendEnd => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
             let len = editor.rows.get(editor.row).map(|r| r.value.chars().count()).unwrap_or(0);
             editor.insert = true;
-            editor.cursor = match action.id.as_str() {
-                "editor.insert" => editor.cursor.min(len),
-                "editor.append" => (editor.cursor + 1).min(len),
-                "editor.insert_start" => 0,
+            editor.cursor = match action.id {
+                ActionId::EditorInsert => editor.cursor.min(len),
+                ActionId::EditorAppend => (editor.cursor + 1).min(len),
+                ActionId::EditorInsertStart => 0,
                 _ => len,
             };
             return Vec::new();
         }
-        "editor.change_field" => {
+        ActionId::EditorChangeField => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
             if let Some(row) = editor.rows.get_mut(editor.row)
                 && matches!(row.kind, FormKind::Text | FormKind::Secret | FormKind::Notes)
@@ -532,36 +537,41 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
             }
             return Vec::new();
         }
-        "editor.next_field" | "editor.prev_field" | "editor.first_field" | "editor.last_field" => {
+        ActionId::EditorNextField
+        | ActionId::EditorPrevField
+        | ActionId::EditorFirstField
+        | ActionId::EditorLastField => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
             if !editor.rows.is_empty() {
                 // Tab and Shift-Tab keep INSERT, so a form can be filled in
                 // one go; gg and G are NORMAL-mode moves.
                 editor.insert &=
-                    matches!(action.id.as_str(), "editor.next_field" | "editor.prev_field");
-                editor.row = match action.id.as_str() {
-                    "editor.next_field" => (editor.row + 1) % editor.rows.len(),
-                    "editor.prev_field" => (editor.row + editor.rows.len() - 1) % editor.rows.len(),
-                    "editor.first_field" => 0,
+                    matches!(action.id, ActionId::EditorNextField | ActionId::EditorPrevField);
+                editor.row = match action.id {
+                    ActionId::EditorNextField => (editor.row + 1) % editor.rows.len(),
+                    ActionId::EditorPrevField => {
+                        (editor.row + editor.rows.len() - 1) % editor.rows.len()
+                    }
+                    ActionId::EditorFirstField => 0,
                     _ => editor.rows.len() - 1,
                 };
                 editor.cursor = editor.rows[editor.row].value.chars().count();
             }
             return Vec::new();
         }
-        "editor.row_add_below" | "editor.row_add_above" => {
+        ActionId::EditorRowAddBelow | ActionId::EditorRowAddAbove => {
             return editor_add_row(state);
         }
-        "editor.row_delete" => {
+        ActionId::EditorRowDelete => {
             return editor_delete_row(state);
         }
-        "editor.cycle_next" | "editor.cycle_prev" => {
-            return editor_cycle(state, action.id == "editor.cycle_next");
+        ActionId::EditorCycleNext | ActionId::EditorCyclePrev => {
+            return editor_cycle(state, action.id == ActionId::EditorCycleNext);
         }
-        "editor.activate" => {
+        ActionId::EditorActivate => {
             return editor_activate(state);
         }
-        "editor.generate" => {
+        ActionId::EditorGenerate => {
             // Ctrl-g fills a password: aim at the row under the cursor when
             // it is a secret, otherwise at the item's password field.
             if let Some(editor) = &mut state.editor {
@@ -586,7 +596,7 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
             state.generator.popup = true;
             return vec![generate(state, true, false)];
         }
-        "editor.external" => {
+        ActionId::EditorExternal => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
             let key = editor.rows.get(editor.row).map(|r| r.key);
             if key == Some(FormKey::SshPrivate) {
@@ -611,9 +621,9 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
                 target: EditorTarget::Notes(text),
             })];
         }
-        "editor.undo" | "editor.redo" => {
+        ActionId::EditorUndo | ActionId::EditorRedo => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
-            let undo = action.id == "editor.undo";
+            let undo = action.id == ActionId::EditorUndo;
             let step = if undo { editor.history.undo.pop() } else { editor.history.redo.pop() };
             let Some(step) = step else {
                 state.message(
@@ -647,12 +657,11 @@ pub(crate) fn editor_insert_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     if !key.is_printable()
         && let Some(call) = state.keymap.action("insert", &[key])
     {
-        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
-        return apply(state, action);
+        return Action::from_call(call).map(|action| apply(state, action)).unwrap_or_default();
     }
     match key.code {
         Code::Enter if key.mods.contains(Mods::CTRL) => {
-            editor_action(state, Action::new("editor.activate"))
+            editor_action(state, Action::new(ActionId::EditorActivate))
         }
         Code::Char(c) if key.is_printable() => {
             editor_value_insert(state, &c.to_string());
@@ -878,13 +887,11 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
             Vec::new()
         }
         FormKey::SshImport => {
-            state.open(PromptState {
-                title: "Path to an OpenSSH private key".to_owned(),
-                input: crate::input::line::Line::new(""),
-                on_accept: Action::new("editor.ssh_import"),
-                replace_first_arg: true,
-                error: None,
-            });
+            state.open(PromptState::new(
+                "Path to an OpenSSH private key",
+                "",
+                PromptAction::ImportSshKey,
+            ));
             Vec::new()
         }
         FormKey::Notes => {
@@ -1321,13 +1328,13 @@ pub(crate) fn notes_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         match key.code {
             Code::Char('e') => {
                 drop(notes);
-                return editor_action(state, Action::new("editor.external"));
+                return editor_action(state, Action::new(ActionId::EditorExternal));
             }
             Code::Char('s') => {
                 // Save what is typed in the notes too; the notes stay open.
                 drop(notes);
                 sync_notes(state);
-                return editor_action(state, Action::new("editor.save"));
+                return editor_action(state, Action::new(ActionId::EditorSave));
             }
             _ => {}
         }
@@ -1337,17 +1344,17 @@ pub(crate) fn notes_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             Code::Tab => {
                 drop(notes);
                 close_notes(state);
-                return editor_action(state, Action::new("editor.next_field"));
+                return editor_action(state, Action::new(ActionId::EditorNextField));
             }
             Code::BackTab => {
                 drop(notes);
                 close_notes(state);
-                return editor_action(state, Action::new("editor.prev_field"));
+                return editor_action(state, Action::new(ActionId::EditorPrevField));
             }
             Code::Char(':') => {
                 drop(notes);
                 close_notes(state);
-                return apply(state, Action::new("cmdline.open"));
+                return apply(state, Action::new(ActionId::CmdlineOpen));
             }
             _ => {}
         }

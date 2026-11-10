@@ -4,6 +4,7 @@ use super::{
     Action, AppState, Effect, Screen, Tab, apply, detail_fields, navigation, sidebar_entries,
     switch_tab,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn on_mouse(state: &mut AppState, event: crossterm::event::MouseEvent) -> Vec<Effect> {
     use crossterm::event::{MouseButton, MouseEventKind};
@@ -151,7 +152,7 @@ pub(crate) fn click(
             state.sidebar_row = index;
             state.focus = crate::app::state::Focus::Sidebar;
             if matches!(slot, crate::vault::filter::RailSlot::Folders(_)) {
-                return apply(state, Action::new("folder.jump"));
+                return apply(state, Action::new(ActionId::FolderJump));
             }
             if let Some(filter) = entries[index].filter.clone() {
                 state.filter = filter;
@@ -207,7 +208,8 @@ pub(crate) fn wheel(
     down: bool,
 ) {
     use crate::app::state::Focus;
-    let action = Action::new(if down { "nav.down" } else { "nav.up" }).counted(Some(3));
+    let action =
+        Action::new(if down { ActionId::NavDown } else { ActionId::NavUp }).counted(Some(3));
     if state.screen == Screen::Vault {
         let pane = if plan.sidebar.contains(point) || plan.rail.contains(point) {
             Some(Focus::Sidebar)

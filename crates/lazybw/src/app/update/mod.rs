@@ -3,6 +3,7 @@
 //! All user behaviour funnels through `apply`, so an action triggered by a
 //! key, a `:` command, a picker or the keymap editor behaves identically.
 
+use crate::app::actions::ActionId;
 mod apply;
 mod backend;
 mod cmdline;
@@ -33,11 +34,11 @@ use wizards::*;
 use crate::app::effect::Effect;
 use crate::app::msg::{EditorTarget, Msg, SuspendTask, Suspended};
 use crate::app::state::{
-    Action, AppState, CaptureState, CmdlineState, ConfirmState, DetailState, EditorState, FormKey,
-    FormKind, FormRow, HistoryState, ImportPreview, ImportStep, InfoState, LoginMethod,
-    LoginServer, MessageLevel, Overlay, Pending, PickerEntry, PickerKind, PickerState, PromptState,
-    QuickOpenState, RepromptState, Screen, SessionPhase, SettingKind, SettingRow, Tab, UnlockState,
-    WhichKeyState,
+    Action, AppState, CaptureState, CmdlineState, ConfirmState, Deferred, DetailState, EditorState,
+    FormKey, FormKind, FormRow, HistoryState, ImportPreview, ImportStep, InfoState, LoginMethod,
+    LoginServer, MessageLevel, Overlay, Pending, PickerEntry, PickerKind, PickerState,
+    PromptAction, PromptState, QuickOpenState, RepromptState, Screen, SessionPhase, SettingKind,
+    SettingRow, Tab, UnlockState, WhichKeyState,
 };
 use crate::bw::models::{
     Card, Field, FieldKind, Identity, Item, ItemType, Login, LoginUri, SshKey, UriMatch,
@@ -190,7 +191,7 @@ fn update_inner(state: &mut AppState, msg: Msg) -> Vec<Effect> {
                 Vec::new()
             }
         }
-        Msg::LockSignal => apply(state, Action::new("vault.lock")),
+        Msg::LockSignal => apply(state, Action::new(ActionId::VaultLock)),
     }
 }
 fn body_rect(state: &AppState) -> ratatui::layout::Rect {
@@ -304,7 +305,7 @@ fn on_tick(state: &mut AppState) -> Vec<Effect> {
         && state.idle_for() >= limit
     {
         state.touch();
-        effects.extend(apply(state, Action::new("vault.lock")));
+        effects.extend(apply(state, Action::new(ActionId::VaultLock)));
     }
     // Background sync.
     if state.session.is_ready()
@@ -366,7 +367,7 @@ fn on_reload(state: &mut AppState, event: crate::config::watch::ReloadEvent) -> 
             }
             let mut effects = Vec::new();
             if config.ui.theme != state.config.ui.theme {
-                effects.extend(apply(state, Action::with("theme.set", &[&config.ui.theme])));
+                effects.extend(apply(state, Action::with(ActionId::ThemeSet, &[&config.ui.theme])));
             }
             state.config = config;
             state.theme.resolve(crate::theme::truecolor_available(), crate::theme::no_color());
@@ -452,13 +453,11 @@ pub(crate) fn overlay_binding(state: &AppState, context: &str, key: Key) -> Opti
         return None;
     }
     let call = state.keymap.action(context, &[key])?;
-    if call.id == "app.cancel" {
+    if call.id == ActionId::AppCancel.as_str() {
         return Some(None);
     }
     let prefix = format!("{context}.");
-    call.id
-        .starts_with(&prefix)
-        .then(|| Some(Action { id: call.id.clone(), args: call.args.clone(), count: None }))
+    call.id.starts_with(&prefix).then(|| Action::from_call(call)).flatten().map(Some)
 }
 
 /// `Ctrl-n` and `Ctrl-p` move like `Down` and `Up` in the lists that read

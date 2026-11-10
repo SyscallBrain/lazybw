@@ -5,6 +5,7 @@ use super::{
     default_config_value, display_keys, overlay_binding, parse_keys, resolve_setting_key,
     setting_value, sidebar_entries,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn cmdline_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
@@ -22,11 +23,11 @@ pub(crate) fn cmdline_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.take_cmdline();
             return Vec::new();
         }
-        Code::Enter => return apply(state, Action::new("cmdline.execute")),
-        Code::Tab => return apply(state, Action::new("cmdline.complete_next")),
-        Code::BackTab => return apply(state, Action::new("cmdline.complete_prev")),
-        Code::Up => return apply(state, Action::new("cmdline.history_prev")),
-        Code::Down => return apply(state, Action::new("cmdline.history_next")),
+        Code::Enter => return apply(state, Action::new(ActionId::CmdlineExecute)),
+        Code::Tab => return apply(state, Action::new(ActionId::CmdlineCompleteNext)),
+        Code::BackTab => return apply(state, Action::new(ActionId::CmdlineCompletePrev)),
+        Code::Up => return apply(state, Action::new(ActionId::CmdlineHistoryPrev)),
+        Code::Down => return apply(state, Action::new(ActionId::CmdlineHistoryNext)),
         // Backspace on an empty line leaves it, as in Vim.
         Code::Backspace if cmdline.input.is_empty() => {
             state.take_cmdline();
@@ -54,8 +55,8 @@ pub(crate) fn refresh_completions(state: &mut AppState) {
 }
 
 pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effect> {
-    match action.id.as_str() {
-        "cmdline.execute" => {
+    match action.id {
+        ActionId::CmdlineExecute => {
             let Some(cmdline) = state.take_cmdline() else { return Vec::new() };
             let line = cmdline.input.trim().to_owned();
             let mut effects = Vec::new();
@@ -67,7 +68,7 @@ pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effec
             effects.extend(execute_command(state, command));
             effects
         }
-        "cmdline.complete_next" | "cmdline.complete_prev" => {
+        ActionId::CmdlineCompleteNext | ActionId::CmdlineCompletePrev => {
             let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
             if cmdline.completions.is_empty() {
                 refresh_completions(state);
@@ -89,8 +90,8 @@ pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effec
             cmdline.cursor = cmdline.input.chars().count();
             Vec::new()
         }
-        "cmdline.history_prev" | "cmdline.history_next" => {
-            let older = action.id == "cmdline.history_prev";
+        ActionId::CmdlineHistoryPrev | ActionId::CmdlineHistoryNext => {
+            let older = action.id == ActionId::CmdlineHistoryPrev;
             let history = &state.command_history;
             let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
             // Only the entries that start with what was typed, as in Vim.
@@ -141,6 +142,16 @@ pub(crate) fn execute_command(
     use crate::app::commands::Command;
     match command {
         Command::Action(action) => apply(state, action),
+        Command::Generate { passphrase, size } => {
+            let request = &mut state.generator.request;
+            request.passphrase = passphrase;
+            if passphrase {
+                request.words = size.unwrap_or(request.words).clamp(3, 20);
+            } else {
+                request.length = size.unwrap_or(request.length).clamp(5, 128);
+            }
+            vec![super::generate(state, true, true)]
+        }
         Command::Message(level, text) => {
             state.message(level, text);
             Vec::new()

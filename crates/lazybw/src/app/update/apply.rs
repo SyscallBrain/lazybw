@@ -1,58 +1,59 @@
 //! The action dispatcher: every key, command, picker and menu entry ends here.
 
 use super::{
-    Action, AppState, BTreeSet, CmdlineState, CommandKind, ConfirmState, DetailState, EditorTarget,
-    Effect, Filter, FormKind, HistoryState, InfoState, ItemType, MessageLevel, Pending,
-    PickerEntry, PickerKind, PickerState, PromptState, QuickOpenState, RESERVED_FOLDER_MESSAGE,
-    Screen, SortOrder, SshKey, SuspendTask, Tab, cancel, close_editor, close_notes, cmdline_action,
-    confirm_generate, confirm_yes, copy_action, copy_value, current_folder_id, current_folder_path,
-    detail_field_at, detail_value, doctor_lines, editable, editor_action, favorite_action,
-    fold_action, generator_action, health_action, keymap_action, login_action, move_items,
-    navigation, open_editor, open_export, open_folder_picker, open_import, open_keymap_editor,
-    open_new_editor, open_theme_picker, picker_action, quick_open_action, rail_active,
-    rebuild_rows, refresh_quick_open, reprompt, reprompt_for, reprompt_required, request,
-    reserved_folder_name, reveal_action, reveal_target, search_action, select_item_by_id,
-    selected_name, selected_reprompt_required, settings_action, shellexpand_home, sidebar_entries,
-    switch_tab, trash_items, undo,
+    Action, AppState, BTreeSet, CmdlineState, CommandKind, ConfirmState, Deferred, DetailState,
+    EditorTarget, Effect, Filter, FormKind, HistoryState, InfoState, ItemType, MessageLevel,
+    Pending, PickerEntry, PickerKind, PickerState, PromptAction, PromptState, QuickOpenState,
+    RESERVED_FOLDER_MESSAGE, Screen, SortOrder, SshKey, SuspendTask, Tab, cancel, close_editor,
+    close_notes, cmdline_action, confirm_generate, confirm_yes, copy_action, copy_value,
+    current_folder_id, current_folder_path, detail_field_at, detail_value, doctor_lines, editable,
+    editor_action, favorite_action, fold_action, generator_action, health_action, keymap_action,
+    login_action, move_items, navigation, open_editor, open_export, open_folder_picker,
+    open_import, open_keymap_editor, open_new_editor, open_theme_picker, picker_action,
+    quick_open_action, rail_active, rebuild_rows, refresh_quick_open, reprompt, reprompt_for,
+    reprompt_required, request, reserved_folder_name, reveal_action, reveal_target, search_action,
+    select_item_by_id, selected_name, selected_reprompt_required, settings_action,
+    shellexpand_home, sidebar_entries, switch_tab, trash_items, undo,
 };
+use crate::app::actions::ActionId;
 
 pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
-    let id = action.id.as_str();
+    let id = action.id;
     let args = action.args.clone();
     let count = action.count;
     match id {
-        "noop" => Vec::new(),
-        "app.quit" | "app.quit_force"
+        ActionId::Noop => Vec::new(),
+        ActionId::AppQuit | ActionId::AppQuitForce
             if state.screen == Screen::Editor
                 && state.editor.is_some()
                 && args.first().map(String::as_str) != Some("all") =>
         {
             // In the editor `:q` closes the item (asking about unsaved
             // changes) and `:q!` discards them; neither quits lazybw.
-            if id == "app.quit_force" {
-                return apply(state, Action::new("editor.discard"));
+            if id == ActionId::AppQuitForce {
+                return apply(state, Action::new(ActionId::EditorDiscard));
             }
             close_notes(state);
             close_editor(state);
             Vec::new()
         }
-        "app.quit" if state.editor.as_ref().is_some_and(|e| e.dirty) => {
+        ActionId::AppQuit if state.editor.as_ref().is_some_and(|e| e.dirty) => {
             state.open(
                 ConfirmState::new(
                     "Unsaved changes",
                     "The item has unsaved changes. Quit and discard them?",
                     "Quit",
-                    Action::new("app.quit.discard"),
+                    Deferred::QuitDiscarding,
                 )
                 .danger(),
             );
             Vec::new()
         }
         // The form's changes are given up; changes already sent are not.
-        "app.quit" | "app.quit.discard" => quit(state, false),
-        "app.quit_force" => quit(state, true),
-        "app.cancel" => cancel(state),
-        "app.help" => {
+        ActionId::AppQuit => quit(state, false),
+        ActionId::AppQuitForce => quit(state, true),
+        ActionId::AppCancel => cancel(state),
+        ActionId::AppHelp => {
             if state.screen != Screen::Help {
                 state.help_chain = state.contexts();
             }
@@ -61,55 +62,50 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             state.help_filter.clear();
             Vec::new()
         }
-        "help.filter" => {
-            state.help_filter = args.first().cloned().unwrap_or_default();
-            state.help_offset = 0;
-            Vec::new()
-        }
-        "app.redraw" => {
+        ActionId::AppRedraw => {
             state.full_redraw = true;
             state.dirty = true;
             Vec::new()
         }
-        "app.messages" => {
+        ActionId::AppMessages => {
             state.screen = Screen::Messages;
             state.messages_offset = 0;
             Vec::new()
         }
-        "app.settings" => {
+        ActionId::AppSettings => {
             state.screen = Screen::Settings;
             state.settings.index = 0;
             Vec::new()
         }
-        "app.keymap" => {
+        ActionId::AppKeymap => {
             open_keymap_editor(state);
             Vec::new()
         }
-        "app.doctor" => {
+        ActionId::AppDoctor => {
             let lines = doctor_lines(state);
             state.open(InfoState { item_id: String::new(), lines });
             Vec::new()
         }
-        "cmdline.open" => {
+        ActionId::CmdlineOpen => {
             state.open(CmdlineState::default());
             Vec::new()
         }
-        "quick_open" => {
+        ActionId::QuickOpen => {
             state.open(QuickOpenState::default());
             refresh_quick_open(state);
             Vec::new()
         }
-        "focus.left" => {
+        ActionId::FocusLeft => {
             state.focus = state.focus.left();
             state.detail.row = 0;
             Vec::new()
         }
-        "focus.right" => {
+        ActionId::FocusRight => {
             state.focus = state.focus.right();
             state.detail.row = 0;
             Vec::new()
         }
-        "focus.next" => {
+        ActionId::FocusNext => {
             state.focus = match state.focus {
                 crate::app::state::Focus::Sidebar => crate::app::state::Focus::List,
                 crate::app::state::Focus::List => crate::app::state::Focus::Detail,
@@ -117,7 +113,7 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             };
             Vec::new()
         }
-        "focus.prev" => {
+        ActionId::FocusPrev => {
             state.focus = match state.focus {
                 crate::app::state::Focus::Sidebar => crate::app::state::Focus::Detail,
                 crate::app::state::Focus::List => crate::app::state::Focus::Sidebar,
@@ -125,11 +121,11 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             };
             Vec::new()
         }
-        "layout.toggle_sidebar" => {
+        ActionId::LayoutToggleSidebar => {
             state.sidebar_visible = !state.sidebar_visible;
             Vec::new()
         }
-        "list.toggle_density" => {
+        ActionId::ListToggleDensity => {
             state.config.ui.list_density = state.config.ui.list_density.toggled();
             let value = state.config.ui.list_density.label();
             state.message(MessageLevel::Info, format!("List density: {value}"));
@@ -138,15 +134,15 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 toml_edit::Value::from(value.to_owned()),
             )])]
         }
-        "tab.next" | "tab.prev" | "tab.goto" => {
+        ActionId::TabNext | ActionId::TabPrev | ActionId::TabGoto => {
             let tab = match id {
-                "tab.goto" => match args.first().map(String::as_str) {
+                ActionId::TabGoto => match args.first().map(String::as_str) {
                     Some("1") => Tab::Vault,
                     Some("2") => Tab::Generator,
                     Some("3") => Tab::Health,
                     _ => state.tab,
                 },
-                "tab.next" => match state.tab {
+                ActionId::TabNext => match state.tab {
                     Tab::Vault => Tab::Generator,
                     Tab::Generator => Tab::Health,
                     Tab::Health => Tab::Vault,
@@ -159,23 +155,23 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             };
             switch_tab(state, tab)
         }
-        "jump.back" => {
+        ActionId::JumpBack => {
             if let Some(entry) = state.jump.back().map(|e| e.item_id.clone()) {
                 select_item_by_id(state, &entry);
             }
             Vec::new()
         }
-        "jump.forward" => {
+        ActionId::JumpForward => {
             if let Some(entry) = state.jump.forward().map(|e| e.item_id.clone()) {
                 select_item_by_id(state, &entry);
             }
             Vec::new()
         }
-        "theme.pick" => {
+        ActionId::ThemePick => {
             open_theme_picker(state);
             Vec::new()
         }
-        "theme.set" => {
+        ActionId::ThemeSet => {
             if let Some(name) = args.first() {
                 let outcome = crate::theme::loader::load(name, &state.paths.themes_dir());
                 if let Some(mut theme) = outcome.theme {
@@ -194,49 +190,33 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             }
             Vec::new()
         }
-        "vault.sync" => {
+        ActionId::VaultSync => {
             let force = args.first().is_some_and(|a| a == "force");
             vec![request(state, CommandKind::Sync { force }, Pending::Sync)]
         }
         // Nothing to lock while logged out, starting or on an error (a
         // SIGUSR1 then must not show the unlock screen).
-        "vault.lock" if !state.session.holds_vault_data() => Vec::new(),
-        "vault.lock" => {
+        ActionId::VaultLock if !state.session.holds_vault_data() => Vec::new(),
+        ActionId::VaultLock => {
             state.drop_secrets();
             state.message(MessageLevel::Info, "Vault locked.");
             vec![request(state, CommandKind::Lock, Pending::Lock)]
         }
-        "vault.logout" => {
+        ActionId::VaultLogout => {
             state.open(ConfirmState::new(
 "Log out",
 "Log out of Bitwarden? lazybw will stop the CLI and return to the login screen."
                         .to_owned(),
 "Log out",
-Action::new("vault.logout.confirm"),
+Deferred::Logout,
 ).danger());
             Vec::new()
         }
-        "vault.logout.confirm" => {
-            state.cache.clear();
-            vec![request(state, CommandKind::Logout, Pending::Logout)]
-        }
-        "vault.export" => open_export(state, &args),
-        "vault.import" => open_import(state, &args),
-        "generator.open" => switch_tab(state, Tab::Generator),
-        "generator.quick" => {
-            let request = &mut state.generator.request;
-            let size = args.get(1).and_then(|n| n.parse::<u8>().ok());
-            if args.first().is_some_and(|kind| kind == "phrase") {
-                request.passphrase = true;
-                request.words = size.unwrap_or(request.words).clamp(3, 20);
-            } else {
-                request.passphrase = false;
-                request.length = size.unwrap_or(request.length).clamp(5, 128);
-            }
-            vec![super::generate(state, true, true)]
-        }
-        "health.open" => switch_tab(state, Tab::Health),
-        "sort.set" => {
+        ActionId::VaultExport => open_export(state, &args),
+        ActionId::VaultImport => open_import(state, &args),
+        ActionId::GeneratorOpen => switch_tab(state, Tab::Generator),
+        ActionId::HealthOpen => switch_tab(state, Tab::Health),
+        ActionId::SortSet => {
             if let Some(order) = args.first().and_then(|arg| SortOrder::parse(arg)) {
                 state.config.vault.sort = order;
                 state.sort_reversed = args.get(1).is_some_and(|arg| arg == "reverse");
@@ -245,7 +225,7 @@ Action::new("vault.logout.confirm"),
             }
             Vec::new()
         }
-        "sort.reverse" => {
+        ActionId::SortReverse => {
             state.sort_reversed = !state.sort_reversed;
             state.message(
                 MessageLevel::Info,
@@ -253,7 +233,7 @@ Action::new("vault.logout.confirm"),
             );
             Vec::new()
         }
-        "filter.apply" => {
+        ActionId::FilterApply => {
             if state.focus == crate::app::state::Focus::Sidebar {
                 let entries = sidebar_entries(state);
                 // The rail shows every folder as one icon: it opens the
@@ -264,7 +244,7 @@ Action::new("vault.logout.confirm"),
                         .get(state.sidebar_row)
                         .is_some_and(|entry| crate::vault::filter::is_folder_row(&entry.role))
                 {
-                    return apply(state, Action::new("folder.jump"));
+                    return apply(state, Action::new(ActionId::FolderJump));
                 }
                 if let Some(entry) = entries.get(state.sidebar_row)
                     && let Some(filter) = &entry.filter
@@ -277,7 +257,7 @@ Action::new("vault.logout.confirm"),
             }
             Vec::new()
         }
-        "fold.expand_or_apply" => {
+        ActionId::FoldExpandOrApply => {
             let entries = sidebar_entries(state);
             if let Some(crate::vault::filter::SidebarRole::Folder {
                 path,
@@ -289,9 +269,9 @@ Action::new("vault.logout.confirm"),
                 state.collapsed.remove(path);
                 return Vec::new();
             }
-            apply(state, Action::new("filter.apply"))
+            apply(state, Action::new(ActionId::FilterApply))
         }
-        "fold.collapse_or_parent" => {
+        ActionId::FoldCollapseOrParent => {
             let entries = sidebar_entries(state);
             let Some(crate::vault::filter::SidebarRole::Folder {
                 path,
@@ -313,10 +293,12 @@ Action::new("vault.logout.confirm"),
             }
             Vec::new()
         }
-        "fold.toggle" | "fold.open" | "fold.close" | "fold.open_all" | "fold.close_all" => {
-            fold_action(state, id)
-        }
-        "folder.new" => {
+        ActionId::FoldToggle
+        | ActionId::FoldOpen
+        | ActionId::FoldClose
+        | ActionId::FoldOpenAll
+        | ActionId::FoldCloseAll => fold_action(state, id),
+        ActionId::FolderNew => {
             if let Some(name) = args.first() {
                 if reserved_folder_name(name) {
                     state.toast(MessageLevel::Error, RESERVED_FOLDER_MESSAGE);
@@ -324,182 +306,97 @@ Action::new("vault.logout.confirm"),
                 }
                 vec![request(state, CommandKind::CreateFolder(name.clone()), Pending::Folder)]
             } else {
-                state.open(PromptState {
-                    title: "New folder".to_owned(),
-                    input: crate::input::line::Line::new(""),
-                    on_accept: Action::new("folder.new"),
-                    replace_first_arg: true,
-                    error: None,
-                });
+                state.open(PromptState::new("New folder", "", PromptAction::NewFolder));
                 Vec::new()
             }
         }
-        "folder.rename" => {
-            if let Some(new_name) = args.first() {
-                if reserved_folder_name(new_name) {
-                    state.toast(MessageLevel::Error, RESERVED_FOLDER_MESSAGE);
-                    return Vec::new();
-                }
-                let old = current_folder_path(state);
-                if old.is_empty() {
-                    state.toast(MessageLevel::Error, "No folder selected.");
-                    return Vec::new();
-                }
-                if !state.cache.folders().iter().any(|folder| folder.name == old) {
-                    state.toast(MessageLevel::Error, "No such folder.");
-                    return Vec::new();
-                }
-                let count = crate::vault::folders::subfolder_count(state.cache.folders(), &old);
-                state.open(
-                    ConfirmState::new(
-                        "Rename folder",
-                        format!("Rename “{old}” to “{new_name}”?"),
-                        "Rename",
-                        Action {
-                            id: "folder.rename.confirm".to_owned(),
-                            args: vec![old, new_name.clone()],
-                            count: None,
-                        },
-                    )
-                    .subfolders(count, true),
-                );
-                Vec::new()
-            } else {
+        ActionId::FolderRename => {
+            let Some(new_name) = args.first() else {
                 let current = current_folder_path(state);
-                state.open(PromptState {
-                    title: "Rename folder".to_owned(),
-                    input: crate::input::line::Line::new(&current),
-                    on_accept: Action::new("folder.rename"),
-                    replace_first_arg: true,
-                    error: None,
-                });
-                Vec::new()
+                state.open(PromptState::new("Rename folder", &current, PromptAction::RenameFolder));
+                return Vec::new();
+            };
+            if reserved_folder_name(new_name) {
+                state.toast(MessageLevel::Error, RESERVED_FOLDER_MESSAGE);
+                return Vec::new();
             }
+            let old = current_folder_path(state);
+            if old.is_empty() {
+                state.toast(MessageLevel::Error, "No folder selected.");
+                return Vec::new();
+            }
+            let ids = folder_ids(state, &old);
+            if ids.is_empty() {
+                state.toast(MessageLevel::Error, "No such folder.");
+                return Vec::new();
+            }
+            // The dialog renames the folders it named, by id, whatever the
+            // sidebar shows by the time it is answered.
+            let subfolders =
+                crate::vault::folders::renamed_subfolders(state.cache.folders(), &old, new_name);
+            let count = subfolders.len();
+            let folders = ids.into_iter().map(|id| (id, new_name.clone())).collect();
+            state.open(
+                ConfirmState::new(
+                    "Rename folder",
+                    format!("Rename “{old}” to “{new_name}”?"),
+                    "Rename",
+                    Deferred::RenameFolder { folders, subfolders, also: true },
+                )
+                .subfolders(count, true),
+            );
+            Vec::new()
         }
-        "folder.delete" => {
+        ActionId::FolderDelete => {
             let selected = args
                 .first()
                 .cloned()
                 .or_else(|| Some(current_folder_path(state)))
                 .filter(|name| !name.is_empty());
-            if let Some(name) = selected {
-                if let Some(_folder) = state.cache.folders().iter().find(|f| f.name == name) {
-                    let count = state.cache.count(&Filter::Folder(name.clone()));
-                    let subfolders =
-                        crate::vault::folders::subfolder_count(state.cache.folders(), &name);
-                    let mut message = if count == 1 {
-                        format!("Delete folder “{name}”? Its 1 item moves to No folder.")
-                    } else {
-                        format!("Delete folder “{name}”? Its {count} items move to No folder.")
-                    };
-                    if subfolders > 0 {
-                        message.push_str(&format!(
-                            " {subfolders} subfolder(s) will keep their names but their parent disappears."
-                        ));
-                    }
-                    state.open(
-                        ConfirmState::new(
-                            "Delete folder",
-                            message,
-                            "Delete",
-                            Action::with("folder.delete.confirm", &[&name]),
-                        )
-                        .danger()
-                        .subfolders(subfolders, false),
-                    );
-                }
-                Vec::new()
-            } else {
-                Vec::new()
-            }
-        }
-        "folder.rename.confirm" => {
-            let (Some(old), Some(new_name)) = (args.first(), args.get(1)) else {
+            let Some(name) = selected else { return Vec::new() };
+            let ids = folder_ids(state, &name);
+            if ids.is_empty() {
+                state.toast(MessageLevel::Error, format!("No folder named “{name}”."));
                 return Vec::new();
-            };
-            let also = args.last().is_some_and(|arg| arg == "also");
-            let mut effects = Vec::new();
-            let mut undo_folders = Vec::new();
-            if also {
-                let subfolders =
-                    crate::vault::folders::renamed_subfolders(state.cache.folders(), old, new_name);
-                for (id, name) in &subfolders {
-                    if let Some(folder) = state.cache.folder(id) {
-                        undo_folders.push((folder.name.clone(), name.clone()));
-                    }
-                    effects.push(request(
-                        state,
-                        CommandKind::RenameFolder { id: id.clone(), name: name.clone() },
-                        Pending::Folder,
-                    ));
-                }
             }
-            if let Some(folder) = state.cache.folders().iter().find(|f| f.name == *old)
-                && let Some(id) = folder.id.clone()
-            {
-                undo_folders.push((old.clone(), new_name.clone()));
-                effects.push(request(
-                    state,
-                    CommandKind::RenameFolder { id, name: new_name.clone() },
-                    Pending::Folder,
-                ));
-            }
-            if !undo_folders.is_empty() {
-                state.undo.push(crate::app::state::UndoOp::FolderRename { folders: undo_folders });
-            }
-            effects
-        }
-        "folder.delete.confirm" => {
-            let Some(name) = args.first() else { return Vec::new() };
-            let also = args.last().is_some_and(|arg| arg == "also");
-            let mut deleted = Vec::new();
-            let mut targets: Vec<&crate::bw::models::Folder> = state
+            let count = state
+                .cache
+                .active_items()
+                .filter(|item| item.folder_id.as_ref().is_some_and(|id| ids.contains(id)))
+                .count();
+            let prefix = format!("{name}/");
+            let subfolders: Vec<String> = state
                 .cache
                 .folders()
                 .iter()
-                .filter(|folder| also && folder.name.starts_with(&format!("{name}/")))
+                .filter(|folder| folder.name.starts_with(&prefix))
+                .filter_map(|folder| folder.id.clone())
                 .collect();
-            targets.extend(state.cache.folders().iter().filter(|folder| folder.name == *name));
-            for folder in targets {
-                let items = folder
-                    .id
-                    .as_ref()
-                    .map(|id| {
-                        state
-                            .cache
-                            .active_items()
-                            .filter(|item| item.folder_id.as_ref() == Some(id))
-                            .filter_map(|item| item.id.clone())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                deleted.push(crate::app::state::DeletedFolder { name: folder.name.clone(), items });
+            let mut message = if count == 1 {
+                format!("Delete folder “{name}”? Its 1 item moves to No folder.")
+            } else {
+                format!("Delete folder “{name}”? Its {count} items move to No folder.")
+            };
+            if !subfolders.is_empty() {
+                message.push_str(&format!(
+                    " {} subfolder(s) will keep their names but their parent disappears.",
+                    subfolders.len()
+                ));
             }
-            if !deleted.is_empty() {
-                state.undo.push(crate::app::state::UndoOp::FolderDelete { folders: deleted });
-            }
-            let mut effects = Vec::new();
-            if also {
-                let prefix = format!("{name}/");
-                let descendants: Vec<String> = state
-                    .cache
-                    .folders()
-                    .iter()
-                    .filter(|folder| folder.name.starts_with(&prefix))
-                    .filter_map(|folder| folder.id.clone())
-                    .collect();
-                for id in descendants {
-                    effects.push(request(state, CommandKind::DeleteFolder(id), Pending::Folder));
-                }
-            }
-            if let Some(folder) = state.cache.folders().iter().find(|f| f.name == *name)
-                && let Some(folder_id) = folder.id.clone()
-            {
-                effects.push(request(state, CommandKind::DeleteFolder(folder_id), Pending::Folder));
-            }
-            effects
+            let total = subfolders.len();
+            state.open(
+                ConfirmState::new(
+                    "Delete folder",
+                    message,
+                    "Delete",
+                    Deferred::DeleteFolder { ids, subfolders, also: false },
+                )
+                .danger()
+                .subfolders(total, false),
+            );
+            Vec::new()
         }
-        "folder.jump" => {
+        ActionId::FolderJump => {
             let current = match &state.filter {
                 Filter::Folder(path) => Some(path.as_str()),
                 Filter::NoFolder => Some(""),
@@ -517,7 +414,9 @@ Action::new("vault.logout.confirm"),
                 value: String::new(),
                 accelerator: None,
             }];
-            entries.extend(state.cache.folders().iter().map(|f| PickerEntry {
+            let mut seen = BTreeSet::new();
+            let folders = state.cache.folders().iter().filter(|f| seen.insert(f.name.as_str()));
+            entries.extend(folders.map(|f| PickerEntry {
                 label: f.name.clone(),
                 note: note(&f.name),
                 filter: f.name.clone(),
@@ -527,7 +426,7 @@ Action::new("vault.logout.confirm"),
             state.open(PickerState::new("Go to folder", PickerKind::FolderJump, entries));
             Vec::new()
         }
-        "trash.empty" => {
+        ActionId::TrashEmpty => {
             let count = state.cache.count(&Filter::Trash);
             if count == 0 {
                 state.message(MessageLevel::Info, "The trash is empty.");
@@ -540,24 +439,11 @@ format!(
                     crate::util::text::items(count)
                 ),
 "Empty trash",
-Action::new("trash.empty.confirm"),
+Deferred::EmptyTrash,
 ).danger().word("empty"));
             Vec::new()
         }
-        "trash.empty.confirm" => {
-            let ids: Vec<String> = state.cache.visible_ids_in_trash();
-            let mut effects = Vec::new();
-            for id in ids {
-                effects.push(request(
-                    state,
-                    CommandKind::DeleteItem { id: id.clone(), permanent: true },
-                    Pending::Delete { id, permanent: true },
-                ));
-            }
-            state.toast(MessageLevel::Ok, "Emptying the trash…");
-            effects
-        }
-        "item.open" => {
+        ActionId::ItemOpen => {
             state.focus = crate::app::state::Focus::Detail;
             state.detail = DetailState::default();
             if let Some(id) = state.selected_id() {
@@ -565,8 +451,8 @@ Action::new("trash.empty.confirm"),
             }
             Vec::new()
         }
-        "item.copy" => copy_action(state, &args),
-        "item.copy_field" => {
+        ActionId::ItemCopy => copy_action(state, &args),
+        ActionId::ItemCopyField => {
             let field = detail_field_at(state, state.detail.row);
             let Some(item) = state.selected_item().cloned() else { return Vec::new() };
             if let Some((key, label, secret)) = field {
@@ -582,7 +468,7 @@ Action::new("trash.empty.confirm"),
                 Vec::new()
             }
         }
-        "item.reveal_toggle" | "item.reveal_all" | "item.hide_all" => {
+        ActionId::ItemRevealToggle | ActionId::ItemRevealAll | ActionId::ItemHideAll => {
             if state.screen == Screen::Editor {
                 if let Some(editor) = &mut state.editor {
                     editor.revealed = !editor.revealed;
@@ -590,8 +476,8 @@ Action::new("trash.empty.confirm"),
                 Vec::new()
             } else {
                 let reveals = match id {
-                    "item.reveal_all" => true,
-                    "item.hide_all" => false,
+                    ActionId::ItemRevealAll => true,
+                    ActionId::ItemHideAll => false,
                     _ => reveal_target(state)
                         .is_some_and(|key| !state.detail.revealed.contains(&key)),
                 };
@@ -601,7 +487,7 @@ Action::new("trash.empty.confirm"),
                 reveal_action(state, id)
             }
         }
-        "item.new" => {
+        ActionId::ItemNew => {
             if let Some(kind) = args.first().and_then(|arg| ItemType::parse(arg)) {
                 open_new_editor(state, kind);
             } else {
@@ -625,7 +511,7 @@ Action::new("trash.empty.confirm"),
             }
             Vec::new()
         }
-        "item.edit" => {
+        ActionId::ItemEdit => {
             if let Some(item) = state.selected_item().cloned() {
                 if !editable(state, &item) {
                     return Vec::new();
@@ -637,7 +523,7 @@ Action::new("trash.empty.confirm"),
             }
             Vec::new()
         }
-        "item.edit_field" | "item.change_field" => {
+        ActionId::ItemEditField | ActionId::ItemChangeField => {
             if let Some(item) = state.selected_item().cloned() {
                 if !editable(state, &item) {
                     return Vec::new();
@@ -658,7 +544,7 @@ Action::new("trash.empty.confirm"),
                     }
                     let row = &mut editor.rows[editor.row];
                     if matches!(row.kind, FormKind::Text | FormKind::Secret) {
-                        if id == "item.change_field" {
+                        if id == ActionId::ItemChangeField {
                             row.value.clear();
                         }
                         editor.insert = true;
@@ -668,7 +554,7 @@ Action::new("trash.empty.confirm"),
             }
             Vec::new()
         }
-        "item.edit_json" => {
+        ActionId::ItemEditJson => {
             // In the editor, the form as it is now; in the list, the item.
             let current = if state.screen == Screen::Editor && state.editor.is_some() {
                 super::sync_editor(state);
@@ -691,7 +577,7 @@ Action::new("trash.empty.confirm"),
                 Vec::new()
             }
         }
-        "item.trash" => {
+        ActionId::ItemTrash => {
             let ids = state.target_ids(count);
             if ids.is_empty() {
                 return Vec::new();
@@ -703,14 +589,13 @@ Action::new("trash.empty.confirm"),
                     "Move to trash",
                     format!("Move {} item(s) to Trash?", ids.len()),
                     "Move to trash",
-                    Action { id: "item.trash.confirm".to_owned(), args: ids, count: None },
+                    Deferred::TrashItems(ids),
                 ));
                 return Vec::new();
             }
             trash_items(state, ids)
         }
-        "item.trash.confirm" => trash_items(state, args),
-        "item.delete" => {
+        ActionId::ItemDelete => {
             if state.screen == Screen::Vault
                 && state.focus == crate::app::state::Focus::Detail
                 && detail_field_at(state, state.detail.row)
@@ -725,10 +610,7 @@ format!(
                         "Remove the passkey from “{name}”? You can add it again from the Bitwarden web vault."
                     ),
 "Remove",
-Action::with(
-                        "item.remove_passkey.confirm",
-                        &[&state.selected_id().unwrap_or_default()],
-                    ),
+Deferred::RemovePasskey(state.selected_id().unwrap_or_default()),
 ).danger());
                 return Vec::new();
             }
@@ -762,26 +644,13 @@ Action::with(
                     "Delete permanently?",
                     message,
                     "Delete",
-                    Action { id: "item.delete.confirm".to_owned(), args: ids, count: None },
+                    Deferred::DeleteItems(ids),
                 )
                 .danger(),
             );
             Vec::new()
         }
-        "item.delete.confirm" => {
-            let ids = args;
-            state.clear_selection();
-            let mut effects = Vec::new();
-            for id in ids {
-                effects.push(request(
-                    state,
-                    CommandKind::DeleteItem { id: id.clone(), permanent: true },
-                    Pending::Delete { id, permanent: true },
-                ));
-            }
-            effects
-        }
-        "item.restore" => {
+        ActionId::ItemRestore => {
             let ids = state.target_ids(count);
             if !ids.is_empty() {
                 state.undo.push(crate::app::state::UndoOp::Restore { ids: ids.clone() });
@@ -797,8 +666,8 @@ Action::with(
             }
             effects
         }
-        "item.favorite" => favorite_action(state, count),
-        "item.move" => {
+        ActionId::ItemFavorite => favorite_action(state, count),
+        ActionId::ItemMove => {
             if let Some(folder) = args.first() {
                 move_items(state, folder, count)
             } else {
@@ -806,14 +675,14 @@ Action::with(
                 Vec::new()
             }
         }
-        "item.yank" => {
+        ActionId::ItemYank => {
             if let Some(item) = state.selected_item().cloned() {
                 state.yanked_item = Some(item);
                 state.message(MessageLevel::Info, "Yanked item. Press p to clone it here.");
             }
             Vec::new()
         }
-        "item.paste_clone" => {
+        ActionId::ItemPasteClone => {
             if let Some(mut item) = state.yanked_item.clone() {
                 item.id = None;
                 item.name = format!("{} (copy)", item.name);
@@ -830,7 +699,7 @@ Action::with(
                 Vec::new()
             }
         }
-        "item.open_uri" => {
+        ActionId::ItemOpenUri => {
             if let Some(item) = state.selected_item() {
                 let uris: Vec<String> = item
                     .login
@@ -855,14 +724,7 @@ Action::with(
             }
             Vec::new()
         }
-        "item.open_uri.run" => match args.first() {
-            Some(uri) => {
-                state.message(MessageLevel::Info, format!("Opening {uri}"));
-                vec![Effect::OpenUri(uri.clone())]
-            }
-            None => Vec::new(),
-        },
-        "item.history" => {
+        ActionId::ItemHistory => {
             if let Some(item) = state.selected_item().cloned() {
                 if item.password_history.as_ref().is_some_and(|h| !h.is_empty())
                     && reprompt_required(state, &item)
@@ -888,7 +750,7 @@ Action::with(
             }
             Vec::new()
         }
-        "item.info" => {
+        ActionId::ItemInfo => {
             if let Some(item) = state.selected_item().cloned() {
                 let mut lines = Vec::new();
                 lines.push(("Name".to_owned(), item.name.clone()));
@@ -923,7 +785,7 @@ Action::with(
             }
             Vec::new()
         }
-        "item.generate_password" => {
+        ActionId::ItemGeneratePassword => {
             // On the Health tab the target is the highlighted report row,
             // never whatever happens to be selected in the vault list.
             let target = if state.screen == Screen::Health {
@@ -949,72 +811,12 @@ Action::with(
                 return reprompt_for(
                     state,
                     &item,
-                    Action::with(
-                        "item.generate_password.confirm",
-                        &[item.id.as_deref().unwrap_or_default()],
-                    ),
+                    Deferred::ConfirmGeneratePassword(item.id.clone().unwrap_or_default()),
                 );
             }
             confirm_generate(state, &item)
         }
-        "item.generate_password.confirm" => {
-            let Some(item) = args.first().and_then(|id| state.cache.item(id).cloned()) else {
-                return Vec::new();
-            };
-            if reprompt_required(state, &item) {
-                return reprompt_for(state, &item, action);
-            }
-            confirm_generate(state, &item)
-        }
-        "generator.use.confirm" => {
-            let Some(item) = args.first().and_then(|id| state.cache.item(id).cloned()) else {
-                return Vec::new();
-            };
-            if reprompt_required(state, &item) {
-                return reprompt_for(state, &item, action);
-            }
-            let id = item.id.clone().unwrap_or_default();
-            state.open(ConfirmState::new(
-"Use generated password",
-format!(
-                    "Replace the password of “{}” with the generated one? The current password moves to its history; u undoes it.",
-                    item.name
-                ),
-"Replace",
-Action::with("generator.use.run", &[&id]),
-));
-            Vec::new()
-        }
-        "generator.use.run" => {
-            let password = state.generator.output.clone();
-            let Some(item) = args.first().and_then(|id| state.cache.item(id).cloned()) else {
-                return Vec::new();
-            };
-            let Some(id) = item.id.clone() else { return Vec::new() };
-            if password.is_empty() {
-                return Vec::new();
-            }
-            let mut updated = item.clone();
-            if let Some(login) = &mut updated.login {
-                login.password = Some(crate::bw::sensitive::Sensitive::new(password));
-            }
-            state.undo.push(crate::app::state::UndoOp::Edit {
-                id: id.clone(),
-                before: Box::new(item),
-                after: Box::new(updated.clone()),
-            });
-            vec![request(
-                state,
-                CommandKind::PutItem { id: id.clone(), item: Box::new(updated) },
-                Pending::Save { id: Some(id), close: false, editor: None },
-            )]
-        }
-        "item.generate_password.run" => {
-            let Some(id) = args.first().cloned() else { return Vec::new() };
-            state.pending_generate_target = Some(id);
-            vec![super::generate(state, true, false)]
-        }
-        "item.remove_passkey" => {
+        ActionId::ItemRemovePasskey => {
             if state.screen == Screen::Vault
                 && state.focus == crate::app::state::Focus::Detail
                 && detail_field_at(state, state.detail.row)
@@ -1027,10 +829,7 @@ format!(
                         "Remove the passkey from “{name}”? You can add it again from the Bitwarden web vault."
                     ),
 "Remove",
-Action::with(
-                        "item.remove_passkey.confirm",
-                        &[&state.selected_id().unwrap_or_default()],
-                    ),
+Deferred::RemovePasskey(state.selected_id().unwrap_or_default()),
 ).danger());
             } else {
                 state.message(
@@ -1040,36 +839,7 @@ Action::with(
             }
             Vec::new()
         }
-        "item.remove_passkey.confirm" => {
-            // The item the dialog named, not whatever is selected by now.
-            if let Some(item) = args.first().and_then(|id| state.cache.item(id).cloned())
-                && let Some(id) = item.id.clone()
-            {
-                if reprompt_required(state, &item) {
-                    return reprompt_for(state, &item, action);
-                }
-                let mut updated = item.clone();
-                if let Some(login) = updated.login.as_mut()
-                    && let Some(credentials) = login.fido2_credentials.as_mut()
-                    && !credentials.is_empty()
-                {
-                    credentials.remove(0);
-                }
-                state.undo.push(crate::app::state::UndoOp::Edit {
-                    id: id.clone(),
-                    before: Box::new(item),
-                    after: Box::new(updated.clone()),
-                });
-                state.toast(MessageLevel::Ok, "Removed the passkey.");
-                return vec![request(
-                    state,
-                    CommandKind::PutItem { id: id.clone(), item: Box::new(updated) },
-                    Pending::Save { id: Some(id.clone()), close: false, editor: None },
-                )];
-            }
-            Vec::new()
-        }
-        "item.goto_folder" => {
+        ActionId::ItemGotoFolder => {
             if let Some(item) = state.selected_item() {
                 let path = item
                     .folder_id
@@ -1091,9 +861,9 @@ Action::with(
             }
             Vec::new()
         }
-        "undo" => undo(state, true),
-        "redo" => undo(state, false),
-        "mark.toggle" => {
+        ActionId::Undo => undo(state, true),
+        ActionId::Redo => undo(state, false),
+        ActionId::MarkToggle => {
             if let Some(id) = state.selected_id()
                 && !state.marks.remove(&id)
             {
@@ -1101,129 +871,78 @@ Action::with(
             }
             Vec::new()
         }
-        "visual.start" => {
+        ActionId::VisualStart => {
             state.visual_anchor = Some(state.list_row);
             Vec::new()
         }
-        "visual.exit" => {
+        ActionId::VisualExit => {
             state.visual_anchor = None;
             Vec::new()
         }
-        "editor.save"
-        | "editor.save_close"
-        | "editor.discard"
-        | "editor.close"
-        | "editor.column_left"
-        | "editor.column_right"
-        | "editor.reload"
-        | "editor.normal"
-        | "editor.insert"
-        | "editor.append"
-        | "editor.insert_start"
-        | "editor.append_end"
-        | "editor.change_field"
-        | "editor.next_field"
-        | "editor.prev_field"
-        | "editor.first_field"
-        | "editor.last_field"
-        | "editor.row_add_below"
-        | "editor.row_add_above"
-        | "editor.row_delete"
-        | "editor.cycle_next"
-        | "editor.cycle_prev"
-        | "editor.activate"
-        | "editor.generate"
-        | "editor.external"
-        | "editor.undo"
-        | "editor.redo" => editor_action(state, action),
-        "generator.regenerate"
-        | "generator.toggle_mode"
-        | "generator.increase"
-        | "generator.decrease"
-        | "generator.toggle_option"
-        | "generator.copy"
-        | "generator.use" => generator_action(state, action),
-        "health.rerun" | "health.next_category" | "health.prev_category" | "health.open_item" => {
-            health_action(state, action)
-        }
-        "settings.activate" | "settings.next_value" | "settings.prev_value" | "settings.reset" => {
-            settings_action(state, action)
-        }
-        "settings.set" => match (args.first(), args.get(1)) {
-            (Some(key), Some(value)) => super::apply_setting(state, key, value),
-            _ => Vec::new(),
-        },
-        "keymap.rebind"
-        | "keymap.add"
-        | "keymap.remove"
-        | "keymap.reset"
-        | "keymap.reset_all"
-        | "keymap.save"
-        | "keymap.next_context"
-        | "keymap.prev_context" => keymap_action(state, action),
-        "editor.ssh_import" => {
-            if let Some(path) = args.first() {
-                match std::fs::read_to_string(shellexpand_home(path)) {
-                    Ok(pem) => match crate::util::ssh::parse_private_key(&pem) {
-                        Ok(key) => {
-                            if let Some(editor) = &mut state.editor {
-                                editor.item.ssh_key = Some(SshKey {
-                                    private_key: Some(crate::bw::sensitive::Sensitive::new(
-                                        key.private_key,
-                                    )),
-                                    public_key: key.public_key,
-                                    key_fingerprint: key.fingerprint,
-                                    ..Default::default()
-                                });
-                                editor.dirty = true;
-                            }
-                            rebuild_rows(state);
-                            state.message(MessageLevel::Ok, "Imported the SSH key.");
-                        }
-                        Err(err) => state.toast_with(
-                            MessageLevel::Error,
-                            "Couldn't read the SSH key.",
-                            err.to_string(),
-                        ),
-                    },
-                    Err(err) => state.toast_with(
-                        MessageLevel::Error,
-                        "Couldn't read the file.",
-                        err.to_string(),
-                    ),
-                }
-            }
+        ActionId::EditorSave
+        | ActionId::EditorSaveClose
+        | ActionId::EditorDiscard
+        | ActionId::EditorClose
+        | ActionId::EditorColumnLeft
+        | ActionId::EditorColumnRight
+        | ActionId::EditorReload
+        | ActionId::EditorNormal
+        | ActionId::EditorInsert
+        | ActionId::EditorAppend
+        | ActionId::EditorInsertStart
+        | ActionId::EditorAppendEnd
+        | ActionId::EditorChangeField
+        | ActionId::EditorNextField
+        | ActionId::EditorPrevField
+        | ActionId::EditorFirstField
+        | ActionId::EditorLastField
+        | ActionId::EditorRowAddBelow
+        | ActionId::EditorRowAddAbove
+        | ActionId::EditorRowDelete
+        | ActionId::EditorCycleNext
+        | ActionId::EditorCyclePrev
+        | ActionId::EditorActivate
+        | ActionId::EditorGenerate
+        | ActionId::EditorExternal
+        | ActionId::EditorUndo
+        | ActionId::EditorRedo => editor_action(state, action),
+        ActionId::GeneratorRegenerate
+        | ActionId::GeneratorToggleMode
+        | ActionId::GeneratorIncrease
+        | ActionId::GeneratorDecrease
+        | ActionId::GeneratorToggleOption
+        | ActionId::GeneratorCopy
+        | ActionId::GeneratorUse => generator_action(state, action),
+        ActionId::HealthRerun
+        | ActionId::HealthNextCategory
+        | ActionId::HealthPrevCategory
+        | ActionId::HealthOpenItem => health_action(state, action),
+        ActionId::SettingsActivate
+        | ActionId::SettingsNextValue
+        | ActionId::SettingsPrevValue
+        | ActionId::SettingsReset => settings_action(state, action),
+        ActionId::KeymapRebind
+        | ActionId::KeymapAdd
+        | ActionId::KeymapRemove
+        | ActionId::KeymapReset
+        | ActionId::KeymapResetAll
+        | ActionId::KeymapSave
+        | ActionId::KeymapNextContext
+        | ActionId::KeymapPrevContext => keymap_action(state, action),
+        ActionId::KeymapFilter => {
+            let filter = state.keymap_editor.filter.clone();
+            state.open(PromptState::new("Filter keybindings", &filter, PromptAction::FilterKeymap));
             Vec::new()
         }
-        "keymap.filter" => {
-            state.open(PromptState {
-                title: "Filter keybindings".to_owned(),
-                input: crate::input::line::Line::new(&state.keymap_editor.filter),
-                on_accept: Action::new("keymap.filter.apply"),
-                replace_first_arg: true,
-                error: None,
-            });
-            Vec::new()
-        }
-        "keymap.filter.apply" => {
-            state.keymap_editor.filter = args.first().cloned().unwrap_or_default();
-            state.keymap_editor.index = 0;
-            Vec::new()
-        }
-        "help.search" => {
+        ActionId::HelpSearch => {
             if state.screen != Screen::Help {
-                return apply(state, Action::new("app.help"));
+                return apply(state, Action::new(ActionId::AppHelp));
             }
-            state.open(PromptState {
-                title: "Search help".to_owned(),
-                input: crate::input::line::Line::new(&state.help_filter),
-                on_accept: Action::new("help.filter"),
-                replace_first_arg: true,
-                error: None,
-            });
+            let filter = state.help_filter.clone();
+            state.open(PromptState::new("Search help", &filter, PromptAction::FilterHelp));
             Vec::new()
         }
-        "unlock.submit" => {
+        ActionId::UnlockSubmit => {
             if state.unlock.password.is_empty() || state.unlocking() {
                 return Vec::new();
             }
@@ -1231,49 +950,288 @@ Action::with(
             let password = state.unlock.password.take_secret();
             vec![request(state, CommandKind::Unlock(password), Pending::Unlock)]
         }
-        "unlock.logout" => {
+        ActionId::UnlockLogout => {
             state.open(
-                ConfirmState::new(
-                    "Log out",
-                    "Log out of Bitwarden?",
-                    "Log out",
-                    Action::new("vault.logout.confirm"),
-                )
-                .danger(),
+                ConfirmState::new("Log out", "Log out of Bitwarden?", "Log out", Deferred::Logout)
+                    .danger(),
             );
             Vec::new()
         }
-        "confirm.yes" => confirm_yes(state),
+        ActionId::ConfirmYes => confirm_yes(state),
         // "n": the three-way dialogs ("y save · n discard · c cancel") run
         // their second choice; the others just close.
-        "confirm.no" => match state.take_confirm().and_then(|confirm| confirm.on_deny) {
-            Some(action) => apply(state, action),
+        ActionId::ConfirmNo => match state.take_confirm().and_then(|confirm| confirm.on_deny) {
+            Some(deferred) => run(state, deferred),
             None => Vec::new(),
         },
-        "login.next" | "login.prev" | "login.submit" | "login.back" => login_action(state, action),
-        "nav.down" | "nav.up" | "nav.top" | "nav.bottom" | "nav.half_down" | "nav.half_up"
-        | "nav.page_down" | "nav.page_up" | "nav.screen_top" | "nav.screen_middle"
-        | "nav.screen_bottom" | "view.center" | "view.top" | "view.bottom" => {
-            navigation(state, &action)
+        ActionId::LoginNext | ActionId::LoginPrev | ActionId::LoginSubmit | ActionId::LoginBack => {
+            login_action(state, action)
         }
-        "search.start" | "search.next" | "search.prev" | "search.clear" => {
-            search_action(state, &action)
+        ActionId::NavDown
+        | ActionId::NavUp
+        | ActionId::NavTop
+        | ActionId::NavBottom
+        | ActionId::NavHalfDown
+        | ActionId::NavHalfUp
+        | ActionId::NavPageDown
+        | ActionId::NavPageUp
+        | ActionId::NavScreenTop
+        | ActionId::NavScreenMiddle
+        | ActionId::NavScreenBottom
+        | ActionId::ViewCenter
+        | ActionId::ViewTop
+        | ActionId::ViewBottom => navigation(state, &action),
+        ActionId::SearchStart
+        | ActionId::SearchNext
+        | ActionId::SearchPrev
+        | ActionId::SearchClear => search_action(state, &action),
+        ActionId::PickerNext | ActionId::PickerPrev | ActionId::PickerAccept => {
+            picker_action(state, &action)
         }
-        "picker.next" | "picker.prev" | "picker.accept" => picker_action(state, &action),
-        "quick_open.next"
-        | "quick_open.prev"
-        | "quick_open.accept"
-        | "quick_open.copy_password"
-        | "quick_open.copy_username"
-        | "quick_open.copy_totp"
-        | "quick_open.edit" => quick_open_action(state, &action),
-        "cmdline.execute"
-        | "cmdline.complete_next"
-        | "cmdline.complete_prev"
-        | "cmdline.history_prev"
-        | "cmdline.history_next" => cmdline_action(state, &action),
-        _ => Vec::new(),
+        ActionId::QuickOpenNext
+        | ActionId::QuickOpenPrev
+        | ActionId::QuickOpenAccept
+        | ActionId::QuickOpenCopyPassword
+        | ActionId::QuickOpenCopyUsername
+        | ActionId::QuickOpenCopyTotp
+        | ActionId::QuickOpenEdit => quick_open_action(state, &action),
+        ActionId::CmdlineExecute
+        | ActionId::CmdlineCompleteNext
+        | ActionId::CmdlineCompletePrev
+        | ActionId::CmdlineHistoryPrev
+        | ActionId::CmdlineHistoryNext => cmdline_action(state, &action),
     }
+}
+
+/// Runs what a dialog was opened for, once it is answered.
+pub(crate) fn run(state: &mut AppState, deferred: Deferred) -> Vec<Effect> {
+    match deferred {
+        Deferred::Run(action) => apply(state, action),
+        // The form's changes are given up; changes already sent are not.
+        Deferred::QuitDiscarding => quit(state, false),
+        Deferred::Logout => {
+            state.cache.clear();
+            vec![request(state, CommandKind::Logout, Pending::Logout)]
+        }
+        Deferred::RenameFolder { folders, subfolders, also } => {
+            let mut renames = if also { subfolders } else { Vec::new() };
+            renames.extend(folders);
+            let mut effects = Vec::new();
+            let mut undo_folders = Vec::new();
+            for (id, name) in renames {
+                let Some(old) = state.cache.folder(&id).map(|folder| folder.name.clone()) else {
+                    continue;
+                };
+                undo_folders.push((id.clone(), old, name.clone()));
+                effects.push(request(
+                    state,
+                    CommandKind::RenameFolder { id, name },
+                    Pending::Folder,
+                ));
+            }
+            if !undo_folders.is_empty() {
+                state.undo.push(crate::app::state::UndoOp::FolderRename { folders: undo_folders });
+            }
+            effects
+        }
+        Deferred::DeleteFolder { ids, subfolders, also } => {
+            let mut targets = if also { subfolders } else { Vec::new() };
+            targets.extend(ids);
+            let mut deleted = Vec::new();
+            let mut effects = Vec::new();
+            for id in targets {
+                let Some(name) = state.cache.folder(&id).map(|folder| folder.name.clone()) else {
+                    continue;
+                };
+                let items = state
+                    .cache
+                    .active_items()
+                    .filter(|item| item.folder_id.as_ref() == Some(&id))
+                    .filter_map(|item| item.id.clone())
+                    .collect();
+                deleted.push(crate::app::state::DeletedFolder { name, items });
+                effects.push(request(state, CommandKind::DeleteFolder(id), Pending::Folder));
+            }
+            if !deleted.is_empty() {
+                state.undo.push(crate::app::state::UndoOp::FolderDelete { folders: deleted });
+            }
+            effects
+        }
+        Deferred::EmptyTrash => {
+            let ids: Vec<String> = state.cache.visible_ids_in_trash();
+            let mut effects = Vec::new();
+            for id in ids {
+                effects.push(request(
+                    state,
+                    CommandKind::DeleteItem { id: id.clone(), permanent: true },
+                    Pending::Delete { id, permanent: true },
+                ));
+            }
+            state.toast(MessageLevel::Ok, "Emptying the trash…");
+            effects
+        }
+        Deferred::TrashItems(ids) => trash_items(state, ids),
+        Deferred::DeleteItems(ids) => {
+            state.clear_selection();
+            let mut effects = Vec::new();
+            for id in ids {
+                effects.push(request(
+                    state,
+                    CommandKind::DeleteItem { id: id.clone(), permanent: true },
+                    Pending::Delete { id, permanent: true },
+                ));
+            }
+            effects
+        }
+        Deferred::OpenUri(uri) => {
+            state.message(MessageLevel::Info, format!("Opening {uri}"));
+            vec![Effect::OpenUri(uri)]
+        }
+        Deferred::ConfirmGeneratePassword(id) => {
+            let Some(item) = state.cache.item(&id).cloned() else { return Vec::new() };
+            if reprompt_required(state, &item) {
+                return reprompt_for(state, &item, Deferred::ConfirmGeneratePassword(id));
+            }
+            confirm_generate(state, &item)
+        }
+        Deferred::GeneratePassword(id) => {
+            state.pending_generate_target = Some(id);
+            vec![super::generate(state, true, false)]
+        }
+        Deferred::ConfirmUseGenerated(id) => {
+            let Some(item) = state.cache.item(&id).cloned() else { return Vec::new() };
+            if reprompt_required(state, &item) {
+                return reprompt_for(state, &item, Deferred::ConfirmUseGenerated(id));
+            }
+            state.open(ConfirmState::new(
+                "Use generated password",
+                format!(
+                    "Replace the password of “{}” with the generated one? The current password \
+                     moves to its history; u undoes it.",
+                    item.name
+                ),
+                "Replace",
+                Deferred::UseGenerated(id),
+            ));
+            Vec::new()
+        }
+        Deferred::UseGenerated(id) => {
+            let password = state.generator.output.clone();
+            let Some(item) = state.cache.item(&id).cloned() else { return Vec::new() };
+            if password.is_empty() {
+                return Vec::new();
+            }
+            let mut updated = item.clone();
+            if let Some(login) = &mut updated.login {
+                login.password = Some(crate::bw::sensitive::Sensitive::new(password));
+            }
+            state.undo.push(crate::app::state::UndoOp::Edit {
+                id: id.clone(),
+                before: Box::new(item),
+                after: Box::new(updated.clone()),
+            });
+            vec![request(
+                state,
+                CommandKind::PutItem { id: id.clone(), item: Box::new(updated) },
+                Pending::Save { id: Some(id), close: false, editor: None },
+            )]
+        }
+        // The item the dialog named, not whatever is selected by now.
+        Deferred::RemovePasskey(id) => {
+            let Some(item) = state.cache.item(&id).cloned() else { return Vec::new() };
+            if reprompt_required(state, &item) {
+                return reprompt_for(state, &item, Deferred::RemovePasskey(id));
+            }
+            let mut updated = item.clone();
+            if let Some(login) = updated.login.as_mut()
+                && let Some(credentials) = login.fido2_credentials.as_mut()
+                && !credentials.is_empty()
+            {
+                credentials.remove(0);
+            }
+            state.undo.push(crate::app::state::UndoOp::Edit {
+                id: id.clone(),
+                before: Box::new(item),
+                after: Box::new(updated.clone()),
+            });
+            state.toast(MessageLevel::Ok, "Removed the passkey.");
+            vec![request(
+                state,
+                CommandKind::PutItem { id: id.clone(), item: Box::new(updated) },
+                Pending::Save { id: Some(id), close: false, editor: None },
+            )]
+        }
+    }
+}
+
+/// Does what a one-line prompt was opened for with the text typed into it.
+pub(crate) fn accept_prompt(
+    state: &mut AppState,
+    on_accept: PromptAction,
+    text: String,
+) -> Vec<Effect> {
+    match on_accept {
+        PromptAction::None => Vec::new(),
+        PromptAction::NewFolder => apply(state, Action::with(ActionId::FolderNew, &[&text])),
+        PromptAction::RenameFolder => apply(state, Action::with(ActionId::FolderRename, &[&text])),
+        PromptAction::FilterHelp => {
+            state.help_filter = text;
+            state.help_offset = 0;
+            Vec::new()
+        }
+        PromptAction::FilterKeymap => {
+            state.keymap_editor.filter = text;
+            state.keymap_editor.index = 0;
+            Vec::new()
+        }
+        PromptAction::Setting(key) => super::apply_setting(state, key, &text),
+        PromptAction::ImportSshKey => {
+            match std::fs::read_to_string(shellexpand_home(&text)) {
+                Ok(pem) => match crate::util::ssh::parse_private_key(&pem) {
+                    Ok(key) => {
+                        if let Some(editor) = &mut state.editor {
+                            editor.item.ssh_key = Some(SshKey {
+                                private_key: Some(crate::bw::sensitive::Sensitive::new(
+                                    key.private_key,
+                                )),
+                                public_key: key.public_key,
+                                key_fingerprint: key.fingerprint,
+                                ..Default::default()
+                            });
+                            editor.dirty = true;
+                        }
+                        rebuild_rows(state);
+                        state.message(MessageLevel::Ok, "Imported the SSH key.");
+                    }
+                    Err(err) => state.toast_with(
+                        MessageLevel::Error,
+                        "Couldn't read the SSH key.",
+                        err.to_string(),
+                    ),
+                },
+                Err(err) => {
+                    state.toast_with(
+                        MessageLevel::Error,
+                        "Couldn't read the file.",
+                        err.to_string(),
+                    );
+                }
+            }
+            Vec::new()
+        }
+    }
+}
+
+/// The ids of the folders a sidebar path stands for: usually one, more when
+/// Bitwarden holds several folders with the same name.
+pub(crate) fn folder_ids(state: &AppState, path: &str) -> Vec<String> {
+    state
+        .cache
+        .folders()
+        .iter()
+        .filter(|folder| folder.name == path)
+        .filter_map(|folder| folder.id.clone())
+        .collect()
 }
 
 /// Quits, unless changes are still on their way to Bitwarden: the list
@@ -1319,7 +1277,7 @@ pub(crate) fn open_uri(state: &mut AppState, uri: &str) -> Vec<Effect> {
                      Open it?"
                 ),
                 "Open",
-                Action::with("item.open_uri.run", &[trimmed]),
+                Deferred::OpenUri(trimmed.to_owned()),
             ));
             return Vec::new();
         }

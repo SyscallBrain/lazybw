@@ -515,7 +515,7 @@ fn confirm_overlay() {
             "Delete permanently?",
             "“Old forum” will be deleted for good. This cannot be undone.",
             "Delete",
-            lazybw::app::state::Action::new("item.delete.confirm"),
+            lazybw::app::state::Deferred::DeleteItems(Vec::new()),
         )
         .danger(),
     );

@@ -1187,3 +1187,103 @@ fn changing_a_generator_option_leaves_the_session_history_alone() {
     event(&mut state, request_id(&effects), BwEvent::Generated(Ok("third".into())));
     assert_eq!(state.generator.history.len(), 2);
 }
+
+fn folder(id: &str, name: &str) -> lazybw::bw::models::Folder {
+    lazybw::bw::models::Folder { id: Some(id.into()), name: name.into(), ..Default::default() }
+}
+
+/// Two folders named "Work" (Bitwarden allows it), one with a subfolder, and
+/// a "Home" folder.
+fn twin_folders() -> AppState {
+    let mut state = state();
+    let mut a = item("a");
+    a.folder_id = Some("w1".into());
+    let mut b = item("b");
+    b.folder_id = Some("w2".into());
+    state.cache.load(
+        vec![a, b, item("c")],
+        vec![
+            folder("w1", "Work"),
+            folder("w2", "Work"),
+            folder("w3", "Work/Clients"),
+            folder("h", "Home"),
+        ],
+        vec![],
+        vec![],
+    );
+    state
+}
+
+fn folder_commands(effects: &[Effect]) -> Vec<String> {
+    use lazybw::bw::service::CommandKind;
+    let mut out: Vec<String> = effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::Backend { kind: CommandKind::DeleteFolder(id), .. } => {
+                Some(format!("delete {id}"))
+            }
+            Effect::Backend { kind: CommandKind::RenameFolder { id, name }, .. } => {
+                Some(format!("rename {id} {name}"))
+            }
+            _ => None,
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+#[test]
+fn deleting_a_folder_deletes_every_folder_with_its_name() {
+    let mut state = twin_folders();
+    command(&mut state, "folder delete Work");
+    let message = state.confirm().map(|c| c.message.clone()).unwrap_or_default();
+    assert!(message.contains("Its 2 items move to No folder"), "{message}");
+    // The dialog acts on the folders it named, wherever the sidebar is now.
+    state.filter = Filter::Folder("Home".into());
+    let effects = keys(&mut state, "y");
+    assert_eq!(folder_commands(&effects), vec!["delete w1", "delete w2"]);
+}
+
+#[test]
+fn deleting_a_folder_with_its_subfolders_uses_their_ids() {
+    let mut state = twin_folders();
+    command(&mut state, "folder delete Work");
+    keys(&mut state, "<Space>");
+    let effects = keys(&mut state, "y");
+    assert_eq!(folder_commands(&effects), vec!["delete w1", "delete w2", "delete w3"]);
+}
+
+#[test]
+fn renaming_a_folder_renames_every_folder_with_its_name_and_undo_puts_them_back() {
+    let mut state = twin_folders();
+    state.filter = Filter::Folder("Work".into());
+    command(&mut state, "folder rename Jobs");
+    state.filter = Filter::Folder("Home".into());
+    let effects = keys(&mut state, "y");
+    assert_eq!(
+        folder_commands(&effects),
+        vec!["rename w1 Jobs", "rename w2 Jobs", "rename w3 Jobs/Clients"]
+    );
+    state.cache.set_folders(vec![
+        folder("w1", "Jobs"),
+        folder("w2", "Jobs"),
+        folder("w3", "Jobs/Clients"),
+        folder("h", "Home"),
+    ]);
+    let effects = keys(&mut state, "u");
+    assert_eq!(
+        folder_commands(&effects),
+        vec!["rename w1 Work", "rename w2 Work", "rename w3 Work/Clients"]
+    );
+}
+
+#[test]
+fn go_to_folder_lists_a_shared_name_once() {
+    let mut state = twin_folders();
+    keys(&mut state, "<Space>ff");
+    let Some(lazybw::app::state::Overlay::Picker(picker)) = &state.overlay else {
+        panic!("no picker");
+    };
+    let work = picker.entries.iter().filter(|entry| entry.label == "Work").count();
+    assert_eq!(work, 1);
+}

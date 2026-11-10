@@ -71,9 +71,10 @@ impl Dispatcher {
     }
 
     /// Converts a resolved call to an action, applying the count.
-    fn action(&self, call: ActionCall) -> Action {
-        let count = if crate::app::actions::accepts_count(&call.id) { self.count } else { None };
-        Action { id: call.id, args: call.args, count }
+    fn action(&self, call: &ActionCall) -> Option<Action> {
+        let action = Action::from_call(call)?;
+        let count = if action.id.def().accepts_count { self.count } else { None };
+        Some(action.counted(count))
     }
 
     /// Feeds a key.
@@ -130,9 +131,10 @@ impl Dispatcher {
                     self.pending = candidate;
                     return Dispatch::Pending;
                 }
-                let action = self.action(call);
+                let action = self.action(&call);
                 self.reset();
-                Dispatch::Action(action)
+                // A binding to an id the registry does not know does nothing.
+                action.map_or(Dispatch::Discard, Dispatch::Action)
             }
             Resolution::Prefix => {
                 self.pending = candidate;
@@ -170,9 +172,9 @@ impl Dispatcher {
         }
         match keymap.resolve(chain, &self.pending) {
             Resolution::Exact(call) => {
-                let action = self.action(call);
+                let action = self.action(&call);
                 self.reset();
-                Some(action)
+                action
             }
             _ => {
                 self.reset();
@@ -230,6 +232,7 @@ impl Dispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::actions::ActionId;
     use crate::config::KeysConfig;
     use crate::config::keymap::{Keymap, chain, parse_keys};
 
@@ -248,7 +251,7 @@ mod tests {
         let chain = chain(&["list"]);
         assert_eq!(
             dispatcher.feed(Key::ch('a'), &km, &chain, None, Instant::now()),
-            Dispatch::Action(Action::with("item.new", &[]))
+            Dispatch::Action(Action::with(ActionId::ItemNew, &[]))
         );
         assert!(!dispatcher.is_pending());
     }
@@ -265,7 +268,7 @@ mod tests {
         assert_eq!(dispatcher.pending_display(&km), "d");
         assert_eq!(
             dispatcher.feed(Key::ch('d'), &km, &chain, None, Instant::now()),
-            Dispatch::Action(Action::new("item.trash"))
+            Dispatch::Action(Action::new(ActionId::ItemTrash))
         );
     }
 
@@ -280,7 +283,7 @@ mod tests {
         );
         assert_eq!(
             dispatcher.feed(Key::ch('j'), &km, &chain, None, Instant::now()),
-            Dispatch::Action(Action::new("nav.down").counted(Some(3)))
+            Dispatch::Action(Action::new(ActionId::NavDown).counted(Some(3)))
         );
     }
 
@@ -302,7 +305,7 @@ mod tests {
         let chain = chain(&["list"]);
         dispatcher.feed(Key::ch('2'), &km, &chain, None, Instant::now());
         let dispatch = dispatcher.feed(Key::ch('x'), &km, &chain, None, Instant::now());
-        assert_eq!(dispatch, Dispatch::Action(Action::new("mark.toggle")));
+        assert_eq!(dispatch, Dispatch::Action(Action::new(ActionId::MarkToggle)));
     }
 
     #[test]
@@ -325,7 +328,7 @@ mod tests {
         );
         dispatcher.feed(Key::ch('x'), &km, &chain, None, Instant::now());
         assert!(dispatcher.is_pending());
-        assert_eq!(dispatcher.timeout(&km, &chain), Some(Action::new("nav.down")));
+        assert_eq!(dispatcher.timeout(&km, &chain), Some(Action::new(ActionId::NavDown)));
         assert!(!dispatcher.is_pending());
     }
 
@@ -384,7 +387,7 @@ mod tests {
                 Some("cmdline"),
                 Instant::now()
             ),
-            Dispatch::Action(Action::new("cmdline.execute"))
+            Dispatch::Action(Action::new(ActionId::CmdlineExecute))
         );
     }
 
