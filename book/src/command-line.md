@@ -2,8 +2,9 @@
 
 `:` opens a command line at the bottom of the screen, as in Vim. `Tab`
 completes commands and their arguments (themes, folders, item types, settings,
-file paths), and the up and down arrows go through earlier commands. lazybw
-keeps this history between sessions.
+import and export formats), and the up and down arrows go through earlier
+commands; with something typed, only the ones that start with it. lazybw keeps
+this history between sessions. `Backspace` on an empty line closes it.
 
 The most useful commands:
 
@@ -17,7 +18,7 @@ The most useful commands:
 | `:copy password` | copy a field of the selected item |
 | `:move Work`, `:move Social media` | move the selected item to a folder |
 | `:folder new Taxes` | create a folder (also `rename` and `delete`) |
-| `:gen 32`, `:gen phrase 6` | generate a password or passphrase and copy it |
+| `:gen`, `:gen 32`, `:gen phrase 6` | open the generator, or generate a password or passphrase and copy it |
 | `:sort modified`, `:sort name!` | change the sort order (`!` reverses it) |
 | `:theme nord` | switch theme |
 | `:set theme=nord` | change a setting; `:set animations!` toggles one |

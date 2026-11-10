@@ -39,7 +39,11 @@ client. Requests carry a correlation id; answers come back as
 Locking forgets pending data requests, so an answer that arrives after a lock
 is dropped. Short tasks that `bw serve` cannot do (login, export, import) run
 as separate `bw` processes (`bw/subprocess.rs`), with secrets passed through
-the environment or a PTY, never through arguments.
+the environment or a PTY, never through arguments. The long ones (the health
+report, imports, exports) run beside the actor's queue, so a lock is never
+stuck behind them; a lock or a logout stops the health report and an export
+(ADR-022). The queue to the actor has no limit: the interface sends from its
+own loop and must never wait there.
 
 ## State machines
 

@@ -42,7 +42,9 @@ The same works from the command line:
 ```
 
 Short names work when they are unambiguous. The full name, such as
-`ui.animations`, always works.
+`ui.animations`, always works. A value that does not fit the option (`on` and
+`off` are fine for true and false, a word is not a number) is refused with an
+`E474` message, and nothing is written to the file.
 
 ## Checking the file
 

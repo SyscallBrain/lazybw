@@ -63,7 +63,10 @@ on another hidden field, the password goes there instead.
 form. On an SSH key's private key field, `Ctrl-e` edits the key instead, and
 lazybw checks that what you saved is a valid key.
 
-`gE` opens the whole item as JSON, for changes the form cannot make.
+`gE` opens the whole item as JSON, for changes the form cannot make. From the
+list, the edited item opens in the editor afterwards, so you can review it
+before `Ctrl-s` saves it (or `ZQ` drops it). In the editor, `:e!` throws the
+changes away and loads the item again from Bitwarden.
 
 The text is written to a temporary file in `$XDG_RUNTIME_DIR/lazybw`, readable
 only by you, and lazybw overwrites and deletes it as soon as the editor

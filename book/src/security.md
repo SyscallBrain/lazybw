@@ -37,7 +37,12 @@ channel.
   dropped.
 - Locking drops the decrypted vault, the undo history, the generator
   history, search results and copies of items, and clears the clipboard if it
-  still holds a value lazybw copied.
+  still holds a value lazybw copied. Something you copied in another program
+  is left alone.
+- Secure notes are not shown in the list: their row says how many lines they
+  have, and the text appears only in the detail pane.
+- The automatic lock counts the time the computer was asleep: a laptop closed
+  for longer than `auto_lock` comes back locked.
 - lazybw marks its process as not dumpable and turns off core dumps, so a
   crash does not write the vault to a core file and other processes of the
   same user cannot read its memory.
@@ -48,7 +53,11 @@ channel.
   you), and lazybw starts with a umask of 077.
 - Temporary files, such as notes opened in `$EDITOR` or a filtered import,
   live in `$XDG_RUNTIME_DIR/lazybw`, which is in memory on most systems. They
-  are overwritten and deleted as soon as they are no longer needed.
+  are overwritten and deleted as soon as they are no longer needed. If lazybw
+  is killed before it can do that, the next start removes what was left.
+- The command-line history (`~/.local/state/lazybw/cmd_history`) holds the
+  `:` commands you ran, readable only by you. Commands never contain secret
+  values, but they can name items and folders.
 - For Vim, Neovim, Emacs and micro, lazybw switches off swap, undo, backup and
   history files, so the editor does not keep its own copy of the text.
 - The folder state file stores folder ids, never names.

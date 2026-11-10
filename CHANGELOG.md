@@ -11,6 +11,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `lazybw doctor` shows the lazybw version, so its output is enough to
   tell which release a bug report is about.
+- `:gen 32` and `:gen phrase 6` generate a password or passphrase and copy
+  it, and `:sort name!` sorts in reverse, as the guide already said.
+- The command line keeps its history between sessions; `Up` and `Down` go
+  through it, showing only the commands that start with what is typed.
+- `Ctrl-w` deletes the word before the cursor and `Ctrl-u` everything before
+  it in the command line, search, quick open, prompts, the wizards' fields and
+  the editor. In password fields `Ctrl-u` clears what was typed.
+- The command line, prompts and search show where the cursor is.
+- The export wizard says when the file exists and replaces it only on a
+  second `Enter`. The suggested file name follows the format.
+- A card number that fails the Luhn check is saved with a warning.
+- "Editor command" can be changed in the settings.
+
+### Changed
+
+- Secure notes show their line count in the list, not their first line
+  (ADR-023). The text stays in the detail pane.
+- The tabs are not shown before the vault is open.
+- The statusline says "locks at 14:15", and on a narrow terminal drops the
+  last-sync time and the lock time before the position.
+- A theme picked from the theme list (or the settings) is kept for the next
+  start. `:theme` still tries one for the session.
+- The generator's session history keeps the passwords `r` made, not one per
+  option change.
+- `n` in a dialog, `Esc` in INSERT and the rest of the `confirm` and `insert`
+  contexts follow the keymap, so they can be rebound like any other key.
 
 ### Fixed
 
@@ -57,6 +83,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   typed keys and ran as commands) and `hide_on_focus_lost` works again.
 - A crash gives the terminal back whole. Mouse reporting, bracketed paste and
   the keyboard protocol used to stay on in the shell afterwards.
+- `Ctrl-f` pages down. The default binding never worked: `<C-f>` was read
+  as a function key without a number and dropped.
+- `d` in visual mode acts at once; it waited a second for a `dd` that only
+  exists outside visual mode.
+- The page motions (`Ctrl-d`, `Ctrl-f`, `H`, `M`, `L`) move by the height
+  of the list on screen instead of 10 and 20 rows, `zz`, `zt` and `zb`
+  scroll the list, and help scrolls by pages and stops at its end.
+- The mouse wheel scrolls the pane under the pointer; it always scrolled the
+  sidebar. Dragging a pane divider resizes the panes.
+- Locking (and quitting) clears the clipboard only if it still holds what
+  lazybw copied; it used to wipe whatever was there.
+- The automatic lock counts time spent asleep: a laptop closed for the night
+  came back unlocked.
+- A lock is no longer stuck behind a running health check, import or export:
+  `bw serve` locks at once, and the health check or export stops (ADR-022).
+- `yy` on the verification code of an item that asks for the master password
+  asks for it, as `yt` does.
+- Turning off `health.check_exposed` takes effect at once instead of at the
+  next start.
+- The filtered copy of an import is always shredded, also when the vault was
+  locked first; files left by a crashed lazybw are removed at the next start.
+- `Ctrl-s` in the notes editor saves the notes too; it saved the item
+  without them. Pasting into the notes editor works, and pasted line breaks
+  are kept in notes.
+- Saving a new item twice quickly creates it once.
+- `:e!` loads the item again into the editor; it fetched it and left the form
+  as it was.
+- `gE` from the list opens the edited item in the editor, where it can be
+  saved; the edit was thrown away. From the editor, `gE` edits the form as it
+  is, not the saved item.
+- A quick-open jump to an item hidden by the current search clears the
+  search instead of landing on another item.
+- `gt`, `?` and other screens no longer leave an editor with unsaved changes
+  behind, where the next `e` replaced it; help, settings and messages return
+  to the editor.
+- `SIGUSR1` while logged out does nothing; it showed the unlock screen.
+- `i` and `cc` on a detail field open the editor on that field; they opened
+  it on the name. `cc` empties the field.
+- `:set` refuses values that do not fit (`:set mouse=maybe`) instead of
+  writing a config that no longer loads, and accepts `on` and `off`.
+- `Backspace` in the command line deletes before the cursor, not at the end.
+  `Tab` completions no longer pile up names with spaces.
+- `Esc` closes the import wizard while it runs; the import goes on.
+- Moving past "Self-hosted" on the login screen keeps `j` and `k` as moves;
+  `Enter` opens the URL field.
+- The health score no longer says "would be 85" when it is 85, and the
+  detail pane no longer shows "created" without a date.
 
 ## [1.1.0] - 2026-11-09
 

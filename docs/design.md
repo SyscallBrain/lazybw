@@ -63,7 +63,7 @@ Below 60 cols popups become full screen.
 ### 2.4 Density
 
 - **Comfortable** (default): two rows per item — name with indicators, then the subtitle (username,
-  `•••• 4242`, full name, first line of the note, key fingerprint) in `fg.muted`.
+  `•••• 4242`, full name, the note's line count, key fingerprint) in `fg.muted`.
 - **Compact**: one row — `● GitHub  dev-example                 ★ ◷`, subtitle in `fg.muted` after two
   spaces, truncated with `…`.
 
@@ -220,8 +220,8 @@ lazybw › Running "bw login". Follow the prompts; lazybw resumes when it finish
   (`fg.alt`), attachment count (`fg.subtle`, read-only), `⚠` health issue (`error` if exposed, `warn`
   otherwise; only after a health run), `⚿` reprompt (`fg.subtle`).
 - Row subtitle per type: login → username (or first URI host); card → `Visa •••• 4242`; identity →
-  full name; note → first non-empty line of the note (secret-safe: notes are shown in lists only if
-  `reprompt = 0`); SSH key → fingerprint shortened `SHA256:Qx9…7fA`.
+  full name; note → its line count (`3 lines`), never its text, which only the detail pane shows
+  (ADR-023); SSH key → fingerprint shortened `SHA256:Qx9…7fA`.
 - Trash filter: list title ` Trash 5 `, subtitle shows `deleted 3 days ago`; detail is read-only with
   a banner `In trash · r restore · D delete permanently`.
 
@@ -313,7 +313,7 @@ values hidden if the key contains `number`, `code`, `pin`, `ssn`, `iban`, `accou
 │  Authenticator key     ••••••••••••••••      482 913 ✓ │ NOTES                                Ctrl-e $EDITOR │
 │ OPTIONS                                                │   1 Recovery codes are in the safe, drawer 2.       │
 │  Favorite              ☑                               │   2 Account created with the old email.             │
-│  Master password ask   ☐                               │   ~                                                 │
+│  Password re-prompt    ☐                               │   ~                                                 │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
  INSERT  Edit › GitHub › Password   [+] unsaved                                                 ✓ valid    4/12
  -- INSERT --   Esc normal · Tab next field · Ctrl-a / Ctrl-x change option

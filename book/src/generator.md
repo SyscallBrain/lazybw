@@ -34,9 +34,10 @@ To generate a password while editing an item, press `Ctrl-g` in the editor
 
 ## History
 
-The right pane lists the passwords generated in this session, newest first.
-The list exists only in memory and is wiped when the vault locks or lazybw
-exits.
+The right pane lists the passwords generated in this session, newest first:
+each one `r` made, and the one shown when the tab opened. Changing an option
+shows a new password without adding the old one to the list. The list exists
+only in memory and is wiped when the vault locks or lazybw exits.
 
 ## Defaults
 

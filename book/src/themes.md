@@ -18,10 +18,11 @@
 | `terminal` | uses your terminal's own colours |
 
 `Space` `t` opens a picker with the built-in themes and your own. The screen
-changes to each theme as you move through the list; `Enter` keeps it and
+changes to each theme as you move through the list; `Enter` keeps it, also
+for the next start (it is written to `ui.theme` in the configuration), and
 `Esc` goes back to the one you had. `:theme` followed by `Tab` previews the
-same way. `:theme nord` switches directly, and `ui.theme` in the
-configuration sets the theme lazybw starts with.
+same way, and `:theme nord` switches directly; both last until you quit,
+which is handy for trying one out. `:set theme=nord` switches and keeps it.
 
 `lazybw themes` lists them, and `lazybw themes --preview nord` prints a
 theme's colours.

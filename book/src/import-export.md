@@ -6,7 +6,9 @@
 
 1. Choose the format and where to write the file. The wizard suggests the
    password-protected format, the safe choice for a backup. `Tab` completes
-   the path.
+   the path, and the file name follows the format (`.json` or `.csv`). If
+   the file exists, the wizard says so and replaces it only on a second
+   `Enter`.
 2. For a password-protected file, choose its password and type it again. A
    strength bar shows how good it is.
 3. Confirm with your master password.
@@ -38,6 +40,10 @@ You can skip the first step with `:export json ~/backup.json`, or with
 2. Type the path of the file. `Tab` completes it. A password-protected
    Bitwarden file also asks for its password.
 3. For Bitwarden JSON files, lazybw shows a preview before importing.
+
+A large import or export can take a while. `Esc` closes the wizard without
+stopping it, and lazybw says when it is done. Locking the vault stops an
+export, but not an import, which would otherwise be left half done.
 
 The preview counts the items by type, lists the folders the import will
 create, and finds items you already have. An item counts as a duplicate when

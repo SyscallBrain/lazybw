@@ -17,7 +17,15 @@ lazybw uses Vim's keys. If you know Vim, most of this page will be familiar.
 
 A number before a motion repeats it: `5j` moves five rows down and `12G` goes
 to the twelfth item. A few actions take a count too, so `3dd` moves three
-items to the trash.
+items to the trash. The page motions move by the height of the list on
+screen, and the mouse wheel scrolls the pane under the pointer.
+
+## Typing in a field
+
+The command line, search, quick open, the prompts and the editor's fields
+share the keys of a shell: the arrows, `Home` and `End` move, `Backspace` and
+`Delete` delete, `Ctrl-w` deletes the word before the cursor and `Ctrl-u`
+everything before it. In a password field `Ctrl-u` clears what you typed.
 
 ## The leader key
 
