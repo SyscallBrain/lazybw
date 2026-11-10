@@ -9,6 +9,7 @@ use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use std::ffi::OsString;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
@@ -16,7 +17,8 @@ use std::time::{Duration, Instant};
 /// (case-insensitive substring), writes the password, and waits for exit.
 ///
 /// Returns the transcript produced *before* the password was sent, which is
-/// safe to log.
+/// safe to log. Setting `cancel` kills the command within a quarter of a
+/// second (a lock while an export runs).
 pub fn run_with_password_prompt(
     command: &Path,
     args: &[String],
@@ -24,6 +26,7 @@ pub fn run_with_password_prompt(
     password: &str,
     prompt_hint: &str,
     timeout: Duration,
+    cancel: &AtomicBool,
 ) -> Result<String, BwError> {
     let pty_system = native_pty_system();
     let pair = pty_system
@@ -71,6 +74,11 @@ pub fn run_with_password_prompt(
     let mut transcript = String::new();
     let mut sent = false;
     loop {
+        if cancel.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(BwError::Other("stopped: the vault was locked".to_owned()));
+        }
         if Instant::now() >= deadline {
             let _ = child.kill();
             return Err(BwError::Other(
@@ -138,6 +146,7 @@ mod tests {
             "s3cret",
             "password",
             Duration::from_secs(10),
+            &AtomicBool::new(false),
         );
         assert!(result.is_ok(), "{result:?}");
     }
@@ -159,7 +168,38 @@ mod tests {
             "wrong",
             "password",
             Duration::from_secs(10),
+            &AtomicBool::new(false),
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn a_cancelled_command_is_killed() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let script = dir.path().join("slow.sh");
+        std::fs::write(
+            &script,
+            "#!/bin/sh\nprintf 'Export file password: '\nread -r p\nsleep 30\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let flag = cancel.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(500));
+            flag.store(true, Ordering::Relaxed);
+        });
+        let started = Instant::now();
+        let result = run_with_password_prompt(
+            &script,
+            &[],
+            &[],
+            "x",
+            "password",
+            Duration::from_secs(60),
+            &cancel,
+        );
+        assert!(result.is_err());
+        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
     }
 }

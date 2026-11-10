@@ -98,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   came back unlocked.
 - A lock is no longer stuck behind a running health check, import or export:
   `bw serve` locks at once, and the health check or export stops (ADR-022).
+  A password-protected export stops too, and its unfinished file is removed.
 - `yy` on the verification code of an item that asks for the master password
   asks for it, as `yt` does.
 - Turning off `health.check_exposed` takes effect at once instead of at the

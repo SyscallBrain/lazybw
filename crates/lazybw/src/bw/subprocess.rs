@@ -237,11 +237,31 @@ pub async fn export_password_protected(
     let env = child_env_with(Some(session));
     let output_path = output.to_path_buf();
     let password = password.to_owned();
-    tokio::task::spawn_blocking(move || {
-        crate::bw::pty::run_with_password_prompt(&exec, &args, &env, &password, "password", timeout)
+    // `bw` runs on a blocking thread, which dropping this future does not
+    // stop: the guard tells it to kill `bw` (and drop what it wrote) when
+    // the export is abandoned, as a lock does.
+    struct CancelOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for CancelOnDrop {
+        fn drop(&mut self) {
+            self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let guard = CancelOnDrop(cancel.clone());
+    let written = output_path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let result = crate::bw::pty::run_with_password_prompt(
+            &exec, &args, &env, &password, "password", timeout, &cancel,
+        );
+        if result.is_err() {
+            let _ = std::fs::remove_file(&written);
+        }
+        result
     })
-    .await
-    .map_err(|e| BwError::Other(format!("export task failed: {e}")))??;
+    .await;
+    // Setting the flag once `bw` is done changes nothing.
+    drop(guard);
+    result.map_err(|e| BwError::Other(format!("export task failed: {e}")))??;
     let metadata = std::fs::metadata(&output_path)
         .map_err(|e| BwError::Other(format!("bw export produced no file: {e}")))?;
     if metadata.len() == 0 {
