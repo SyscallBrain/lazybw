@@ -1657,6 +1657,9 @@ pub struct AppState {
     pub yanked_item: Option<Item>,
     /// Set when lazybw should exit after this message.
     pub quit: bool,
+    /// The user asked to quit while changes were still on their way to
+    /// Bitwarden: quit once they have all been answered.
+    pub quit_when_saved: bool,
     /// Dirty flag for redraw.
     pub dirty: bool,
     /// Repaint every cell on the next draw (`<C-l>`), not just the diff.
@@ -1825,6 +1828,7 @@ impl AppState {
             jump: JumpList::default(),
             yanked_item: None,
             quit: false,
+            quit_when_saved: false,
             dirty: true,
             full_redraw: false,
             folds_restored: false,
@@ -2251,6 +2255,30 @@ impl AppState {
     #[must_use]
     pub fn awaiting(&self, kind: impl Fn(&Pending) -> bool) -> bool {
         self.pending.values().any(kind)
+    }
+
+    /// How many changes to the vault are still on their way to Bitwarden:
+    /// requests sent and not yet answered, and steps that will send more
+    /// (a folder being recreated, a password being generated for an item).
+    /// Quitting before they finish would lose them.
+    #[must_use]
+    pub fn pending_writes(&self) -> usize {
+        let requests = self
+            .pending
+            .values()
+            .filter(|pending| {
+                matches!(
+                    pending,
+                    Pending::Save { .. }
+                        | Pending::Delete { .. }
+                        | Pending::Restore { .. }
+                        | Pending::Folder
+                )
+            })
+            .count();
+        requests
+            + usize::from(self.folder_restore.is_some())
+            + usize::from(self.pending_generate_target.is_some())
     }
 
     /// The master password is being checked.

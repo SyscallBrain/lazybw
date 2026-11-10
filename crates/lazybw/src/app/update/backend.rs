@@ -35,6 +35,11 @@ pub(crate) fn on_backend(
         tracing::debug!(id, "dropping a response that arrived after a lock");
         return effects;
     }
+    // A change failed while `q` was waiting for it: stay, so the error is
+    // read instead of flashing by on the way out.
+    if state.quit_when_saved && event.event.error().is_some() {
+        state.quit_when_saved = false;
+    }
     match event.event {
         BwEvent::Started(result) => {
             on_started(state, result, &mut effects);

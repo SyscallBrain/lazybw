@@ -36,25 +36,24 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             close_editor(state);
             Vec::new()
         }
-        "app.quit" | "app.quit_force" => {
-            if id == "app.quit" && state.editor.as_ref().is_some_and(|e| e.dirty) {
-                state.open(ConfirmState {
-                    title: "Unsaved changes".to_owned(),
-                    message: "The item has unsaved changes. Quit and discard them?".to_owned(),
-                    confirm_label: "Quit".to_owned(),
-                    danger: true,
-                    requires_word: None,
-                    input: String::new(),
-                    also_subfolders: false,
-                    subfolder_count: 0,
-                    on_deny: None,
-                    on_confirm: Action::new("app.quit_force"),
-                });
-                return Vec::new();
-            }
-            state.quit = true;
-            vec![Effect::Quit]
+        "app.quit" if state.editor.as_ref().is_some_and(|e| e.dirty) => {
+            state.open(ConfirmState {
+                title: "Unsaved changes".to_owned(),
+                message: "The item has unsaved changes. Quit and discard them?".to_owned(),
+                confirm_label: "Quit".to_owned(),
+                danger: true,
+                requires_word: None,
+                input: String::new(),
+                also_subfolders: false,
+                subfolder_count: 0,
+                on_deny: None,
+                on_confirm: Action::new("app.quit.discard"),
+            });
+            Vec::new()
         }
+        // The form's changes are given up; changes already sent are not.
+        "app.quit" | "app.quit.discard" => quit(state, false),
+        "app.quit_force" => quit(state, true),
         "app.cancel" => cancel(state),
         "app.help" => {
             if state.screen != Screen::Help {
@@ -1294,6 +1293,27 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
         | "cmdline.history_next" => cmdline_action(state, &action),
         _ => Vec::new(),
     }
+}
+
+/// Quits, unless changes are still on their way to Bitwarden: the list
+/// already shows them as done, and leaving now would stop the CLI before it
+/// sent them. `q` then waits for the answers (`update` quits once the last
+/// one arrives); `:q!` leaves at once.
+fn quit(state: &mut AppState, force: bool) -> Vec<Effect> {
+    let writes = state.pending_writes();
+    if !force && writes > 0 {
+        state.quit_when_saved = true;
+        state.message(
+            MessageLevel::Info,
+            format!(
+                "Finishing {writes} change{} before quitting. :q! quits now.",
+                if writes == 1 { "" } else { "s" }
+            ),
+        );
+        return Vec::new();
+    }
+    state.quit = true;
+    vec![Effect::Quit]
 }
 
 /// Opens a website from the vault. Web addresses open directly (a bare

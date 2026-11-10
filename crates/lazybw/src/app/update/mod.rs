@@ -70,6 +70,12 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Effect> {
     if !state.dispatcher.is_pending() {
         state.which_key = None;
     }
+    // `q` was pressed while changes were on their way to Bitwarden: leave
+    // now that the last of them has been answered.
+    if state.quit_when_saved && !state.quit && state.pending_writes() == 0 {
+        state.quit = true;
+        effects.push(Effect::Quit);
+    }
     // Revealed fields re-hide whenever the selection moves to another item.
     let selected = state.selected_id();
     if selected != state.detail_item {
@@ -523,6 +529,9 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     Vec::new()
 }
 fn cancel(state: &mut AppState) -> Vec<Effect> {
+    if std::mem::take(&mut state.quit_when_saved) {
+        state.message(MessageLevel::Info, "Not quitting.");
+    }
     if state.overlay.is_some() {
         // For the re-prompt, closing also drops an answer still on its way.
         state.overlay = None;

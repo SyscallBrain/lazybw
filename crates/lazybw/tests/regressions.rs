@@ -579,3 +579,64 @@ fn moving_to_a_folder_that_does_not_exist_moves_nothing() {
     assert_eq!(effects.len(), 1);
     assert_eq!(state.cache.item("a").unwrap().folder_id.as_deref(), Some("f-social"));
 }
+
+#[test]
+fn quit_waits_for_changes_still_on_their_way_to_bitwarden() {
+    let mut state = five_items();
+    keys(&mut state, "x");
+    keys(&mut state, "j");
+    keys(&mut state, "x");
+    let sent = keys(&mut state, "dd");
+    let ids: Vec<u64> = sent
+        .iter()
+        .filter_map(|e| if let Effect::Backend { id, .. } = e { Some(*id) } else { None })
+        .collect();
+    assert_eq!(ids.len(), 2);
+
+    // `q` with two deletes unanswered: stay, and say why.
+    let effects = keys(&mut state, "q");
+    assert!(effects.is_empty() && !state.quit, "quit with changes still queued");
+    let message = state.status_message.as_ref().map(|m| m.text.clone()).unwrap_or_default();
+    assert_eq!(message, "Finishing 2 changes before quitting. :q! quits now.");
+
+    // The first answer is not enough; the last one quits.
+    let effects = event(&mut state, ids[0], BwEvent::ItemDeleted(Ok("a".into())));
+    assert!(!state.quit && !effects.iter().any(|e| matches!(e, Effect::Quit)));
+    let effects = event(&mut state, ids[1], BwEvent::ItemDeleted(Ok("b".into())));
+    assert!(state.quit && effects.iter().any(|e| matches!(e, Effect::Quit)));
+}
+
+#[test]
+fn quit_with_changes_queued_can_be_forced_or_cancelled_and_stays_on_a_failure() {
+    // `:q!` does not wait.
+    let mut state = five_items();
+    keys(&mut state, "dd");
+    let effects = command(&mut state, "q!");
+    assert!(state.quit && effects.iter().any(|e| matches!(e, Effect::Quit)));
+
+    // Esc takes the quit back.
+    let mut state = five_items();
+    let sent = keys(&mut state, "dd");
+    keys(&mut state, "q");
+    assert!(state.quit_when_saved);
+    keys(&mut state, "<Esc>");
+    assert!(!state.quit_when_saved);
+    event(&mut state, request_id(&sent), BwEvent::ItemDeleted(Ok("a".into())));
+    assert!(!state.quit);
+
+    // A change that fails keeps lazybw open, so the error is seen.
+    let mut state = five_items();
+    let sent = keys(&mut state, "dd");
+    keys(&mut state, "q");
+    let effects = event(
+        &mut state,
+        request_id(&sent),
+        BwEvent::ItemDeleted(Err(lazybw::bw::BwError::Other("server said no".into()))),
+    );
+    assert!(!state.quit && !effects.iter().any(|e| matches!(e, Effect::Quit)));
+
+    // With nothing queued `q` quits at once, as before.
+    let mut state = five_items();
+    let effects = keys(&mut state, "q");
+    assert!(state.quit && effects.iter().any(|e| matches!(e, Effect::Quit)));
+}
