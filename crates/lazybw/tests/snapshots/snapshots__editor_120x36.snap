@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │                                                                  │                                                   │
 │                                                                  │                                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- INSERT  Edit › GitHub                                                                     2 min ago │  locks 14:15 
+ INSERT  Edit › GitHub                                                                  2 min ago │  locks at 14:15 
 -- INSERT --                                                                                                            
 styles:
 00:ea608195bd6e6fb7
@@ -73,5 +73,5 @@ styles:
 31:6de4bd0dc2147615
 32:6de4bd0dc2147615
 33:f86dfdf534e2740f
-34:841de4fa52b79b00
+34:d57ae710e4dddc1d
 35:9d6fb0274e5e12b1

@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │                                                                  │                                                   │
 │                                                                  │                                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Edit › GitHub                                                                     2 min ago │  locks 14:15 
+ NORMAL  Edit › GitHub                                                                  2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:ea608195bd6e6fb7
@@ -73,5 +73,5 @@ styles:
 31:6de4bd0dc2147615
 32:6de4bd0dc2147615
 33:f86dfdf534e2740f
-34:c7e6694e4832f6b3
+34:c60ade8e11dff33e
 35:ad0696d4f8ac6d6b

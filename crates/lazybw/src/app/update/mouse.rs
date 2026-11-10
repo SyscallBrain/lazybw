@@ -7,6 +7,12 @@ use super::{
 
 pub(crate) fn on_mouse(state: &mut AppState, event: crossterm::event::MouseEvent) -> Vec<Effect> {
     use crossterm::event::{MouseButton, MouseEventKind};
+    // `:set mouse=false` at run time: the terminal still reports the mouse
+    // until the next start, but lazybw no longer acts on it.
+    if !state.config.ui.mouse {
+        return Vec::new();
+    }
+    state.touch();
     // A popup takes every key, and the mouse with them: a click on the list
     // behind "Delete permanently?" would change what `y` deletes. The same
     // goes for the screens that are not the vault's (locked, logging in).
@@ -61,11 +67,11 @@ pub(crate) fn on_mouse(state: &mut AppState, event: crossterm::event::MouseEvent
             Vec::new()
         }
         MouseEventKind::ScrollDown => {
-            wheel(state, true);
+            wheel(state, &plan, point, true);
             Vec::new()
         }
         MouseEventKind::ScrollUp => {
-            wheel(state, false);
+            wheel(state, &plan, point, false);
             Vec::new()
         }
         _ => Vec::new(),
@@ -131,7 +137,6 @@ pub(crate) fn click(
             if let Some(filter) = &entry.filter {
                 state.filter = filter.clone();
                 state.list_row = 0;
-                state.list_offset = 0;
             }
         }
         return Vec::new();
@@ -151,7 +156,6 @@ pub(crate) fn click(
             if let Some(filter) = entries[index].filter.clone() {
                 state.filter = filter;
                 state.list_row = 0;
-                state.list_offset = 0;
             }
         }
         return Vec::new();
@@ -193,25 +197,29 @@ pub(crate) fn list_offset(state: &AppState, height: usize, row_height: usize) ->
     offset
 }
 
-pub(crate) fn wheel(state: &mut AppState, down: bool) {
-    let action = if down { "nav.down" } else { "nav.up" };
-    let area = ratatui::layout::Rect::new(0, 0, state.size.0, state.size.1);
-    let plan = crate::ui::layout::LayoutPlan::compute_sized(
-        area,
-        state.sidebar_visible,
-        state.sidebar_width,
-        state.list_width,
-    );
-    let focus_sidebar = plan.sidebar.width > 0
-        || plan.rail.width > 0 && state.focus == crate::app::state::Focus::Sidebar;
-    for _ in 0..3 {
-        if focus_sidebar && state.screen == Screen::Vault {
-            state.focus = crate::app::state::Focus::Sidebar;
-        }
-        let effects = navigation(state, &Action::new(action));
-        let _ = effects;
+/// The wheel scrolls the pane under the pointer, three rows a notch, and
+/// focuses it as a click would; elsewhere (help, settings) it scrolls the
+/// screen.
+pub(crate) fn wheel(
+    state: &mut AppState,
+    plan: &crate::ui::layout::LayoutPlan,
+    point: ratatui::layout::Position,
+    down: bool,
+) {
+    use crate::app::state::Focus;
+    let action = Action::new(if down { "nav.down" } else { "nav.up" }).counted(Some(3));
+    if state.screen == Screen::Vault {
+        let pane = if plan.sidebar.contains(point) || plan.rail.contains(point) {
+            Some(Focus::Sidebar)
+        } else if plan.list.contains(point) {
+            Some(Focus::List)
+        } else if plan.detail.contains(point) {
+            Some(Focus::Detail)
+        } else {
+            None
+        };
+        let Some(pane) = pane else { return };
+        state.focus = pane;
     }
-    if state.detail.row > 0 {
-        state.detail.offset = state.detail.row.saturating_sub(2);
-    }
+    navigation(state, &action);
 }

@@ -293,7 +293,26 @@ impl Clipboard {
         self.pending.is_some()
     }
 
-    /// Clears unconditionally, used on exit and on lock.
+    /// Clears what lazybw copied, on lock and on exit, unless the clipboard
+    /// has changed since: a lock must not wipe a link the user copied in
+    /// the browser. A clipboard that cannot be read back is cleared anyway,
+    /// as [`Clipboard::clear_if_ours`] does.
+    pub fn clear_ours(&mut self) {
+        let Some(copied) = self.last_copied.take() else {
+            self.pending = None;
+            return;
+        };
+        self.pending = None;
+        let ours = match self.backend.read() {
+            Ok(Some(current)) => hash_text(&current) == hash_text(&copied),
+            Ok(None) | Err(_) => true,
+        };
+        if ours {
+            let _ = self.backend.clear();
+        }
+    }
+
+    /// Clears unconditionally (`:clear`-style requests and tests).
     pub fn clear_now(&mut self) {
         let _ = self.backend.clear();
         self.pending = None;
@@ -392,6 +411,25 @@ mod tests {
         backend.set("something else").unwrap();
         assert!(!clipboard.tick(now + Duration::from_secs(2)));
         assert_eq!(backend.contents().as_deref(), Some("something else"));
+    }
+
+    #[test]
+    fn clearing_on_lock_leaves_what_the_user_copied_elsewhere() {
+        let backend = Arc::new(MemoryClipboard::new());
+        let mut clipboard = Clipboard::with_backend(backend.clone());
+        // Something copied in another program: lazybw never touched it.
+        backend.set("a link from the browser").unwrap();
+        clipboard.clear_ours();
+        assert_eq!(backend.contents().as_deref(), Some("a link from the browser"));
+        // A password lazybw copied is cleared, also without a timeout.
+        clipboard.copy("s3cret", None, Instant::now()).unwrap();
+        clipboard.clear_ours();
+        assert_eq!(backend.contents(), None);
+        // Copied by lazybw, then replaced by the user: left alone.
+        clipboard.copy("s3cret", None, Instant::now()).unwrap();
+        backend.set("something newer").unwrap();
+        clipboard.clear_ours();
+        assert_eq!(backend.contents().as_deref(), Some("something newer"));
     }
 
     #[test]

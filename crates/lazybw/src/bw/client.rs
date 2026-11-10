@@ -6,7 +6,7 @@
 
 use crate::bw::envelope::BwError;
 use crate::bw::envelope::StatusTemplate;
-use crate::bw::models::{Folder, GenerateRequest, HealthEntry, Item, Status};
+use crate::bw::models::{Folder, GenerateRequest, Item, Status};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::Request;
@@ -301,12 +301,6 @@ impl BwClient {
             .call(hyper::Method::GET, &format!("/generate?{query}"), None, timeouts::GENERATE)
             .await?;
         Ok(response.data)
-    }
-
-    /// Reads `bw report password-health` through a subprocess instead; kept
-    /// here as the typed shape of its payload.
-    pub fn parse_health(data: &[u8]) -> Result<Vec<HealthEntry>, BwError> {
-        crate::bw::envelope::decode(data)
     }
 
     async fn empty(

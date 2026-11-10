@@ -53,6 +53,4 @@ pub enum Effect {
     SaveHistory,
     /// Delete an item's notes buffer and other secrets (lock).
     Lock,
-    /// Refresh the vault list after a change (no network).
-    RefreshList,
 }

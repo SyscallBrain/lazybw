@@ -981,8 +981,9 @@ pub(crate) fn detail_content(state: &AppState, item: &Item, width: usize) -> Det
             .push(Span::styled(format!("password history ({history}) "), theme.style("fg.subtle")));
         footer_right.push(Span::styled("gh ", theme.style("hint.key")));
     }
+    let created = if created.is_empty() { String::new() } else { format!("created {created}") };
     view.lines.push(fill_line(
-        vec![Span::styled(format!("created {created}"), theme.style("fg.subtle"))],
+        vec![Span::styled(created, theme.style("fg.subtle"))],
         footer_right,
         width,
         Style::default(),

@@ -17,7 +17,7 @@ expression: "render(&state, 120, 36)"
 │ ─ ││   Personal v│                                                                              │                   │
 │  ││    Visa •••• │ 5 items   2 logins   1 secure note   1 card   1 identity                 │                   │
 │   ││   Router not│ 0 folders  none new                                                          │                   │
-│   ││    admin / hu│                                                                              │                   │
+│   ││    1 line    │                                                                              │                   │
 │   ││              │ POSSIBLE DUPLICATES (3) · ☑ = skipped                 x skip or keep · a all │                   │
 │   ││              │▌☑  GitHub                      dev-example                                  │                   │
 │   ││              │ ☑  Gmail                       personal@example.com                         │                   │
@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items                                                       2 min ago │  locks at 14:15 │  1/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -73,5 +73,5 @@ styles:
 31:83ec379c873aca7b
 32:83ec379c873aca7b
 33:83ec379c873aca7b
-34:617e01864e5f4dc7
+34:b44cf6d35ba9349b
 35:ad0696d4f8ac6d6b

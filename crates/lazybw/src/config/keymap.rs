@@ -293,7 +293,8 @@ fn parse_named_key(inner: &str, column: usize) -> Result<Key, NotationError> {
         "lt" => Code::Char('<'),
         "bar" => Code::Char('|'),
         "leader" => Code::Char(' '), // replaced by the keymap after parsing
-        name if name.starts_with('f') && name.len() <= 3 => {
+        // F1–F12; a lone `f` is the letter (`<C-f>`).
+        name if name.starts_with('f') && (2..=3).contains(&name.len()) => {
             let n: u8 = name[1..].parse().map_err(|_| NotationError {
                 column,
                 message: format!("unknown key \"{name}\""),
@@ -678,6 +679,24 @@ impl Keymap {
             }
         }
         Resolution::None
+    }
+
+    /// True when `keys` is bound exactly and also starts a longer binding, so
+    /// the dispatcher has to wait for `timeoutlen`. Like [`Keymap::resolve`],
+    /// the first context that knows the keys decides: visual mode's `d` is
+    /// not held back by the list's `dd` behind it.
+    #[must_use]
+    pub fn has_longer(&self, chain: &[String], keys: &[Key]) -> bool {
+        for context in chain {
+            let Some(trie) = self.contexts.get(context) else { continue };
+            if trie.has_children(keys) {
+                return true;
+            }
+            if trie.exact(keys).is_some() {
+                return false;
+            }
+        }
+        false
     }
 
     /// Continuations of a prefix for which-key, from the most specific context.
@@ -1342,6 +1361,19 @@ pub fn with_leader(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn every_default_binding_parses() {
+        // A default that does not parse is dropped without a word: `<C-f>`
+        // read as a function key without a number, and Ctrl-f did nothing.
+        for (context, keys, action) in default_bindings() {
+            assert!(parse_keys(keys).is_ok(), "{context}: {keys} → {action} does not parse");
+        }
+        let f = parse_keys("<C-f>").unwrap();
+        assert_eq!(f, vec![Key { code: Code::Char('f'), mods: Mods::CTRL }]);
+        assert_eq!(parse_keys("<F5>").unwrap()[0].code, Code::F(5));
+    }
+
     use super::*;
 
     fn keys(s: &str) -> Vec<Key> {

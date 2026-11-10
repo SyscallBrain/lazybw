@@ -17,7 +17,7 @@ expression: "render(&state, 90, 30)"
 │   Personal visa                                                                       │
 │    Visa •••• 4242                                                                      │
 │   Router notes                                                                        │
-│    admin / hunter2                                                                     │
+│    1 line                                                                              │
 │                                                                                        │
 │                                                                                        │
 │                                                                                        │
@@ -30,7 +30,7 @@ expression: "render(&state, 90, 30)"
 │                                                                                        │
 │                                                                                        │
 ╰────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items                            2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items                         2 min ago │  locks at 14:15 │  1/7 
                                                                                           
 styles:
 00:f7be698e18ae852c
@@ -48,7 +48,7 @@ styles:
 12:14b377f11606cf20
 13:36c8b5f5b16d63ac
 14:8fe0ff8d8fefb155
-15:1b04cda482f0dfa7
+15:efea2595802236f5
 16:2a1d18d45ca4384a
 17:2a1d18d45ca4384a
 18:2a1d18d45ca4384a
@@ -61,5 +61,5 @@ styles:
 25:2a1d18d45ca4384a
 26:2a1d18d45ca4384a
 27:074e5aaf9d1674cb
-28:62ea32b409b56193
+28:8506c09e4e32d4b0
 29:35507918efb144e4

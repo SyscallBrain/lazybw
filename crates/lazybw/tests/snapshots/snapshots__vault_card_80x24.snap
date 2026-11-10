@@ -24,7 +24,7 @@ expression: "render(&state, width, height)"
 │                                                                              │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Personal visa  2 min ago │  locks 14:15 │  6/7 
+ NORMAL  Vault › All items › Personal visa             locks at 14:15 │  6/7 
                                                                                 
 styles:
 00:05fd8a4e6ab511ca
@@ -49,5 +49,5 @@ styles:
 19:ec31fbea254bb9ea
 20:ec31fbea254bb9ea
 21:3d7b3d8d4262dcae
-22:64749dd18117f3bb
+22:41bb5e46d050c31d
 23:864cdd2311874b6a

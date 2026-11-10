@@ -5,7 +5,8 @@ expression: "render(&state, 120, 36)"
  󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
 ╭ Keybindings ─────────────────────────────────────────────────────────────────────────────────── context ‹ list › Tab ╮
 │  DESCRIPTION                      ACTION                    KEYS                                                     ┃
-│▌ A page down                     nav.page_down             PageDown                                                  ┃
+│▌ A page down                     nav.page_down             Ctrl-f                                                    ┃
+│  A page down                     nav.page_down             PageDown                                                  ┃
 │  A page up                       nav.page_up               Ctrl-b                                                    ┃
 │  A page up                       nav.page_up               PageUp                                                    ┃
 │  Add to or remove from favorites item.favorite             *                                                         ┃
@@ -14,16 +15,16 @@ expression: "render(&state, 120, 36)"
 │  Copy notes                      item.copy notes           yn                                                        ┃
 │  Copy password                   item.copy password        yp                                                        ┃
 │  Copy primary                    item.copy primary         yy                                                        ┃
-│  Copy totp                       item.copy totp            yt                                                        ┃
-│  Copy uri                  ╭ Rebind “item.favorite” · list ─────────────────────────────╮                            ┃
-│  Copy username             │Press the new keys:   g f▏                                  │                            ┃
-│  Delete permanently        │⚠ gf is used by “Go to this item's folder”. Replace it? y / │                            ┃
-│  Edit as JSON in $EDITOR   │                                                            │                            ┃
-│  Edit item                 │Enter confirm · Backspace remove last key · Esc cancel      │                            ┃
+│  Copy totp                 ╭ Rebind “item.favorite” · list ─────────────────────────────╮                            ┃
+│  Copy uri                  │Press the new keys:   g f▏                                  │                            ┃
+│  Copy username             │⚠ gf is used by “Go to this item's folder”. Replace it? y / │                            ┃
+│  Delete permanently        │                                                            │                            ┃
+│  Edit as JSON in $EDITOR   │Enter confirm · Backspace remove last key · Esc cancel      │                            ┃
 │  Edit item                 │To bind Enter, Backspace or Escape, edit config.toml.       │                            ┃
+│  Edit item                 │                                                            │                            ┃
 │  Empty the trash           │                                                            │                            ┃
-│  Generate and save a new pa│                                                            │                            ┃
-│  Go to the first row       ╰────────────────────────────────────────────────────────────╯                            │
+│  Generate and save a new pa╰────────────────────────────────────────────────────────────╯                            │
+│  Go to the first row             nav.top                   gg                                                        │
 │  Go to the last row              nav.bottom                G                                                         │
 │  Go to this item's folder        item.goto_folder          gf                                                        │
 │  Half a page down                nav.half_down             Ctrl-d                                                    │
@@ -34,21 +35,20 @@ expression: "render(&state, 120, 36)"
 │  Middle of the screen            nav.screen_middle         M                                                         │
 │  Move down                       nav.down                  j                                                         │
 │  Move down                       nav.down                  Down                                                      │
-│  Move to folder                  item.move                 m                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Keybindings                                                                       2 min ago │  locks 14:15 
+ NORMAL  Keybindings                                                                    2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:ea608195bd6e6fb7
 01:b89607c6e2ccec85
 02:71ad90e1a186d1aa
-03:b4711072aea45c5a
-04:60d311244b9a004d
+03:a8b9ae57ae2947a8
+04:8e52a2c588a43f32
 05:60d311244b9a004d
-06:67048df4d253d218
+06:60d311244b9a004d
 07:67048df4d253d218
 08:67048df4d253d218
-09:53c775d91e08ab43
+09:67048df4d253d218
 10:53c775d91e08ab43
 11:53c775d91e08ab43
 12:53c775d91e08ab43
@@ -61,17 +61,17 @@ styles:
 19:afb947e403c66ec0
 20:afb947e403c66ec0
 21:dc36bbd3d0f6389d
-22:4bfa387a5ac451e0
-23:79bd39f29d98e3d1
-24:47cfec8a34f518ca
+22:69e0a069efd4dcc3
+23:b24e42505efe3b84
+24:79bd39f29d98e3d1
 25:47cfec8a34f518ca
-26:79bd39f29d98e3d1
-27:b24e42505efe3b84
+26:47cfec8a34f518ca
+27:79bd39f29d98e3d1
 28:b24e42505efe3b84
 29:b24e42505efe3b84
 30:b24e42505efe3b84
-31:c2277746f15f7611
-32:b24e42505efe3b84
+31:b24e42505efe3b84
+32:c2277746f15f7611
 33:f86dfdf534e2740f
-34:41139f14e071055d
+34:7e6ecd7473b574e4
 35:ad0696d4f8ac6d6b

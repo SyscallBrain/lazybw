@@ -12,12 +12,12 @@ expression: "render(&state, 120, 36)"
 │  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
 │  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
 │  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
-│ ─ ││   Jane Example                            ││ created                                                           │
+│ ─ ││   Jane Example                            ││                                                                   │
 │  ││    Jane Example                            ││                                                                   │
 │ ─ ││   Personal visa     ╭ Password history ────────────────────────────────────────────╮                           │
 │  ││    Visa •••• 4242    │current   ••••••••••••••••                                    │                           │
 │   ││   Router notes      │▌ ••••••••••••••            used until 1 Mar 2026             │                           │
-│   ││    admin / hunter2   │  ••••••••••••••            used until 1 Jan 2025             │                           │
+│   ││    1 line            │  ••••••••••••••            used until 1 Jan 2025             │                           │
 │   ││                      │za reveal · yy copy · Esc close                               │                           │
 │   ││                      │                                                              │                           │
 │   ││                      │                                                              │                           │
@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items                                                          2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items                                                       2 min ago │  locks at 14:15 │  1/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -73,5 +73,5 @@ styles:
 31:83ec379c873aca7b
 32:83ec379c873aca7b
 33:83ec379c873aca7b
-34:617e01864e5f4dc7
+34:b44cf6d35ba9349b
 35:ad0696d4f8ac6d6b

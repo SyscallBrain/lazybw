@@ -12,12 +12,12 @@ expression: "render(&state, 120, 36)"
 │  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
 │  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
 │  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
-│ ─ ││   Jane Example                            ││ created                                                           │
+│ ─ ││   Jane Example                            ││                                                                   │
 │  ││    Jane Example                            ││                                                                   │
 │ ─ ││   Personal visa                           ││                                                                   │
 │  ││    Visa •••• 4242                          ││                                                                   │
 │   ││   Router notes                            ││                                                                   │
-│   ││    admin / hunter2                         ││                                                                   │
+│   ││    1 line                                  ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 ││ tokyonight-moon    │                           ││                                                                   │
 ││ tokyonight-day     │                           ││                                                                   │
 ╰╰────────────────────╯───────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- COMMAND  Vault › All items                                                         2 min ago │  locks 14:15 │  1/7 
+ COMMAND  Vault › All items                                                      2 min ago │  locks at 14:15 │  1/7 
 :theme tok                                                                                                              
 styles:
 00:1d541463eb53f564
@@ -73,5 +73,5 @@ styles:
 31:20ebe3afc50bcb25
 32:c5a8a251dbcf6169
 33:75a08becd6267589
-34:415cfa9708205717
-35:34f2da7b135cabda
+34:e2711ca47a43feb7
+35:72f5f2e579bb4b22

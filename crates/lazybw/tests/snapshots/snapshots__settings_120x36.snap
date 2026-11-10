@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │ Colours of the whole interface; Enter previews each theme.                                                           │
 │ ● changed · h l change · r reset · Esc close · changes are saved to /tmp/lazybw-test/config/config.toml              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Settings                                                                          2 min ago │  locks 14:15 
+ NORMAL  Settings                                                                       2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:ea608195bd6e6fb7
@@ -73,5 +73,5 @@ styles:
 31:388d9b0fbb3bc6c2
 32:269fa655b71174e0
 33:f86dfdf534e2740f
-34:334fd0eac0b414ec
+34:97145d8e25c2a6f3
 35:ad0696d4f8ac6d6b

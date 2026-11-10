@@ -560,10 +560,13 @@ fn typed(state: &mut AppState, text: &str) -> Vec<Effect> {
     out
 }
 
+/// Runs a `:` command; the effects, without the history it saves.
 fn command(state: &mut AppState, line: &str) -> Vec<Effect> {
     keys(state, ":");
     typed(state, line);
-    keys(state, "<CR>")
+    let mut effects = keys(state, "<CR>");
+    effects.retain(|effect| !matches!(effect, Effect::SaveHistory));
+    effects
 }
 
 #[test]
@@ -697,4 +700,490 @@ fn a_server_bw_refuses_stops_the_login() {
         event(&mut state, id, BwEvent::ServerConfigured(Err(lazybw::bw::BwError::LogoutRequired)));
     assert!(effects.is_empty(), "{effects:?}");
     assert_eq!(state.login.error.as_deref(), Some("Logout required before server config update."));
+}
+
+// ---------------------------------------------------------------------------
+// Review of 2026-11-10, the rest: keys, editor, settings, security.
+// ---------------------------------------------------------------------------
+
+fn login_item(id: &str, password: &str) -> Item {
+    let mut item = item(id);
+    item.login.as_mut().unwrap().password = Some(lazybw::bw::sensitive::Sensitive::new(password));
+    item
+}
+
+fn saved_settings(effects: &[Effect]) -> Vec<(String, String)> {
+    effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::SaveConfig(updates) => Some(updates.clone()),
+            _ => None,
+        })
+        .flatten()
+        .map(|(path, value)| (path.join("."), value.to_string().trim().to_owned()))
+        .collect()
+}
+
+fn puts(effects: &[Effect]) -> Vec<Item> {
+    use lazybw::bw::service::CommandKind;
+    effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::Backend { kind: CommandKind::PutItem { item, .. }, .. } => {
+                Some((**item).clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn d_in_visual_mode_acts_at_once() {
+    let mut state = five_items();
+    keys(&mut state, "V");
+    keys(&mut state, "j");
+    // `dd` in the list behind visual mode used to hold `d` for timeoutlen.
+    let effects = keys(&mut state, "d");
+    assert_eq!(deletes(&effects).len(), 2);
+    assert!(!state.dispatcher.is_pending());
+}
+
+#[test]
+fn the_command_line_edits_at_its_cursor_and_remembers_commands() {
+    let mut state = five_items();
+    keys(&mut state, ":");
+    typed(&mut state, "abc");
+    keys(&mut state, "<Left>");
+    keys(&mut state, "<BS>");
+    assert_eq!(state.cmdline().map(|c| (c.input.clone(), c.cursor)), Some(("ac".into(), 1)));
+    keys(&mut state, "<End>");
+    typed(&mut state, " def");
+    keys(&mut state, "<C-w>");
+    assert_eq!(state.cmdline().unwrap().input, "ac ");
+    keys(&mut state, "<Esc>");
+
+    let effects = command(&mut state, "sort modified");
+    assert!(effects.is_empty());
+    let mut effects = Vec::new();
+    keys(&mut state, ":");
+    effects.extend(typed(&mut state, "sort name"));
+    effects.extend(keys(&mut state, "<CR>"));
+    assert!(effects.iter().any(|e| matches!(e, Effect::SaveHistory)));
+    assert_eq!(state.command_history, vec!["sort modified".to_owned(), "sort name".to_owned()]);
+
+    // Up goes back through what was run, Down returns to what was typed.
+    keys(&mut state, ":");
+    keys(&mut state, "<Up>");
+    assert_eq!(state.cmdline().unwrap().input, "sort name");
+    keys(&mut state, "<Up>");
+    assert_eq!(state.cmdline().unwrap().input, "sort modified");
+    keys(&mut state, "<Down><Down>");
+    assert_eq!(state.cmdline().unwrap().input, "");
+    // Only the entries that start with what is typed.
+    typed(&mut state, "sort m");
+    keys(&mut state, "<Up>");
+    assert_eq!(state.cmdline().unwrap().input, "sort modified");
+}
+
+#[test]
+fn rebinding_the_insert_and_confirm_contexts_works() {
+    let text = "[keys.insert]\n\"<C-j>\" = \"editor.normal\"\n\"<Esc>\" = \"noop\"\n\
+                [keys.confirm]\n\"o\" = \"confirm.yes\"\n";
+    let (config, _) = lazybw::config::Config::from_toml(text).unwrap();
+    let mut state = five_items();
+    state.keymap = lazybw::config::keymap::Keymap::build(&config.keys).unwrap().0;
+    keys(&mut state, "e");
+    keys(&mut state, "i");
+    keys(&mut state, "<Esc>");
+    assert!(state.editor.as_ref().unwrap().insert, "Esc was unbound in insert");
+    keys(&mut state, "<C-j>");
+    assert!(!state.editor.as_ref().unwrap().insert, "<C-j> was bound to editor.normal");
+    keys(&mut state, "ZQ");
+
+    keys(&mut state, "D");
+    assert!(state.confirm().is_some());
+    let effects = keys(&mut state, "o");
+    assert_eq!(deletes(&effects), vec![("a".to_owned(), true)]);
+}
+
+#[test]
+fn page_motions_use_the_height_on_screen() {
+    let mut state = state();
+    state.cache.load((0..100).map(|n| item(&format!("i{n:03}"))).collect(), vec![], vec![], vec![]);
+    state.size = (120, 36);
+    // What the last frame showed.
+    state.ui_pages.borrow_mut().insert("list", 30);
+    state.ui_scroll.borrow_mut().insert("list", 10);
+    state.list_row = 10;
+    keys(&mut state, "<C-d>");
+    assert_eq!(state.list_row, 25);
+    keys(&mut state, "<C-f>");
+    assert_eq!(state.list_row, 55);
+    state.list_row = 12;
+    keys(&mut state, "L");
+    assert_eq!(state.list_row, 39);
+    keys(&mut state, "M");
+    assert_eq!(state.list_row, 24);
+    keys(&mut state, "H");
+    assert_eq!(state.list_row, 10);
+
+    // Help scrolls by pages and stops at its end.
+    keys(&mut state, "?");
+    state.ui_pages.borrow_mut().insert("help", 20);
+    state.ui_scroll.borrow_mut().insert("help.max", 45);
+    keys(&mut state, "<C-f>");
+    assert_eq!(state.help_offset, 20);
+    keys(&mut state, "G");
+    assert_eq!(state.help_offset, 45);
+    keys(&mut state, "j");
+    assert_eq!(state.help_offset, 45, "scrolled past the end");
+    keys(&mut state, "k");
+    assert_eq!(state.help_offset, 44);
+}
+
+#[test]
+fn the_wheel_scrolls_the_pane_under_the_pointer() {
+    use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
+    let mut state = five_items();
+    state.size = (160, 45);
+    let plan = lazybw::ui::layout::LayoutPlan::compute(
+        ratatui::layout::Rect::new(0, 0, state.size.0, state.size.1),
+        true,
+    );
+    let wheel = |state: &mut AppState, column: u16, row: u16, kind: MouseEventKind| {
+        update(state, Msg::Mouse(MouseEvent { kind, column, row, modifiers: KeyModifiers::NONE }))
+    };
+    wheel(&mut state, plan.list.x + 3, plan.list.y + 3, MouseEventKind::ScrollDown);
+    assert_eq!((state.focus, state.list_row), (lazybw::app::state::Focus::List, 3));
+    let sidebar = state.sidebar_row;
+    wheel(&mut state, plan.sidebar.x + 3, plan.sidebar.y + 3, MouseEventKind::ScrollDown);
+    assert_eq!(state.focus, lazybw::app::state::Focus::Sidebar);
+    assert_ne!(state.sidebar_row, sidebar);
+    assert_eq!(state.list_row, 3);
+
+    // A pointer that only moves draws nothing.
+    state.dirty = false;
+    wheel(&mut state, 5, 5, MouseEventKind::Moved);
+    assert!(!state.dirty);
+}
+
+#[test]
+fn time_asleep_counts_toward_the_auto_lock() {
+    let mut state = five_items();
+    state.config.security.auto_lock = lazybw::config::duration::DurationSpec::parse("15m").unwrap();
+    // The monotonic clock says just now; the wall clock says an hour ago,
+    // as after a laptop slept with the lid closed.
+    state.touch();
+    state.last_input_wall = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    update(&mut state, Msg::Tick);
+    assert_eq!(state.session, SessionPhase::Locked);
+}
+
+fn editing(state: &mut AppState) {
+    keys(state, "e");
+    assert_eq!(state.screen, Screen::Editor);
+}
+
+#[test]
+fn the_notes_editor_saves_with_ctrl_s_and_takes_pastes() {
+    let mut state = five_items();
+    editing(&mut state);
+    keys(&mut state, "G<CR>");
+    assert!(state.notes.is_some(), "the notes editor did not open");
+    keys(&mut state, "i");
+    update(&mut state, Msg::Paste("line one\nline two".into()));
+    let effects = keys(&mut state, "<C-s>");
+    let saved = puts(&effects);
+    assert_eq!(saved.len(), 1);
+    assert_eq!(
+        saved[0].notes.as_ref().map(|n| n.expose().to_owned()).as_deref(),
+        Some("line one\nline two")
+    );
+    assert!(state.notes.is_some(), "Ctrl-s closed the notes editor");
+
+    // Leaving the notes without a change leaves the item clean.
+    let mut state = five_items();
+    editing(&mut state);
+    keys(&mut state, "G<CR>");
+    keys(&mut state, "<Tab>");
+    assert!(!state.editor.as_ref().unwrap().dirty);
+}
+
+#[test]
+fn a_new_item_is_created_once_however_often_it_is_saved() {
+    use lazybw::bw::service::CommandKind;
+    let mut state = five_items();
+    command(&mut state, "new login");
+    keys(&mut state, "i");
+    typed(&mut state, "Fresh");
+    keys(&mut state, "<Esc>");
+    let mut effects = keys(&mut state, "<C-s>");
+    effects.extend(keys(&mut state, "<C-s>"));
+    let creates = effects
+        .iter()
+        .filter(|e| matches!(e, Effect::Backend { kind: CommandKind::CreateItem(_), .. }))
+        .count();
+    assert_eq!(creates, 1);
+}
+
+#[test]
+fn reloading_from_the_server_replaces_the_form() {
+    let mut state = five_items();
+    editing(&mut state);
+    keys(&mut state, "A");
+    typed(&mut state, "-local");
+    keys(&mut state, "<Esc>");
+    let effects = command(&mut state, "e!");
+    let mut remote = item("a");
+    remote.name = "a-from-the-server".into();
+    event(&mut state, request_id(&effects), BwEvent::Item(Ok(remote)));
+    let editor = state.editor.as_ref().unwrap();
+    assert_eq!(editor.rows[0].value, "a-from-the-server");
+    assert!(!editor.dirty);
+}
+
+#[test]
+fn json_edited_from_the_list_opens_in_the_editor() {
+    use lazybw::app::msg::Suspended;
+    let mut state = five_items();
+    let mut edited = item("a");
+    edited.name = "renamed in JSON".into();
+    let json = serde_json::to_string(&edited).unwrap();
+    update(
+        &mut state,
+        Msg::Suspended(Suspended::ItemJson(lazybw::bw::sensitive::Sensitive::new(json))),
+    );
+    let editor = state.editor.as_ref().expect("the editor opened");
+    assert_eq!(state.screen, Screen::Editor);
+    assert!(editor.dirty);
+    assert_eq!(editor.item.name, "renamed in JSON");
+    assert_eq!(editor.original_item.name, "a");
+}
+
+#[test]
+fn quick_open_finds_its_item_through_an_active_search() {
+    let mut state = five_items();
+    keys(&mut state, "/");
+    typed(&mut state, "a");
+    keys(&mut state, "<CR>");
+    keys(&mut state, "<C-p>");
+    typed(&mut state, "c");
+    let target = state.quick_open().and_then(|q| q.results.first().cloned());
+    assert_eq!(target.as_deref(), Some("c"));
+    keys(&mut state, "<CR>");
+    assert_eq!(state.selected_id().as_deref(), Some("c"));
+}
+
+#[test]
+fn a_tab_never_leaves_an_editor_with_changes_behind() {
+    let mut state = five_items();
+    editing(&mut state);
+    keys(&mut state, "A");
+    typed(&mut state, "-edited");
+    keys(&mut state, "<Esc>");
+    keys(&mut state, "gt");
+    assert_eq!(state.screen, Screen::Editor, "gt left unsaved changes behind");
+    // Help and back returns to the editor, not to the vault.
+    keys(&mut state, "?");
+    keys(&mut state, "<Esc>");
+    assert_eq!(state.screen, Screen::Editor);
+    // A clean editor just closes.
+    keys(&mut state, "ZQ");
+    editing(&mut state);
+    keys(&mut state, "gt");
+    assert_eq!(state.screen, Screen::Generator);
+    assert!(state.editor.is_none());
+}
+
+#[test]
+fn sigusr1_while_logged_out_changes_nothing() {
+    let mut state = state();
+    state.enter_session(SessionPhase::LoggedOut);
+    let effects = update(&mut state, Msg::LockSignal);
+    assert!(effects.is_empty());
+    assert_eq!(state.screen, Screen::Login);
+}
+
+#[test]
+fn editing_a_detail_field_opens_the_editor_on_that_field() {
+    use lazybw::app::state::FormKey;
+    let mut state = state();
+    state.cache.load(vec![login_item("a", "old")], vec![], vec![], vec![]);
+    keys(&mut state, "l");
+    keys(&mut state, "j"); // PASSWORD
+    keys(&mut state, "cc");
+    let editor = state.editor.as_ref().unwrap();
+    let row = &editor.rows[editor.row];
+    assert_eq!(row.key, FormKey::Password);
+    assert!(editor.insert && row.value.is_empty(), "cc replaces the value");
+}
+
+#[test]
+fn set_checks_values_and_saves_them_as_config_toml_expects() {
+    let mut state = five_items();
+    let effects = command(&mut state, "set mouse=maybe");
+    assert!(saved_settings(&effects).is_empty(), "a typo reached config.toml");
+    assert!(state.status_message.as_ref().unwrap().text.starts_with("E474"));
+
+    state.config.ui.mouse = false;
+    let effects = command(&mut state, "set mouse=on");
+    assert!(state.config.ui.mouse);
+    assert_eq!(saved_settings(&effects), vec![("ui.mouse".to_owned(), "true".to_owned())]);
+
+    let effects = command(&mut state, "set icons=emoji");
+    assert!(saved_settings(&effects).is_empty());
+    let effects = command(&mut state, "set length=500");
+    assert!(saved_settings(&effects).is_empty());
+    let effects = command(&mut state, "set length=40");
+    assert_eq!(saved_settings(&effects), vec![("generator.length".to_owned(), "40".to_owned())]);
+    let effects = command(&mut state, "set separator=1");
+    assert_eq!(
+        saved_settings(&effects),
+        vec![("generator.separator".to_owned(), "\"1\"".to_owned())]
+    );
+}
+
+#[test]
+fn a_theme_picked_from_the_list_is_kept() {
+    let mut state = five_items();
+    keys(&mut state, "<Space>t");
+    keys(&mut state, "<Down>");
+    let effects = keys(&mut state, "<CR>");
+    let theme = state.config.ui.theme.clone();
+    assert_eq!(saved_settings(&effects), vec![("ui.theme".to_owned(), format!("\"{theme}\""))]);
+}
+
+#[test]
+fn the_editor_command_setting_is_typed_in_a_prompt() {
+    let mut state = five_items();
+    keys(&mut state, "<Space>,");
+    let index = lazybw::app::update::settings_rows(&state)
+        .iter()
+        .position(|row| row.key == "editor.command")
+        .unwrap();
+    state.settings.index = index;
+    keys(&mut state, "<CR>");
+    assert!(state.prompt().is_some());
+    typed(&mut state, "nvim");
+    let effects = keys(&mut state, "<CR>");
+    assert_eq!(state.config.editor.command, "nvim");
+    assert_eq!(
+        saved_settings(&effects),
+        vec![("editor.command".to_owned(), "\"nvim\"".to_owned())]
+    );
+}
+
+#[test]
+fn the_export_wizard_follows_the_format_and_asks_before_replacing_a_file() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let existing = dir.path().join("vault.json");
+    std::fs::write(&existing, "{}").unwrap();
+    let mut state = five_items();
+    keys(&mut state, "<Space>e");
+    let json = state.export().unwrap().path.clone();
+    assert!(json.ends_with(".json"));
+    keys(&mut state, "jj"); // CSV
+    let csv = state.export().unwrap().path.clone();
+    assert_eq!(csv, json.replace(".json", ".csv"));
+
+    keys(&mut state, "k"); // back to JSON encrypted with the account
+    if let Some(lazybw::app::state::Overlay::Export(export)) = &mut state.overlay {
+        export.path = existing.display().to_string();
+    }
+    keys(&mut state, "<CR>");
+    let export = state.export().unwrap();
+    assert_eq!(export.step, lazybw::app::state::ExportStep::Format);
+    assert!(export.error.as_deref().unwrap().contains("Enter again replaces it"));
+    keys(&mut state, "<CR>");
+    assert_eq!(state.export().unwrap().step, lazybw::app::state::ExportStep::MasterPassword);
+}
+
+#[test]
+fn esc_closes_the_import_wizard_while_it_runs() {
+    use lazybw::app::state::Pending;
+    let mut state = five_items();
+    command(&mut state, "import");
+    state.pending.insert(99, Pending::Import);
+    keys(&mut state, "<Esc>");
+    assert!(state.import().is_none());
+    assert!(state.importing(), "the import itself goes on");
+}
+
+#[test]
+fn locking_leaves_a_clipboard_lazybw_did_not_fill() {
+    use lazybw::clipboard::ClipboardBackend;
+    let backend = std::sync::Arc::new(lazybw::clipboard::MemoryClipboard::new());
+    let mut state = five_items();
+    state.clipboard = lazybw::clipboard::Clipboard::with_backend(backend.clone());
+    backend.set("copied in the browser").unwrap();
+    update(&mut state, Msg::LockSignal);
+    assert_eq!(backend.contents().as_deref(), Some("copied in the browser"));
+}
+
+#[test]
+fn the_verification_code_of_a_protected_item_asks_first_from_the_detail_pane() {
+    let mut state = state();
+    let mut protected = login_item("p", "pw");
+    protected.reprompt = 1;
+    protected.login.as_mut().unwrap().totp =
+        Some(lazybw::bw::sensitive::Sensitive::new("JBSWY3DPEHPK3PXP"));
+    state.cache.load(vec![protected], vec![], vec![], vec![]);
+    keys(&mut state, "l");
+    keys(&mut state, "jj"); // VERIFICATION CODE
+    keys(&mut state, "yy");
+    assert!(state.reprompt().is_some());
+    assert!(state.clipboard.last_copied().is_none());
+}
+
+#[test]
+fn the_health_check_uses_the_setting_as_it_is_now() {
+    use lazybw::bw::service::CommandKind;
+    let mut state = five_items();
+    command(&mut state, "set check_exposed=false");
+    let effects = keys(&mut state, "<Space>h");
+    assert!(effects.iter().any(|e| matches!(
+        e,
+        Effect::Backend { kind: CommandKind::Health { check_exposed: false }, .. }
+    )));
+}
+
+#[test]
+fn gen_with_a_length_copies_a_password_and_sort_bang_reverses() {
+    use lazybw::bw::service::CommandKind;
+    let mut state = five_items();
+    let effects = command(&mut state, "gen 32");
+    let id = request_id(&effects);
+    assert!(effects.iter().any(|e| matches!(
+        e,
+        Effect::Backend { kind: CommandKind::Generate(request), .. } if request.length == 32 && !request.passphrase
+    )));
+    assert_eq!(state.screen, Screen::Vault, ":gen 32 stays where it is");
+    event(&mut state, id, BwEvent::Generated(Ok("generated-32".into())));
+    assert_eq!(state.clipboard.last_copied(), Some("generated-32"));
+
+    let effects = command(&mut state, "gen phrase 6");
+    assert!(effects.iter().any(|e| matches!(
+        e,
+        Effect::Backend { kind: CommandKind::Generate(request), .. } if request.words == 6 && request.passphrase
+    )));
+
+    command(&mut state, "sort name!");
+    assert!(state.sort_reversed);
+    command(&mut state, "sort name");
+    assert!(!state.sort_reversed);
+}
+
+#[test]
+fn changing_a_generator_option_leaves_the_session_history_alone() {
+    let mut state = five_items();
+    let effects = keys(&mut state, "<Space>g");
+    event(&mut state, request_id(&effects), BwEvent::Generated(Ok("first".into())));
+    assert_eq!(state.generator.history.len(), 1);
+    let effects = keys(&mut state, "l"); // length + 1
+    event(&mut state, request_id(&effects), BwEvent::Generated(Ok("second".into())));
+    assert_eq!(state.generator.output, "second");
+    assert_eq!(state.generator.history.len(), 1);
+    let effects = keys(&mut state, "r");
+    event(&mut state, request_id(&effects), BwEvent::Generated(Ok("third".into())));
+    assert_eq!(state.generator.history.len(), 2);
 }

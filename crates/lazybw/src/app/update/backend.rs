@@ -137,7 +137,6 @@ pub(crate) fn on_backend(
                     effects.push(Effect::LoadFolds);
                 }
                 let count = snapshot.items.len();
-                let selected = state.selected_id();
                 let previous_revision = state
                     .editor
                     .as_ref()
@@ -147,16 +146,11 @@ pub(crate) fn on_backend(
                 // The panes sweep in when the vault opens, not on every
                 // reload (a background sync, a folder change).
                 let opening = state.session == SessionPhase::Loading;
+                // Keeps the cursor on the item it was on.
                 state.apply_snapshot(snapshot);
                 state.last_sync_at = Some(Instant::now());
                 if opening {
                     animate(state, crate::ui::fx::FxKind::Sweep);
-                }
-                if let Some(id) = selected {
-                    let rows = state.visible_rows();
-                    if let Some(index) = rows.iter().position(|row| row.id == id) {
-                        state.list_row = index;
-                    }
                 }
                 let current_revision =
                     state.editor.as_ref().and_then(|editor| editor.item.id.clone()).and_then(
@@ -172,13 +166,26 @@ pub(crate) fn on_backend(
                     MessageLevel::Ok,
                     format!("Synced {}.", crate::util::text::items(count)),
                 );
-                effects.push(Effect::SaveHistory);
             }
             Err(err) => show_backend_error(state, &err),
         },
         BwEvent::Item(result) => match result {
             Ok(item) => {
-                state.cache.upsert(item);
+                // `:e!`: the editor shows the server's copy, its own changes
+                // thrown away, as in Vim.
+                let reload = matches!(pending, Some(Pending::GetItem))
+                    && state.editor.as_ref().is_some_and(|e| e.item.id == item.id);
+                state.cache.upsert(item.clone());
+                if reload {
+                    let row = state.editor.as_ref().map_or(0, |e| e.row);
+                    let name = item.name.clone();
+                    state.notes = None;
+                    super::open_editor(state, item, false);
+                    if let Some(editor) = &mut state.editor {
+                        editor.row = row.min(editor.rows.len().saturating_sub(1));
+                    }
+                    state.message(MessageLevel::Ok, format!("Reloaded “{name}” from Bitwarden."));
+                }
                 state.clamp_selection();
             }
             Err(err) => show_backend_error(state, &err),
@@ -359,10 +366,24 @@ pub(crate) fn on_backend(
         },
         BwEvent::Generated(result) => match result {
             Ok(password) => {
+                let (record, copy) = match pending {
+                    Some(Pending::Generate { record, copy }) => (record, copy),
+                    _ => (true, false),
+                };
                 state.generator.output = password.clone();
                 state.generator.error = None;
-                state.generator.history.insert(0, (password.clone(), Instant::now()));
-                state.generator.history.truncate(50);
+                if record {
+                    state.generator.history.insert(0, (password.clone(), Instant::now()));
+                    state.generator.history.truncate(50);
+                }
+                if copy {
+                    effects.extend(super::copy_value(
+                        state,
+                        &password,
+                        "password",
+                        "the generator",
+                    ));
+                }
                 if let Some(id) = state.pending_generate_target.take()
                     && let Some(item) = state.cache.item(&id).cloned()
                 {
@@ -535,7 +556,6 @@ pub(crate) fn on_backend(
             }
         }
         BwEvent::Fatal(message) => {
-            state.backend_alive = false;
             // Leaving Ready forgets the vault: a retry starts a new CLI that
             // has to be unlocked again anyway.
             state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
@@ -605,9 +625,37 @@ pub(crate) fn on_suspended(state: &mut AppState, result: Suspended) -> Vec<Effec
             match serde_json::from_str::<Item>(text.expose()) {
                 Ok(item) => {
                     if let Some(editor) = &mut state.editor {
-                        editor.item = item;
-                        editor.dirty = true;
+                        if editor.item != item {
+                            editor.item = item;
+                            editor.dirty = true;
+                            rebuild_rows(state);
+                        }
+                    } else {
+                        // `gE` from the list: the edit opens in the editor,
+                        // where it is reviewed and saved like any other.
+                        let Some(original) =
+                            item.id.as_deref().and_then(|id| state.cache.item(id)).cloned()
+                        else {
+                            state.toast(
+                                MessageLevel::Error,
+                                "The JSON must keep the item's id; nothing was changed.",
+                            );
+                            return Vec::new();
+                        };
+                        if original == item {
+                            state.message(MessageLevel::Info, "No changes.");
+                            return Vec::new();
+                        }
+                        super::open_editor(state, original, false);
+                        if let Some(editor) = &mut state.editor {
+                            editor.item = item;
+                            editor.dirty = true;
+                        }
                         rebuild_rows(state);
+                        state.message(
+                            MessageLevel::Info,
+                            "Review the changes, then Ctrl-s saves or ZQ discards them.",
+                        );
                     }
                 }
                 Err(err) => {
@@ -627,7 +675,6 @@ pub(crate) fn on_suspended(state: &mut AppState, result: Suspended) -> Vec<Effec
             }
             Vec::new()
         }
-        Suspended::Other(_) => Vec::new(),
         Suspended::Failed(err) => {
             state.toast_with(MessageLevel::Error, "The editor failed.", err);
             Vec::new()
@@ -667,7 +714,6 @@ fn on_started(
 ) {
     match result {
         Ok(status) => {
-            state.backend_alive = true;
             state.email = status.user_email.clone();
             state.server = status.server_url.clone();
             state.last_sync = status.last_sync.as_deref().and_then(crate::util::time::parse_iso);
@@ -685,7 +731,6 @@ fn on_started(
         Err(err) => {
             // Without a running CLI nothing else can happen: say so and
             // offer a retry instead of spinning on the start screen.
-            state.backend_alive = false;
             state.enter_session(SessionPhase::Failed(Box::new(crate::app::state::ErrorScreen {
                 title: "Couldn't start the Bitwarden CLI".to_owned(),
                 lines: vec![err.to_string()],

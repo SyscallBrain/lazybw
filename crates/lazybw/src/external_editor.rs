@@ -5,7 +5,7 @@
 //! directory and shredded after use.
 
 use crate::security;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 /// Why the editor could not be used.
@@ -105,12 +105,6 @@ fn run_editor(editor: &str, path: &Path) -> Result<(), EditorError> {
     } else {
         Err(EditorError::Failed(format!("exit status {status}")))
     }
-}
-
-/// A stable path for the editable buffer (tests only).
-#[must_use]
-pub fn temp_buffer_path() -> PathBuf {
-    security::secure_temp_dir().unwrap_or_else(|_| PathBuf::from("/tmp"))
 }
 
 #[cfg(test)]

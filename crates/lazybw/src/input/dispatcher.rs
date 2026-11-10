@@ -126,8 +126,7 @@ impl Dispatcher {
         }
         match keymap.resolve(chain, &candidate) {
             Resolution::Exact(call) => {
-                let has_longer = keymap.continuations(chain, &candidate).iter().any(|_| true);
-                if has_longer {
+                if keymap.has_longer(chain, &candidate) {
                     self.pending = candidate;
                     return Dispatch::Pending;
                 }

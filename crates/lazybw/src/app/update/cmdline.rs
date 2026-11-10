@@ -27,20 +27,17 @@ pub(crate) fn cmdline_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         Code::BackTab => return apply(state, Action::new("cmdline.complete_prev")),
         Code::Up => return apply(state, Action::new("cmdline.history_prev")),
         Code::Down => return apply(state, Action::new("cmdline.history_next")),
-        Code::Backspace => {
-            cmdline.input.pop();
-            cmdline.cursor = cmdline.cursor.saturating_sub(1);
+        // Backspace on an empty line leaves it, as in Vim.
+        Code::Backspace if cmdline.input.is_empty() => {
+            state.take_cmdline();
+            return Vec::new();
         }
-        Code::Left => cmdline.cursor = cmdline.cursor.saturating_sub(1),
-        Code::Right => cmdline.cursor = (cmdline.cursor + 1).min(cmdline.input.chars().count()),
-        Code::Char(c) if key.is_printable() => {
-            let mut chars: Vec<char> = cmdline.input.chars().collect();
-            let at = cmdline.cursor.min(chars.len());
-            chars.insert(at, c);
-            cmdline.cursor = at + 1;
-            cmdline.input = chars.into_iter().collect();
+        _ => {
+            if !crate::input::line::edit_string(&mut cmdline.input, &mut cmdline.cursor, key) {
+                return Vec::new();
+            }
+            cmdline.history_index = None;
         }
-        _ => {}
     }
     refresh_completions(state);
     Vec::new()
@@ -60,8 +57,15 @@ pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effec
     match action.id.as_str() {
         "cmdline.execute" => {
             let Some(cmdline) = state.take_cmdline() else { return Vec::new() };
+            let line = cmdline.input.trim().to_owned();
+            let mut effects = Vec::new();
+            if !line.is_empty() {
+                remember_command(state, line);
+                effects.push(Effect::SaveHistory);
+            }
             let command = crate::app::commands::parse(&cmdline.input);
-            execute_command(state, command)
+            effects.extend(execute_command(state, command));
+            effects
         }
         "cmdline.complete_next" | "cmdline.complete_prev" => {
             let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
@@ -85,9 +89,49 @@ pub(crate) fn cmdline_action(state: &mut AppState, action: &Action) -> Vec<Effec
             cmdline.cursor = cmdline.input.chars().count();
             Vec::new()
         }
-        "cmdline.history_prev" | "cmdline.history_next" => Vec::new(),
+        "cmdline.history_prev" | "cmdline.history_next" => {
+            let older = action.id == "cmdline.history_prev";
+            let history = &state.command_history;
+            let Some(Overlay::Cmdline(cmdline)) = &mut state.overlay else { return Vec::new() };
+            // Only the entries that start with what was typed, as in Vim.
+            if cmdline.history_index.is_none() {
+                cmdline.draft = cmdline.input.clone();
+            }
+            let matching: Vec<&String> =
+                history.iter().rev().filter(|line| line.starts_with(&cmdline.draft)).collect();
+            let next = match (cmdline.history_index, older) {
+                (None, true) => Some(0),
+                (Some(index), true) => Some((index + 1).min(matching.len().saturating_sub(1))),
+                (Some(0) | None, false) => None,
+                (Some(index), false) => Some(index - 1),
+            };
+            match next.and_then(|index| matching.get(index).map(|line| (index, line))) {
+                Some((index, line)) => {
+                    cmdline.input = (*line).clone();
+                    cmdline.history_index = Some(index);
+                }
+                None => {
+                    cmdline.input = cmdline.draft.clone();
+                    cmdline.history_index = None;
+                }
+            }
+            cmdline.cursor = cmdline.input.chars().count();
+            cmdline.show_completions = false;
+            Vec::new()
+        }
         _ => Vec::new(),
     }
+}
+
+/// How many command lines are kept.
+pub const HISTORY_LIMIT: usize = 200;
+
+/// Adds a command line to the history: newest last, no repeats.
+pub(crate) fn remember_command(state: &mut AppState, line: String) {
+    state.command_history.retain(|old| *old != line);
+    state.command_history.push(line);
+    let excess = state.command_history.len().saturating_sub(HISTORY_LIMIT);
+    state.command_history.drain(..excess);
 }
 
 pub(crate) fn execute_command(
@@ -104,7 +148,6 @@ pub(crate) fn execute_command(
         Command::SetFilter(filter) => {
             state.filter = filter.clone();
             state.list_row = 0;
-            state.list_offset = 0;
             if let Some(index) =
                 sidebar_entries(state).iter().position(|e| e.filter.as_ref() == Some(&filter))
             {

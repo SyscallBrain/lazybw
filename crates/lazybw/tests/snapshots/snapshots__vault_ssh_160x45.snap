@@ -13,11 +13,11 @@ expression: "render(&state, width, height)"
 │   Secure notes      1 ││   Hetzner deploy key                             ││ PRIVATE KEY                                                                   │
 │   SSH keys          1 ││    SHA256:Qx9hY2f7A                               ││ -----BEGIN OPENSSH PRIVATE KEY----- ••••                                      │
 │ FOLDERS                ││   Jane Example                                   ││ ───────────────────────────────────────────────────────────────────────────── │
-│  ▾ Personal         1 ││    Jane Example                                   ││ created                                                                       │
+│  ▾ Personal         1 ││    Jane Example                                   ││                                                                               │
 │      Banking        0 ││   Personal visa                                  ││                                                                               │
 │    Work             0 ││    Visa •••• 4242                                 ││                                                                               │
 │    No folder        6 ││   Router notes                                   ││                                                                               │
-│ ────────────────────── ││    admin / hunter2                                ││                                                                               │
+│ ────────────────────── ││    1 line                                         ││                                                                               │
 │   Trash             0 ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
@@ -45,7 +45,7 @@ expression: "render(&state, width, height)"
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 ╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Hetzner deploy key                                                                             2 min ago │  locks 14:15 │  4/7 
+ NORMAL  Vault › All items › Hetzner deploy key                                                                          2 min ago │  locks at 14:15 │  4/7 
                                                                                                                                                                 
 styles:
 00:c8690fcc12e10c1a
@@ -59,11 +59,11 @@ styles:
 08:732f86fc743775da
 09:f740c425a0b69636
 10:061e1094506035c6
-11:b1f353c9b25f2f57
+11:c8f98fd5d1f35baf
 12:4bf1058a16afd0ae
 13:826fca29bb78a378
 14:621a8f91db47149d
-15:7413224c15054519
+15:2031faf9795b65c0
 16:3faa346ba6bda3a3
 17:bfe139ebc10dc66c
 18:bfe139ebc10dc66c
@@ -91,5 +91,5 @@ styles:
 40:bfe139ebc10dc66c
 41:bfe139ebc10dc66c
 42:9311dad2d6b027cf
-43:acaceec9e7550d9c
+43:1b0085a49bdd7836
 44:810502b98c661ba7

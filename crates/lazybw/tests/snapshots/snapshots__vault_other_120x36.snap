@@ -12,12 +12,12 @@ expression: "render(&state, width, height)"
 │  ││    personal@example.com                    ││ ACCOUNT NUMBER                                                    │
 │  ││   Hetzner deploy key                      ││ •••••••••••••••••••                                               │
 │  ││    SHA256:Qx9hY2f7A                        ││ ───────────────────────────────────────────────────────────────── │
-│ ─ ││   Jane Example                            ││ created                                                           │
+│ ─ ││   Jane Example                            ││                                                                   │
 │  ││    Jane Example                            ││                                                                   │
 │ ─ ││   Personal visa                           ││                                                                   │
 │  ││    Visa •••• 4242                          ││                                                                   │
 │   ││   Router notes                            ││                                                                   │
-│   ││    admin / hunter2                         ││                                                                   │
+│   ││    1 line                                  ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
@@ -36,7 +36,7 @@ expression: "render(&state, width, height)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Bank account                                           2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items › Bank account                                        2 min ago │  locks at 14:15 │  1/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -49,12 +49,12 @@ styles:
 07:e5b4198a1f242f20
 08:7d41d75274696265
 09:e9f59259d0323c0c
-10:965c6dbc4da0957f
+10:a371a2774be6077a
 11:2c38e74139193912
 12:d512fe337b69c813
 13:1d8ae12a0d12aa88
 14:0eeddbd673d777b2
-15:33aaf7ddca25b47a
+15:31c320db4c148fb8
 16:8f9c21557c53efca
 17:8f9c21557c53efca
 18:8f9c21557c53efca
@@ -73,5 +73,5 @@ styles:
 31:8f9c21557c53efca
 32:8f9c21557c53efca
 33:2005a5d698610726
-34:f700c0736f663590
+34:54f0be8b15f5f153
 35:ad0696d4f8ac6d6b

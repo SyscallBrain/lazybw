@@ -75,19 +75,87 @@ pub(crate) fn default_config_value(dotted: &str) -> String {
     config_setting_value(&crate::config::Config::default(), dotted)
 }
 
+/// The settings that are on or off.
+const BOOL_SETTINGS: &[&str] = &[
+    "ui.transparent",
+    "ui.animations",
+    "ui.show_hints",
+    "ui.mouse",
+    "security.clear_clipboard_on_exit",
+    "security.hide_on_focus_lost",
+    "security.totp",
+    "vault.search_notes",
+    "vault.show_empty_types",
+    "vault.confirm_trash",
+    "generator.uppercase",
+    "generator.lowercase",
+    "generator.numbers",
+    "generator.special",
+    "generator.avoid_ambiguous",
+    "generator.capitalize",
+    "generator.include_number",
+    "health.check_exposed",
+];
+
+/// The settings that are numbers, with their range.
+const NUMBER_SETTINGS: &[(&str, u8, u8)] = &[
+    ("generator.length", 5, 128),
+    ("generator.words", 3, 20),
+    ("generator.min_numbers", 0, 9),
+    ("generator.min_special", 0, 9),
+];
+
+/// The settings with a fixed set of values.
+const OPTION_SETTINGS: &[(&str, &[&str])] = &[
+    ("ui.icons", &["nerdfont", "unicode", "ascii"]),
+    ("ui.list_density", &["comfortable", "compact"]),
+    ("ui.statusline_separator", &["arrow", "round", "slant", "none"]),
+    ("ui.date_format", &["relative", "iso"]),
+    ("generator.type", &["password", "passphrase"]),
+];
+
+/// Reads an on/off value the way Vim users type it.
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "on" | "yes" | "1" => Some(true),
+        "false" | "off" | "no" | "0" => Some(false),
+        _ => None,
+    }
+}
+
+/// Checks a value before anything changes, so a typo is reported instead
+/// of written to config.toml, where it would stop the config from loading.
+fn invalid_setting(dotted: &str, value: &str) -> Option<String> {
+    if BOOL_SETTINGS.contains(&dotted) && parse_bool(value).is_none() {
+        return Some(format!("E474: {dotted} is true or false, not “{value}”"));
+    }
+    if let Some((_, min, max)) = NUMBER_SETTINGS.iter().find(|(key, _, _)| *key == dotted)
+        && !value.trim().parse::<u8>().is_ok_and(|n| (*min..=*max).contains(&n))
+    {
+        return Some(format!("E474: {dotted} is a number from {min} to {max}, not “{value}”"));
+    }
+    if let Some((_, options)) = OPTION_SETTINGS.iter().find(|(key, _)| *key == dotted)
+        && !options.contains(&value.trim())
+    {
+        return Some(format!("E474: {dotted} is one of {}, not “{value}”", options.join(", ")));
+    }
+    None
+}
+
 pub(crate) fn apply_setting(state: &mut AppState, dotted: &str, value: &str) -> Vec<Effect> {
-    let mut updates = Vec::new();
-    let mut push = |key: &str, val: toml::Value| {
-        updates.push((vec!["...".to_owned()], val));
-        let _ = key;
-    };
-    let _ = &mut push;
+    if let Some(error) = invalid_setting(dotted, value) {
+        state.message(MessageLevel::Error, error);
+        return Vec::new();
+    }
+    let normalized = parse_bool(value).filter(|_| BOOL_SETTINGS.contains(&dotted));
+    let normalized = normalized.map(|on| on.to_string());
+    let value = normalized.as_deref().unwrap_or(value.trim());
     let parsed_bool = |v: &str| v == "true";
     let ok = match dotted {
         "ui.theme" => {
-            let effects = apply(state, Action::with("theme.set", &[value]));
-            let _ = effects;
-            true
+            let _ = apply(state, Action::with("theme.set", &[value]));
+            // A theme that does not load leaves the old one, and the config.
+            state.config.ui.theme == value
         }
         "ui.transparent" => {
             state.config.ui.transparent = parsed_bool(value);
@@ -234,20 +302,16 @@ pub(crate) fn apply_setting(state: &mut AppState, dotted: &str, value: &str) -> 
             true
         }
         "generator.length" => {
-            if let Ok(length) = value.parse::<u8>() {
-                state.config.generator.length = length;
-                true
-            } else {
-                false
-            }
+            let length = value.parse::<u8>().unwrap_or(state.config.generator.length);
+            state.config.generator.length = length;
+            state.generator.request.length = length;
+            true
         }
         "generator.words" => {
-            if let Ok(words) = value.parse::<u8>() {
-                state.config.generator.words = words;
-                true
-            } else {
-                false
-            }
+            let words = value.parse::<u8>().unwrap_or(state.config.generator.words);
+            state.config.generator.words = words;
+            state.generator.request.words = words;
+            true
         }
         "generator.uppercase"
         | "generator.lowercase"
@@ -310,18 +374,21 @@ pub(crate) fn apply_setting(state: &mut AppState, dotted: &str, value: &str) -> 
         }
         _ => false,
     };
-    if ok {
-        let toml_value = if value == "true" || value == "false" {
-            toml_edit::Value::from(value == "true")
-        } else if let Ok(number) = value.parse::<i64>() {
-            toml_edit::Value::from(number)
-        } else {
-            toml_edit::Value::from(value.to_owned())
-        };
-        let parts: Vec<String> = dotted.split('.').map(str::to_owned).collect();
-        return vec![Effect::SaveConfig(vec![(parts, toml_value)])];
+    if !ok {
+        return Vec::new();
     }
-    Vec::new()
+    // Save the value as the config now holds it (`on` becomes `true`, a
+    // duration its canonical form), typed as config.toml expects it.
+    let saved = config_setting_value(&state.config, dotted);
+    let toml_value = if BOOL_SETTINGS.contains(&dotted) {
+        toml_edit::Value::from(saved == "true")
+    } else if NUMBER_SETTINGS.iter().any(|(key, _, _)| *key == dotted) {
+        toml_edit::Value::from(saved.parse::<i64>().unwrap_or_default())
+    } else {
+        toml_edit::Value::from(saved)
+    };
+    let parts: Vec<String> = dotted.split('.').map(str::to_owned).collect();
+    vec![Effect::SaveConfig(vec![(parts, toml_value)])]
 }
 
 pub(crate) fn settings_action(state: &mut AppState, action: Action) -> Vec<Effect> {
@@ -378,7 +445,17 @@ pub(crate) fn change_setting(state: &mut AppState, row: &SettingRow, forward: bo
             }
             return Vec::new();
         }
-        SettingKind::Text => row.value.clone(),
+        SettingKind::Text => {
+            // Typed in a prompt; the answer comes back as `settings.set`.
+            state.open(crate::app::state::PromptState {
+                title: row.label.to_owned(),
+                input: crate::input::line::Line::new(&row.value),
+                on_accept: Action::with("settings.set", &[row.key, ""]),
+                replace_first_arg: false,
+                error: None,
+            });
+            return Vec::new();
+        }
         SettingKind::Duration => {
             let current = crate::config::duration::DurationSpec::parse(&row.value)
                 .ok()

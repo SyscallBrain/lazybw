@@ -20,6 +20,7 @@ mod wizards;
 // resolve here, so they stay globs on purpose.
 use apply::*;
 use backend::*;
+pub use cmdline::HISTORY_LIMIT;
 use cmdline::*;
 use editor::*;
 use mouse::*;
@@ -56,9 +57,18 @@ use std::time::Instant;
 /// Applies a message and returns the effects to run.
 pub fn update(state: &mut AppState, msg: Msg) -> Vec<Effect> {
     let folds_before = state.folds_restored.then(|| state.collapsed.clone());
-    let editor_before = state.editor.as_ref().map(|e| (e.snapshot(), e.insert));
+    // A copy of the form for undo, only for the messages that can change it:
+    // the form holds passwords in plain strings, and a tick or a mouse move
+    // copying it once more each time is a copy too many.
+    let edits = matches!(
+        msg,
+        Msg::Key(_) | Msg::Paste(_) | Msg::Backend(_) | Msg::Suspended(_) | Msg::KeyTimer
+    );
+    let editor_before = state.editor.as_ref().filter(|_| edits).map(|e| (e.snapshot(), e.insert));
+    let tab_before = state.tab;
     let mut effects = update_inner(state, msg);
     record_editor_change(state, editor_before);
+    keep_editor_reachable(state, tab_before);
     update_theme_preview(state);
     // Persist folder folds whenever they change (after the saved ones were
     // restored, so the first load never overwrites them with defaults).
@@ -86,6 +96,28 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Effect> {
     }
     effects
 }
+/// The editor is a screen of its own, not a tab: anything that showed a tab
+/// with the editor still open (`gt`, a quick-open jump, a health row) would
+/// leave it behind, and the next `e` would replace it unsaved. A clean
+/// editor is closed; one with changes stays in front, and says why.
+fn keep_editor_reachable(state: &mut AppState, tab_before: Tab) {
+    let Some(editor) = &state.editor else { return };
+    if !state.screen.is_tab() {
+        return;
+    }
+    if editor.dirty {
+        state.screen = Screen::Editor;
+        state.tab = tab_before;
+        state.message(
+            MessageLevel::Warn,
+            "The item has unsaved changes: :w saves, :q closes, ZQ discards them.",
+        );
+    } else {
+        state.editor = None;
+        state.notes = None;
+    }
+}
+
 /// Records one undo step when the editor form changed. Typing in one INSERT
 /// session is a single step, as in Vim.
 fn record_editor_change(
@@ -118,6 +150,13 @@ fn record_editor_change(
 }
 
 fn update_inner(state: &mut AppState, msg: Msg) -> Vec<Effect> {
+    // The pointer moving over the window changes nothing on screen: no
+    // frame, and no activity (it would keep the vault from locking).
+    if let Msg::Mouse(event) = &msg
+        && matches!(event.kind, crossterm::event::MouseEventKind::Moved)
+    {
+        return Vec::new();
+    }
     state.dirty = true;
     match msg {
         Msg::Key(event) => on_key(state, event),
@@ -178,6 +217,17 @@ fn request(state: &mut AppState, kind: CommandKind, pending: Pending) -> Effect 
     state.pending.insert(id, pending);
     Effect::Backend { id, kind }
 }
+/// Asks `bw` for a password with the generator's options. `record` keeps
+/// the result in the session history (an explicit `r`, not each option
+/// change); `copy` copies it when it arrives (`:gen 32`).
+fn generate(state: &mut AppState, record: bool, copy: bool) -> Effect {
+    request(
+        state,
+        CommandKind::Generate(state.generator.request.clone()),
+        Pending::Generate { record, copy },
+    )
+}
+
 fn toast(state: &mut AppState, level: MessageLevel, text: impl Into<String>) {
     state.toast(level, text);
 }
@@ -251,9 +301,9 @@ fn on_tick(state: &mut AppState) -> Vec<Effect> {
     if state.session.is_ready()
         && let Some(limit) = state.config.security.auto_lock.get()
         && !limit.is_zero()
-        && state.last_input.elapsed() >= limit
+        && state.idle_for() >= limit
     {
-        state.last_input = Instant::now();
+        state.touch();
         effects.extend(apply(state, Action::new("vault.lock")));
     }
     // Background sync.
@@ -345,7 +395,6 @@ fn show_backend_error(state: &mut AppState, err: &crate::bw::BwError) {
         return;
     }
     if err.is_disconnected() {
-        state.backend_alive = false;
         state.toast_with(
             MessageLevel::Error,
             "Bitwarden CLI stopped. Restarting…",
@@ -357,7 +406,7 @@ fn show_backend_error(state: &mut AppState, err: &crate::bw::BwError) {
 }
 fn on_key(state: &mut AppState, event: crossterm::event::KeyEvent) -> Vec<Effect> {
     let Some(key) = crate::input::keys::from_event(event) else { return Vec::new() };
-    state.last_input = Instant::now();
+    state.touch();
 
     if state.keymap_editor.capture.is_some() && state.screen == Screen::KeymapEditor {
         return capture_key(state, key);
@@ -456,6 +505,14 @@ fn dispatch(state: &mut AppState, key: Key) -> Vec<Effect> {
     }
 }
 fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
+    // The notes editor takes the paste whole, newlines included.
+    if state.notes.is_some() && state.screen == Screen::Editor && state.overlay.is_none() {
+        if let Some(notes) = &state.notes {
+            let mut notes = notes.borrow_mut();
+            edtui::EditorEventHandler::default().on_paste_event(text, &mut notes.editor);
+        }
+        return Vec::new();
+    }
     // Password fields take the first line only (a trailing newline from a
     // password manager must not submit or corrupt the value).
     let first_line = text.lines().next().unwrap_or_default();
@@ -523,7 +580,9 @@ fn on_paste(state: &mut AppState, text: String) -> Vec<Effect> {
     } else if let Some(editor) = &mut state.editor
         && editor.insert
     {
-        let text = text.replace('\n', " ");
+        // Only the notes keep their line breaks; a one-line field gets one line.
+        let multiline = editor.rows.get(editor.row).is_some_and(|row| row.kind == FormKind::Notes);
+        let text = if multiline { text } else { text.replace(['\r', '\n'], " ") };
         editor_value_insert(state, &text);
     }
     Vec::new()
@@ -545,10 +604,12 @@ fn cancel(state: &mut AppState) -> Vec<Effect> {
         state.keymap_editor.capture = None;
     } else if state.screen == Screen::Editor {
         close_editor(state);
-    } else if state.screen == Screen::Help || state.screen == Screen::Messages {
-        state.screen = state.tab.screen();
-    } else if state.screen == Screen::Settings || state.screen == Screen::KeymapEditor {
-        state.screen = Screen::Vault;
+    } else if matches!(
+        state.screen,
+        Screen::Help | Screen::Messages | Screen::Settings | Screen::KeymapEditor
+    ) {
+        // Back where they were opened from: the editor, if one is open.
+        state.screen = if state.editor.is_some() { Screen::Editor } else { state.tab.screen() };
     } else if state.visual_anchor.is_some() {
         state.visual_anchor = None;
     }
@@ -564,14 +625,14 @@ fn switch_tab(state: &mut AppState, tab: Tab) -> Vec<Effect> {
     }
     match tab {
         Tab::Generator => {
-            return vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )];
+            return vec![generate(state, true, false)];
         }
         Tab::Health if state.health.report.is_none() && !state.checking_health() => {
-            return vec![request(state, CommandKind::Health, Pending::Health)];
+            return vec![request(
+                state,
+                CommandKind::Health { check_exposed: state.config.health.check_exposed },
+                Pending::Health,
+            )];
         }
         _ => {}
     }

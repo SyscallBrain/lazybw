@@ -8,7 +8,7 @@ expression: "render(&state, width, height)"
 │  ││                                            ││ Secure note                                                       │
 │ ─ ││   GitHub                                ││▌ 1 admin / hunter2                                        yy copy │
 │  ││    dev-example                             ││ ───────────────────────────────────────────────────────────────── │
-│  ││   Gmail                                   ││ created                                                           │
+│  ││   Gmail                                   ││                                                                   │
 │  ││    personal@example.com                    ││                                                                   │
 │  ││   Hetzner deploy key                      ││                                                                   │
 │  ││    SHA256:Qx9hY2f7A                        ││                                                                   │
@@ -17,7 +17,7 @@ expression: "render(&state, width, height)"
 │ ─ ││   Personal visa                           ││                                                                   │
 │  ││    Visa •••• 4242                          ││                                                                   │
 │   ││   Router notes                            ││                                                                   │
-│   ││    admin / hunter2                         ││                                                                   │
+│   ││    1 line                                  ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
@@ -36,7 +36,7 @@ expression: "render(&state, width, height)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Router notes                                           2 min ago │  locks 14:15 │  7/7 
+ NORMAL  Vault › All items › Router notes                                        2 min ago │  locks at 14:15 │  7/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -45,7 +45,7 @@ styles:
 03:068dec161c6347a7
 04:29096fb76465cc7a
 05:f5e00abf51a762fc
-06:aeeeac420ecf83b0
+06:61f7a95c66530862
 07:fd7bf5f157e2855a
 08:7906ae9628f78c28
 09:f4a6022bdc530988
@@ -54,7 +54,7 @@ styles:
 12:d512fe337b69c813
 13:1d8ae12a0d12aa88
 14:608758a6a7e62b44
-15:02710d1426b81e68
+15:abf50cc8522a048b
 16:8f9c21557c53efca
 17:8f9c21557c53efca
 18:8f9c21557c53efca
@@ -73,5 +73,5 @@ styles:
 31:8f9c21557c53efca
 32:8f9c21557c53efca
 33:2005a5d698610726
-34:f700c0736f663590
+34:54f0be8b15f5f153
 35:ad0696d4f8ac6d6b

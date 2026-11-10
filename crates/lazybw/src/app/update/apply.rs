@@ -2,9 +2,9 @@
 
 use super::{
     Action, AppState, BTreeSet, CmdlineState, CommandKind, ConfirmState, DetailState, EditorTarget,
-    Effect, Filter, HistoryState, InfoState, ItemType, MessageLevel, Pending, PickerEntry,
-    PickerKind, PickerState, PromptState, QuickOpenState, RESERVED_FOLDER_MESSAGE, Screen,
-    SortOrder, SshKey, SuspendTask, Tab, cancel, close_editor, close_notes, cmdline_action,
+    Effect, Filter, FormKind, HistoryState, InfoState, ItemType, MessageLevel, Pending,
+    PickerEntry, PickerKind, PickerState, PromptState, QuickOpenState, RESERVED_FOLDER_MESSAGE,
+    Screen, SortOrder, SshKey, SuspendTask, Tab, cancel, close_editor, close_notes, cmdline_action,
     confirm_generate, confirm_yes, copy_action, copy_value, current_folder_id, current_folder_path,
     detail_field_at, detail_value, doctor_lines, editable, editor_action, favorite_action,
     fold_action, generator_action, health_action, keymap_action, login_action, move_items,
@@ -37,18 +37,15 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             Vec::new()
         }
         "app.quit" if state.editor.as_ref().is_some_and(|e| e.dirty) => {
-            state.open(ConfirmState {
-                title: "Unsaved changes".to_owned(),
-                message: "The item has unsaved changes. Quit and discard them?".to_owned(),
-                confirm_label: "Quit".to_owned(),
-                danger: true,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::new("app.quit.discard"),
-            });
+            state.open(
+                ConfirmState::new(
+                    "Unsaved changes",
+                    "The item has unsaved changes. Quit and discard them?",
+                    "Quit",
+                    Action::new("app.quit.discard"),
+                )
+                .danger(),
+            );
             Vec::new()
         }
         // The form's changes are given up; changes already sent are not.
@@ -94,13 +91,7 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             Vec::new()
         }
         "cmdline.open" => {
-            state.open(CmdlineState {
-                input: String::new(),
-                cursor: 0,
-                completions: Vec::new(),
-                completion_index: 0,
-                show_completions: false,
-            });
+            state.open(CmdlineState::default());
             Vec::new()
         }
         "quick_open" => {
@@ -207,26 +198,22 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             let force = args.first().is_some_and(|a| a == "force");
             vec![request(state, CommandKind::Sync { force }, Pending::Sync)]
         }
+        // Nothing to lock while logged out, starting or on an error (a
+        // SIGUSR1 then must not show the unlock screen).
+        "vault.lock" if !state.session.holds_vault_data() => Vec::new(),
         "vault.lock" => {
             state.drop_secrets();
             state.message(MessageLevel::Info, "Vault locked.");
             vec![request(state, CommandKind::Lock, Pending::Lock)]
         }
         "vault.logout" => {
-            state.open(ConfirmState {
-                title: "Log out".to_owned(),
-                message:
-                    "Log out of Bitwarden? lazybw will stop the CLI and return to the login screen."
+            state.open(ConfirmState::new(
+"Log out",
+"Log out of Bitwarden? lazybw will stop the CLI and return to the login screen."
                         .to_owned(),
-                confirm_label: "Log out".to_owned(),
-                danger: true,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::new("vault.logout.confirm"),
-            });
+"Log out",
+Action::new("vault.logout.confirm"),
+).danger());
             Vec::new()
         }
         "vault.logout.confirm" => {
@@ -236,12 +223,25 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
         "vault.export" => open_export(state, &args),
         "vault.import" => open_import(state, &args),
         "generator.open" => switch_tab(state, Tab::Generator),
+        "generator.quick" => {
+            let request = &mut state.generator.request;
+            let size = args.get(1).and_then(|n| n.parse::<u8>().ok());
+            if args.first().is_some_and(|kind| kind == "phrase") {
+                request.passphrase = true;
+                request.words = size.unwrap_or(request.words).clamp(3, 20);
+            } else {
+                request.passphrase = false;
+                request.length = size.unwrap_or(request.length).clamp(5, 128);
+            }
+            vec![super::generate(state, true, true)]
+        }
         "health.open" => switch_tab(state, Tab::Health),
         "sort.set" => {
             if let Some(order) = args.first().and_then(|arg| SortOrder::parse(arg)) {
                 state.config.vault.sort = order;
-                state.sort_reversed = false;
-                state.message(MessageLevel::Info, format!("Sorted by {}", order.label()));
+                state.sort_reversed = args.get(1).is_some_and(|arg| arg == "reverse");
+                let reversed = if state.sort_reversed { ", reversed" } else { "" };
+                state.message(MessageLevel::Info, format!("Sorted by {}{reversed}", order.label()));
             }
             Vec::new()
         }
@@ -272,7 +272,6 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     state.filter = filter.clone();
                     state.focus = crate::app::state::Focus::List;
                     state.list_row = 0;
-                    state.list_offset = 0;
                     state.search = crate::app::state::SearchState::default();
                 }
             }
@@ -351,22 +350,19 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     return Vec::new();
                 }
                 let count = crate::vault::folders::subfolder_count(state.cache.folders(), &old);
-                state.open(ConfirmState {
-                    title: "Rename folder".to_owned(),
-                    message: format!("Rename “{old}” to “{new_name}”?"),
-                    confirm_label: "Rename".to_owned(),
-                    danger: false,
-                    requires_word: None,
-                    input: String::new(),
-                    also_subfolders: true,
-                    subfolder_count: count,
-                    on_deny: None,
-                    on_confirm: Action {
-                        id: "folder.rename.confirm".to_owned(),
-                        args: vec![old, new_name.clone()],
-                        count: None,
-                    },
-                });
+                state.open(
+                    ConfirmState::new(
+                        "Rename folder",
+                        format!("Rename “{old}” to “{new_name}”?"),
+                        "Rename",
+                        Action {
+                            id: "folder.rename.confirm".to_owned(),
+                            args: vec![old, new_name.clone()],
+                            count: None,
+                        },
+                    )
+                    .subfolders(count, true),
+                );
                 Vec::new()
             } else {
                 let current = current_folder_path(state);
@@ -401,18 +397,16 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                             " {subfolders} subfolder(s) will keep their names but their parent disappears."
                         ));
                     }
-                    state.open(ConfirmState {
-                        title: "Delete folder".to_owned(),
-                        message,
-                        confirm_label: "Delete".to_owned(),
-                        danger: true,
-                        requires_word: None,
-                        input: String::new(),
-                        also_subfolders: false,
-                        subfolder_count: subfolders,
-                        on_deny: None,
-                        on_confirm: Action::with("folder.delete.confirm", &[&name]),
-                    });
+                    state.open(
+                        ConfirmState::new(
+                            "Delete folder",
+                            message,
+                            "Delete",
+                            Action::with("folder.delete.confirm", &[&name]),
+                        )
+                        .danger()
+                        .subfolders(subfolders, false),
+                    );
                 }
                 Vec::new()
             } else {
@@ -539,21 +533,15 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 state.message(MessageLevel::Info, "The trash is empty.");
                 return Vec::new();
             }
-            state.open(ConfirmState {
-                title: "Empty trash".to_owned(),
-                message: format!(
+            state.open(ConfirmState::new(
+"Empty trash",
+format!(
                     "{} will be deleted for good. This cannot be undone. Type empty to confirm.",
                     crate::util::text::items(count)
                 ),
-                confirm_label: "Empty trash".to_owned(),
-                danger: true,
-                requires_word: Some("empty".to_owned()),
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::new("trash.empty.confirm"),
-            });
+"Empty trash",
+Action::new("trash.empty.confirm"),
+).danger().word("empty"));
             Vec::new()
         }
         "trash.empty.confirm" => {
@@ -582,7 +570,10 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             let field = detail_field_at(state, state.detail.row);
             let Some(item) = state.selected_item().cloned() else { return Vec::new() };
             if let Some((key, label, secret)) = field {
-                if secret && reprompt_required(state, &item) {
+                // The code is not masked, but it opens the account like the
+                // password does: `yt` asks for the master password, and so
+                // does `yy` on it.
+                if (secret || key == "totp") && reprompt_required(state, &item) {
                     return reprompt(state, action);
                 }
                 let value = detail_value(state, &item, &key);
@@ -654,16 +645,38 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 if reprompt_required(state, &item) {
                     return reprompt(state, action);
                 }
+                // The detail pane and the form list fields differently:
+                // find the form row of the field under the detail cursor.
+                let target = detail_field_at(state, state.detail.row)
+                    .and_then(|(key, _, _)| super::form_key_for_detail(&key));
                 open_editor(state, item, false);
                 if let Some(editor) = &mut state.editor {
-                    editor.insert = true;
-                    editor.row = state.detail.row.min(editor.rows.len().saturating_sub(1));
+                    if let Some(index) =
+                        target.and_then(|key| editor.rows.iter().position(|row| row.key == key))
+                    {
+                        editor.row = index;
+                    }
+                    let row = &mut editor.rows[editor.row];
+                    if matches!(row.kind, FormKind::Text | FormKind::Secret) {
+                        if id == "item.change_field" {
+                            row.value.clear();
+                        }
+                        editor.insert = true;
+                        editor.cursor = row.value.chars().count();
+                    }
                 }
             }
             Vec::new()
         }
         "item.edit_json" => {
-            if let Some(item) = state.selected_item().cloned() {
+            // In the editor, the form as it is now; in the list, the item.
+            let current = if state.screen == Screen::Editor && state.editor.is_some() {
+                super::sync_editor(state);
+                state.editor.as_ref().map(|editor| editor.item.clone())
+            } else {
+                state.selected_item().cloned()
+            };
+            if let Some(item) = current {
                 if !editable(state, &item) {
                     return Vec::new();
                 }
@@ -684,24 +697,14 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 return Vec::new();
             }
             if state.config.vault.confirm_trash {
-                state.open(ConfirmState {
-                    title: "Move to trash".to_owned(),
-                    message: format!("Move {} item(s) to Trash?", ids.len()),
-                    confirm_label: "Move to trash".to_owned(),
-                    danger: false,
-                    requires_word: None,
-                    input: String::new(),
-                    also_subfolders: false,
-                    subfolder_count: 0,
-                    on_deny: None,
-                    // The dialog acts on the items it counted, whatever the
-                    // selection is by the time it is answered.
-                    on_confirm: Action {
-                        id: "item.trash.confirm".to_owned(),
-                        args: ids,
-                        count: None,
-                    },
-                });
+                // The dialog acts on the items it counted, whatever the
+                // selection is by the time it is answered.
+                state.open(ConfirmState::new(
+                    "Move to trash",
+                    format!("Move {} item(s) to Trash?", ids.len()),
+                    "Move to trash",
+                    Action { id: "item.trash.confirm".to_owned(), args: ids, count: None },
+                ));
                 return Vec::new();
             }
             trash_items(state, ids)
@@ -714,25 +717,19 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     .is_some_and(|(key, _, _)| key == "passkey")
             {
                 let name = selected_name(state);
-                state.open(ConfirmState {
-                    title: "Remove passkey".to_owned(),
-                    message: format!(
+                // Straight to the removal: `item.remove_passkey` would
+                // ask the same question a second time.
+                state.open(ConfirmState::new(
+"Remove passkey",
+format!(
                         "Remove the passkey from “{name}”? You can add it again from the Bitwarden web vault."
                     ),
-                    confirm_label: "Remove".to_owned(),
-                    danger: true,
-                    requires_word: None,
-                    input: String::new(),
-                    also_subfolders: false,
-                    subfolder_count: 0,
-                    on_deny: None,
-                    // Straight to the removal: `item.remove_passkey` would
-                    // ask the same question a second time.
-                    on_confirm: Action::with(
+"Remove",
+Action::with(
                         "item.remove_passkey.confirm",
                         &[&state.selected_id().unwrap_or_default()],
                     ),
-                });
+).danger());
                 return Vec::new();
             }
             if state.focus == crate::app::state::Focus::Detail {
@@ -758,20 +755,17 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     if count == 2 { "1 other".to_owned() } else { format!("{} others", count - 1) }
                 ),
             };
-            state.open(ConfirmState {
-                title: "Delete permanently?".to_owned(),
-                message,
-                confirm_label: "Delete".to_owned(),
-                danger: true,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                // The dialog deletes the items it named and counted, whatever
-                // the selection is by the time it is answered.
-                on_confirm: Action { id: "item.delete.confirm".to_owned(), args: ids, count: None },
-            });
+            // The dialog deletes the items it named and counted, whatever
+            // the selection is by the time it is answered.
+            state.open(
+                ConfirmState::new(
+                    "Delete permanently?",
+                    message,
+                    "Delete",
+                    Action { id: "item.delete.confirm".to_owned(), args: ids, count: None },
+                )
+                .danger(),
+            );
             Vec::new()
         }
         "item.delete.confirm" => {
@@ -980,21 +974,15 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 return reprompt_for(state, &item, action);
             }
             let id = item.id.clone().unwrap_or_default();
-            state.open(ConfirmState {
-                title: "Use generated password".to_owned(),
-                message: format!(
+            state.open(ConfirmState::new(
+"Use generated password",
+format!(
                     "Replace the password of “{}” with the generated one? The current password moves to its history; u undoes it.",
                     item.name
                 ),
-                confirm_label: "Replace".to_owned(),
-                danger: false,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::with("generator.use.run", &[&id]),
-            });
+"Replace",
+Action::with("generator.use.run", &[&id]),
+));
             Vec::new()
         }
         "generator.use.run" => {
@@ -1024,11 +1012,7 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
         "item.generate_password.run" => {
             let Some(id) = args.first().cloned() else { return Vec::new() };
             state.pending_generate_target = Some(id);
-            vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )]
+            vec![super::generate(state, true, false)]
         }
         "item.remove_passkey" => {
             if state.screen == Screen::Vault
@@ -1037,23 +1021,17 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     .is_some_and(|(key, _, _)| key == "passkey")
             {
                 let name = selected_name(state);
-                state.open(ConfirmState {
-                    title: "Remove passkey".to_owned(),
-                    message: format!(
+                state.open(ConfirmState::new(
+"Remove passkey",
+format!(
                         "Remove the passkey from “{name}”? You can add it again from the Bitwarden web vault."
                     ),
-                    confirm_label: "Remove".to_owned(),
-                    danger: true,
-                    requires_word: None,
-                    input: String::new(),
-                    also_subfolders: false,
-                    subfolder_count: 0,
-                    on_deny: None,
-                    on_confirm: Action::with(
+"Remove",
+Action::with(
                         "item.remove_passkey.confirm",
                         &[&state.selected_id().unwrap_or_default()],
                     ),
-                });
+).danger());
             } else {
                 state.message(
                     MessageLevel::Info,
@@ -1171,6 +1149,10 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
         "settings.activate" | "settings.next_value" | "settings.prev_value" | "settings.reset" => {
             settings_action(state, action)
         }
+        "settings.set" => match (args.first(), args.get(1)) {
+            (Some(key), Some(value)) => super::apply_setting(state, key, value),
+            _ => Vec::new(),
+        },
         "keymap.rebind"
         | "keymap.add"
         | "keymap.remove"
@@ -1250,25 +1232,24 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             vec![request(state, CommandKind::Unlock(password), Pending::Unlock)]
         }
         "unlock.logout" => {
-            state.open(ConfirmState {
-                title: "Log out".to_owned(),
-                message: "Log out of Bitwarden?".to_owned(),
-                confirm_label: "Log out".to_owned(),
-                danger: true,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::new("vault.logout.confirm"),
-            });
+            state.open(
+                ConfirmState::new(
+                    "Log out",
+                    "Log out of Bitwarden?",
+                    "Log out",
+                    Action::new("vault.logout.confirm"),
+                )
+                .danger(),
+            );
             Vec::new()
         }
         "confirm.yes" => confirm_yes(state),
-        "confirm.no" => {
-            state.take_confirm();
-            Vec::new()
-        }
+        // "n": the three-way dialogs ("y save · n discard · c cancel") run
+        // their second choice; the others just close.
+        "confirm.no" => match state.take_confirm().and_then(|confirm| confirm.on_deny) {
+            Some(action) => apply(state, action),
+            None => Vec::new(),
+        },
         "login.next" | "login.prev" | "login.submit" | "login.back" => login_action(state, action),
         "nav.down" | "nav.up" | "nav.top" | "nav.bottom" | "nav.half_down" | "nav.half_up"
         | "nav.page_down" | "nav.page_up" | "nav.screen_top" | "nav.screen_middle"
@@ -1331,21 +1312,15 @@ pub(crate) fn open_uri(state: &mut AppState, uri: &str) -> Vec<Effect> {
             format!("https://{trimmed}")
         }
         _ => {
-            state.open(ConfirmState {
-                title: "Open a link that is not a website?".to_owned(),
-                message: format!(
+            state.open(ConfirmState::new(
+                "Open a link that is not a website?",
+                format!(
                     "“{trimmed}” is not a web address; it opens whatever program handles it. \
                      Open it?"
                 ),
-                confirm_label: "Open".to_owned(),
-                danger: false,
-                requires_word: None,
-                input: String::new(),
-                also_subfolders: false,
-                subfolder_count: 0,
-                on_deny: None,
-                on_confirm: Action::with("item.open_uri.run", &[trimmed]),
-            });
+                "Open",
+                Action::with("item.open_uri.run", &[trimmed]),
+            ));
             return Vec::new();
         }
     };

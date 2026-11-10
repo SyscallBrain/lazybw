@@ -17,9 +17,9 @@ expression: "render(&state, width, height)"
 │      Banking        0 ││   Personal visa                                  ││ IDENTIFIERS                                                                   │
 │    Work             0 ││    Visa •••• 4242                                 ││ SSN               —                                                           │
 │    No folder        6 ││   Router notes                                   ││ Passport number   —                                                           │
-│ ────────────────────── ││    admin / hunter2                                ││ Licence number    —                                                           │
+│ ────────────────────── ││    1 line                                         ││ Licence number    —                                                           │
 │   Trash             0 ││                                                   ││ ───────────────────────────────────────────────────────────────────────────── │
-│                        ││                                                   ││ created                                                                       │
+│                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
@@ -45,7 +45,7 @@ expression: "render(&state, width, height)"
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 ╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Jane Example                                                                                   2 min ago │  locks 14:15 │  5/7 
+ NORMAL  Vault › All items › Jane Example                                                                                2 min ago │  locks at 14:15 │  5/7 
                                                                                                                                                                 
 styles:
 00:c8690fcc12e10c1a
@@ -63,9 +63,9 @@ styles:
 12:08786de7813adcd7
 13:57299ea009ede433
 14:4fdc559155a47954
-15:53264d3e70ce634a
+15:d023dea48d1a81bf
 16:1fbac379a6606dad
-17:4a195a99de51fcaf
+17:bfe139ebc10dc66c
 18:bfe139ebc10dc66c
 19:bfe139ebc10dc66c
 20:bfe139ebc10dc66c
@@ -91,5 +91,5 @@ styles:
 40:bfe139ebc10dc66c
 41:bfe139ebc10dc66c
 42:9311dad2d6b027cf
-43:c6e40478bedf9380
+43:1f0cc00668ccc3d2
 44:810502b98c661ba7

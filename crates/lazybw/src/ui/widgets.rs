@@ -103,6 +103,7 @@ pub(crate) fn follow(
     total: usize,
 ) -> usize {
     let visible = visible.max(1);
+    state.ui_pages.borrow_mut().insert(key, visible);
     let mut map = state.ui_scroll.borrow_mut();
     let mut offset = map.get(key).copied().unwrap_or(0);
     if selected < offset {
@@ -252,11 +253,18 @@ pub(crate) fn draw_topbar(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
         Span::styled("lazybw", theme.bold("accent")),
         Span::raw("  "),
     ];
-    for tab in [
-        crate::app::state::Tab::Vault,
-        crate::app::state::Tab::Generator,
-        crate::app::state::Tab::Health,
-    ] {
+    // The tabs only lead somewhere once the vault is open; on the start,
+    // login and lock screens they would be dead labels.
+    let tabs: &[crate::app::state::Tab] = if state.session.holds_vault_data() {
+        &[
+            crate::app::state::Tab::Vault,
+            crate::app::state::Tab::Generator,
+            crate::app::state::Tab::Health,
+        ]
+    } else {
+        &[]
+    };
+    for &tab in tabs {
         let active = state.tab == tab && state.screen.is_tab();
         if active {
             let style = theme.on("fg", "selection").add_modifier(Modifier::BOLD);
@@ -395,11 +403,11 @@ pub(crate) fn draw_statusline(frame: &mut Frame<'_>, area: Rect, state: &AppStat
         && let Some(lock) = state.config.security.auto_lock.get()
         && !lock.is_zero()
     {
-        let remaining = lock.as_secs().saturating_sub(state.last_input.elapsed().as_secs());
+        let remaining = lock.as_secs().saturating_sub(state.idle_for().as_secs());
         let when =
             (state.now + chrono::Duration::seconds(remaining as i64)).with_timezone(&chrono::Local);
         right.push(Span::styled(
-            format!("{} locks {}", icons.get(Role::Lock), when.format("%H:%M")),
+            format!("{} locks at {}", icons.get(Role::Lock), when.format("%H:%M")),
             theme.style("fg.subtle"),
         ));
         right.push(divider());
@@ -417,27 +425,49 @@ pub(crate) fn draw_statusline(frame: &mut Frame<'_>, area: Rect, state: &AppStat
         right.pop();
         right.push(Span::raw(" "));
     }
-    let line = fill_line(spans, right, area.width as usize, bar);
+    // Short of room, the least useful segments go first (last sync, then the
+    // lock time), so the position pill is never cut.
+    let width = area.width as usize;
+    while spans_width(&spans) + spans_width(&right) > width && right.len() > 1 {
+        right.remove(0);
+        if right.first().is_some_and(|s| s.content.contains('│')) {
+            right.remove(0);
+        }
+    }
+    let line = fill_line(spans, right, width, bar);
     frame.render_widget(Paragraph::new(line).style(bar), area);
+}
+
+/// Text being typed, with a block cursor on the character at `cursor` (or
+/// after the end), so the arrows and `Ctrl-w` can be followed.
+pub(crate) fn with_cursor(text: &str, cursor: usize, theme: &Theme) -> Vec<Span<'static>> {
+    let chars: Vec<char> = text.chars().collect();
+    let cursor = cursor.min(chars.len());
+    let before: String = chars[..cursor].iter().collect();
+    let under = chars.get(cursor).map_or_else(|| " ".to_owned(), char::to_string);
+    let after: String = chars.get(cursor + 1..).unwrap_or_default().iter().collect();
+    vec![
+        Span::styled(before, theme.style("fg")),
+        Span::styled(under, theme.style("fg").add_modifier(Modifier::REVERSED)),
+        Span::styled(after, theme.style("fg")),
+    ]
 }
 
 pub(crate) fn draw_message_line(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let theme = &state.theme;
     let line = if let Some(cmdline) = state.cmdline() {
-        Line::from(vec![
-            Span::styled(":", theme.bold("accent")),
-            Span::styled(cmdline.input.clone(), theme.style("fg")),
-        ])
+        let mut spans = vec![Span::styled(":", theme.bold("accent"))];
+        spans.extend(with_cursor(&cmdline.input, cmdline.cursor, theme));
+        Line::from(spans)
     } else if let Some(prompt) = state.prompt() {
-        Line::from(vec![
-            Span::styled(format!("{}: ", prompt.title), theme.bold("accent")),
-            Span::styled(prompt.input.text(), theme.style("fg")),
-        ])
+        let mut spans = vec![Span::styled(format!("{}: ", prompt.title), theme.bold("accent"))];
+        spans.extend(with_cursor(&prompt.input.text(), prompt.input.cursor, theme));
+        Line::from(spans)
     } else if state.search.active {
-        Line::from(vec![
-            Span::styled("/", theme.bold("accent")),
-            Span::styled(state.search.input.clone(), theme.style("fg")),
-        ])
+        let mut spans = vec![Span::styled("/", theme.bold("accent"))];
+        let input = &state.search.input;
+        spans.extend(with_cursor(input, input.chars().count(), theme));
+        Line::from(spans)
     } else if state.editor.as_ref().is_some_and(|e| e.insert) {
         Line::from(Span::styled(
             "-- INSERT --",

@@ -117,7 +117,10 @@ pub(crate) fn draw_health(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let long =
         format!("   would be {} after fixing the exposed and reused passwords", report.potential);
     let short = format!("   would be {} if fixed", report.potential);
-    if let Some(text) = [long, short].into_iter().find(|t| crate::util::text::width(t) <= room) {
+    // Only when fixing something would raise the score.
+    if report.potential > report.score
+        && let Some(text) = [long, short].into_iter().find(|t| crate::util::text::width(t) <= room)
+    {
         score.push(Span::styled(text, theme.style("fg.muted")));
     }
     frame.render_widget(Paragraph::new(Line::from(score)), Rect { height: 1, ..content });

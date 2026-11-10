@@ -50,7 +50,8 @@ fn move_rail(state: &mut AppState, action: &str, count: Option<usize>) {
         .and_then(|position| slots[position].entry())
         .and_then(|entry| selectable.iter().position(|&index| index == entry))
         .unwrap_or(0);
-    let next = move_index(current, selectable.len(), action, count, false);
+    let all = View { top: 0, page: selectable.len() };
+    let next = move_index(current, selectable.len(), action, count, all);
     state.sidebar_row = selectable[next];
 }
 
@@ -120,10 +121,13 @@ pub(crate) fn select_item_by_id(state: &mut AppState, id: &str) {
             Filter::All
         };
         state.filter = filter;
+        // A search that hides the item would leave the cursor on another one.
+        if !state.visible_rows().iter().any(|row| row.id == id) {
+            state.search = crate::app::state::SearchState::default();
+        }
         let rows = state.visible_rows();
         if let Some(index) = rows.iter().position(|row| row.id == id) {
             state.list_row = index;
-            state.list_offset = index.saturating_sub(3);
         }
         state.screen = Screen::Vault;
         state.focus = crate::app::state::Focus::Detail;
@@ -183,21 +187,15 @@ pub(crate) fn editable(state: &mut AppState, item: &Item) -> bool {
 /// Asks to replace the password of `item` with a freshly generated one.
 pub(crate) fn confirm_generate(state: &mut AppState, item: &Item) -> Vec<Effect> {
     let id = item.id.clone().unwrap_or_default();
-    state.open(ConfirmState {
-        title: "New password".to_owned(),
-        message: format!(
+    state.open(ConfirmState::new(
+"New password",
+format!(
             "Replace the password saved in “{}” with a generated one? This changes the vault item only: change it on the website too. The current password moves to its history; u undoes it.",
             item.name
         ),
-        confirm_label: "Replace".to_owned(),
-        danger: false,
-        requires_word: None,
-        input: String::new(),
-        also_subfolders: false,
-        subfolder_count: 0,
-        on_deny: None,
-        on_confirm: Action::with("item.generate_password.run", &[&id]),
-    });
+"Replace",
+Action::with("item.generate_password.run", &[&id]),
+));
     Vec::new()
 }
 
@@ -722,86 +720,44 @@ pub(crate) fn search_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.search.active = false;
             state.focus = crate::app::state::Focus::List;
         }
-        Code::Backspace => {
-            state.search.input.pop();
-            state.search.query = Some(Query::parse(&state.search.input));
-            state.list_row = 0;
+        _ => {
+            if crate::input::line::edit_at_end(&mut state.search.input, key) {
+                state.search.query = Some(Query::parse(&state.search.input));
+                state.list_row = 0;
+            }
         }
-        Code::Char(c) if key.is_printable() => {
-            state.search.input.push(c);
-            state.search.query = Some(Query::parse(&state.search.input));
-            state.list_row = 0;
-        }
-        _ => {}
     }
     Vec::new()
 }
 
 pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
     let count = action.count.map(|c| c as usize);
+    let id = action.id.as_str();
+    // Each list moves by its own height: the rows the renderer last showed
+    // (`AppState::page`), so a page is a page at any terminal size.
+    let view = |state: &AppState, key: &'static str| View::of(state, key);
     match state.screen {
         Screen::Settings => {
-            let rows = settings_rows(state);
-            state.settings.index = move_index(
-                state.settings.index,
-                rows.len(),
-                action.id.as_str(),
-                count,
-                action.id == "nav.top",
-            );
+            let len = settings_rows(state).len();
+            state.settings.index =
+                move_index(state.settings.index, len, id, count, view(state, "settings"));
             return Vec::new();
         }
         Screen::KeymapEditor => {
-            let rows = keymap_rows(state).len();
+            let len = keymap_rows(state).len();
             state.keymap_editor.index =
-                move_index(state.keymap_editor.index, rows, action.id.as_str(), count, false);
+                move_index(state.keymap_editor.index, len, id, count, view(state, "keymap_editor"));
             return Vec::new();
         }
         Screen::Help | Screen::Messages => {
-            let step = count.unwrap_or(1);
-            if matches!(action.id.as_str(), "nav.down" | "nav.half_down" | "nav.page_down") {
-                if state.screen == Screen::Help {
-                    state.help_offset += step * if action.id == "nav.half_down" { 10 } else { 1 };
-                } else {
-                    state.messages_offset += step;
-                }
-            } else if matches!(action.id.as_str(), "nav.up" | "nav.half_up" | "nav.page_up") {
-                if state.screen == Screen::Help {
-                    state.help_offset = state
-                        .help_offset
-                        .saturating_sub(step * if action.id == "nav.half_up" { 10 } else { 1 });
-                } else {
-                    state.messages_offset = state.messages_offset.saturating_sub(step);
-                }
-            } else if action.id == "nav.top" {
-                if state.screen == Screen::Help {
-                    state.help_offset = 0;
-                } else {
-                    state.messages_offset = 0;
-                }
-            }
+            scroll_text(state, id, count);
             return Vec::new();
         }
-        _ if state.generator_popup_open() => {
+        _ if state.generator_popup_open() || state.screen == Screen::Generator => {
             let rows = if state.generator.request.passphrase { 4 } else { 8 };
-            state.generator.row = move_index(
-                state.generator.row.min(rows - 1),
-                rows,
-                action.id.as_str(),
-                count,
-                false,
-            );
-            return Vec::new();
-        }
-        Screen::Generator => {
-            let rows = if state.generator.request.passphrase { 4 } else { 8 };
-            state.generator.row = move_index(
-                state.generator.row.min(rows - 1),
-                rows,
-                action.id.as_str(),
-                count,
-                false,
-            );
+            let all = View { top: 0, page: rows };
+            state.generator.row =
+                move_index(state.generator.row.min(rows - 1), rows, id, count, all);
             return Vec::new();
         }
         Screen::Health => {
@@ -812,26 +768,31 @@ pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
                 .map(|report| report.len_in(state.health.category))
                 .unwrap_or(0);
             state.health.index =
-                move_index(state.health.index, len, action.id.as_str(), count, false);
+                move_index(state.health.index, len, id, count, view(state, "health"));
             return Vec::new();
         }
         Screen::Editor => {
             let len = state.editor.as_ref().map(|e| e.rows.len()).unwrap_or(0);
+            let page = View { top: 0, page: (state.size.1 as usize).saturating_sub(6).max(1) };
             if let Some(editor) = &mut state.editor {
-                editor.row = move_index(editor.row, len, action.id.as_str(), count, false);
+                editor.row = move_index(editor.row, len, id, count, page);
             }
             return Vec::new();
         }
         _ => {}
     }
+    let pane = match state.focus {
+        crate::app::state::Focus::Sidebar => "sidebar",
+        crate::app::state::Focus::List => "list",
+        crate::app::state::Focus::Detail => "detail",
+    };
     match state.focus {
         crate::app::state::Focus::Sidebar if rail_active(state) => {
-            move_rail(state, action.id.as_str(), count);
+            move_rail(state, id, count);
         }
         crate::app::state::Focus::Sidebar => {
             let entries = sidebar_entries(state);
-            let selectable = entries.len();
-            let next = move_index(state.sidebar_row, selectable, action.id.as_str(), count, false);
+            let next = move_index(state.sidebar_row, entries.len(), id, count, view(state, pane));
             if next != state.sidebar_row {
                 // Skip section labels.
                 let forward = next > state.sidebar_row;
@@ -853,53 +814,113 @@ pub(crate) fn navigation(state: &mut AppState, action: &Action) -> Vec<Effect> {
                 }
             }
         }
-        _ => {
-            if state.focus == crate::app::state::Focus::Detail {
-                let fields = detail_fields(state).len();
-                state.detail.row =
-                    move_index(state.detail.row, fields, action.id.as_str(), count, false);
-            } else {
-                let len = state.visible_rows().len();
-                state.list_row = move_index(state.list_row, len, action.id.as_str(), count, false);
-            }
+        crate::app::state::Focus::Detail => {
+            let fields = detail_fields(state).len();
+            state.detail.row = move_index(state.detail.row, fields, id, count, view(state, pane));
+        }
+        crate::app::state::Focus::List => {
+            let len = state.visible_rows().len();
+            state.list_row = move_index(state.list_row, len, id, count, view(state, pane));
         }
     }
-    if action.id.starts_with("view.") {
-        state.list_offset = match action.id.as_str() {
-            "view.center" => state.list_row.saturating_sub(3),
-            "view.top" => state.list_row,
-            _ => state.list_row.saturating_sub(state.size.1 as usize / 3),
+    // zz, zt, zb scroll the pane around its cursor; the renderer keeps the
+    // offset as long as the cursor stays in view.
+    if id.starts_with("view.") {
+        let cursor = match state.focus {
+            crate::app::state::Focus::Sidebar => state.sidebar_row,
+            crate::app::state::Focus::List => state.list_row,
+            crate::app::state::Focus::Detail => state.detail.row,
         };
-    } else if state.list_row < state.list_offset {
-        state.list_offset = state.list_row;
-    } else if state.list_row >= state.list_offset + state.size.1 as usize {
-        state.list_offset = state.list_row.saturating_sub(state.size.1 as usize / 2);
+        let page = state.page(pane);
+        let offset = match id {
+            "view.center" => cursor.saturating_sub(page / 2),
+            "view.top" => cursor,
+            _ => (cursor + 1).saturating_sub(page),
+        };
+        state.ui_scroll.borrow_mut().insert(pane, offset);
     }
     state.clamp_selection();
     Vec::new()
 }
 
+/// What a list shows: its first visible row and how many rows fit.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct View {
+    /// The first row on screen.
+    pub(crate) top: usize,
+    /// Rows on screen.
+    pub(crate) page: usize,
+}
+
+impl View {
+    fn of(state: &AppState, key: &'static str) -> Self {
+        Self { top: state.ui_scroll.borrow().get(key).copied().unwrap_or(0), page: state.page(key) }
+    }
+}
+
+/// Scrolls the help and message screens, which have no cursor.
+fn scroll_text(state: &mut AppState, id: &str, count: Option<usize>) {
+    let key = if state.screen == Screen::Help { "help" } else { "messages" };
+    let page = state.page(key);
+    let max = state
+        .ui_scroll
+        .borrow()
+        .get(if key == "help" { "help.max" } else { "messages.max" })
+        .copied()
+        .unwrap_or(usize::MAX);
+    let offset = if key == "help" { state.help_offset } else { state.messages_offset };
+    let step = count.unwrap_or(1);
+    let next = match id {
+        "nav.down" => offset + step,
+        "nav.up" => offset.saturating_sub(step),
+        "nav.half_down" => offset + (page / 2).max(1) * step,
+        "nav.half_up" => offset.saturating_sub((page / 2).max(1) * step),
+        "nav.page_down" => offset + page.max(1) * step,
+        "nav.page_up" => offset.saturating_sub(page.max(1) * step),
+        "nav.top" => 0,
+        "nav.bottom" => max,
+        _ => offset,
+    }
+    .min(max);
+    if key == "help" {
+        state.help_offset = next;
+    } else {
+        state.messages_offset = next;
+    }
+}
+
+/// The row a motion lands on, Vim style: a count repeats `j`/`k` and picks
+/// the row for `gg`/`G`; `Ctrl-d`/`Ctrl-u` move half the view and
+/// `Ctrl-f`/`Ctrl-b` a whole one; `H`, `M`, `L` go to the top, middle and
+/// bottom of what is on screen.
 pub(crate) fn move_index(
     current: usize,
     len: usize,
     action: &str,
     count: Option<usize>,
-    _force_top: bool,
+    view: View,
 ) -> usize {
     if len == 0 {
         return 0;
     }
+    let last = len - 1;
+    let page = view.page.max(1);
+    let half = (page / 2).max(1);
     let step = count.unwrap_or(1);
+    let top = view.top.min(last);
+    let bottom = (top + page - 1).min(last);
     match action {
-        "nav.down" => (current + step).min(len - 1),
+        "nav.down" => (current + step).min(last),
         "nav.up" => current.saturating_sub(step),
-        "nav.top" => count.unwrap_or(1).saturating_sub(1).min(len - 1),
-        "nav.bottom" => count.unwrap_or(len).saturating_sub(1).min(len - 1),
-        "nav.half_down" => (current + 10).min(len - 1),
-        "nav.half_up" => current.saturating_sub(10),
-        "nav.page_down" | "nav.screen_bottom" => (current + 20).min(len - 1),
-        "nav.page_up" | "nav.screen_top" => current.saturating_sub(20),
-        "nav.screen_middle" => len / 2,
+        "nav.top" => count.unwrap_or(1).saturating_sub(1).min(last),
+        "nav.bottom" => count.unwrap_or(len).saturating_sub(1).min(last),
+        "nav.half_down" => (current + half * step).min(last),
+        "nav.half_up" => current.saturating_sub(half * step),
+        "nav.page_down" => (current + page * step).min(last),
+        "nav.page_up" => current.saturating_sub(page * step),
+        "nav.screen_top" => (top + count.unwrap_or(1) - 1).min(bottom),
+        "nav.screen_middle" => top + (bottom - top) / 2,
+        "nav.screen_bottom" => bottom.saturating_sub(count.unwrap_or(1) - 1).max(top),
         _ => current,
     }
 }
@@ -914,10 +935,6 @@ pub(crate) fn undo(state: &mut AppState, is_undo: bool) -> Vec<Effect> {
         return Vec::new();
     };
     let description = op.description();
-    if matches!(op, crate::app::state::UndoOp::Purge) {
-        state.message(MessageLevel::Info, "This change cannot be undone.");
-        return Vec::new();
-    }
     // The same entry moves to the opposite stack. Folder creation on redo is
     // re-recorded by the create response, so it is not pushed twice.
     let folder_create = matches!(op, crate::app::state::UndoOp::FolderCreate { .. });
@@ -1078,7 +1095,6 @@ pub(crate) fn undo(state: &mut AppState, is_undo: bool) -> Vec<Effect> {
                 }
             }
         }
-        UndoOp::Purge => {}
     }
     let message =
         if is_undo { format!("Undone: {description}.") } else { format!("Redone: {description}.") };

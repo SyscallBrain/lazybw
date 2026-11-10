@@ -322,10 +322,24 @@ fn futures_status(path: &std::path::Path) -> Result<crate::bw::models::Status, S
 // ---------------------------------------------------------------------------
 
 fn run_tui() -> color_eyre::Result<()> {
+    // `harden_process` restores the default SIGPIPE so `lazybw keys | head`
+    // ends quietly. The TUI must not die on one: a write to a `bw` that has
+    // just exited would kill it with the terminal still in raw mode. Ignored,
+    // the write fails with EPIPE and is handled like any other error.
+    #[expect(unsafe_code, reason = "signal(2) with constant arguments")]
+    // SAFETY: setting a signal disposition to SIG_IGN has no memory effects.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_IGN);
+    }
+    // Buffers left by a lazybw that crashed (an edit, a filtered import).
+    let swept = crate::security::sweep_stale_temp_files();
     // Declared before the runtime so it is dropped after it: the log is
     // flushed once every task has stopped writing to it.
     let _log = crate::logging::init(&Paths::resolve().log_file());
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "lazybw started");
+    if swept > 0 {
+        tracing::info!(swept, "removed temporary files left by an earlier crash");
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
     let result = runtime.block_on(run_tui_async());
     match &result {
@@ -390,6 +404,7 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     theme.transparent = config.ui.transparent;
     theme.resolve(crate::theme::truecolor_available(), crate::theme::no_color());
     let mut state = AppState::new(config.clone(), theme, keymap, paths.clone());
+    crate::app::load_command_history(&mut state);
     state.keyboard_enhanced = crossterm::terminal::supports_keyboard_enhancement().unwrap_or(false);
     for warning in warnings {
         state.message(crate::app::state::MessageLevel::Warn, warning);
@@ -473,7 +488,6 @@ async fn run_tui_async() -> color_eyre::Result<()> {
                 .unwrap_or_else(|_| PathBuf::from("/tmp")),
             inherit_session: config.bw.inherit_session,
             capabilities: location.capabilities.clone(),
-            check_exposed: config.health.check_exposed,
         };
         let (backend, mut events) = service::spawn(backend_config);
         app.backend = Some(backend);
@@ -566,7 +580,7 @@ async fn run_tui_async() -> color_eyre::Result<()> {
         }
     }
     if config.security.clear_clipboard_on_exit {
-        app.state.clipboard.clear_now();
+        app.state.clipboard.clear_ours();
     }
     // Close the clipboard (and the backend) while stderr is still silenced.
     drop(app);
@@ -618,7 +632,9 @@ async fn handle_suspended_effects(
                 // clearing the clipboard on time and still honours SIGUSR1
                 // while $EDITOR or `bw login` is open.
                 let editor = config.editor.command.clone();
-                let mut child = tokio::task::spawn_blocking(move || run_suspended(task, &editor));
+                let bw = app.state.bw_path.clone();
+                let mut child =
+                    tokio::task::spawn_blocking(move || run_suspended(task, &editor, bw));
                 let mut clock = tokio::time::interval(Duration::from_secs(1));
                 let mut lock_requested = false;
                 let result = loop {
@@ -640,7 +656,7 @@ async fn handle_suspended_effects(
                 input.resume();
                 // Time in the editor is activity: the idle lock must not
                 // fire the moment it closes and throw the edit away.
-                app.state.last_input = std::time::Instant::now();
+                app.state.touch();
                 let discarded = lock_requested
                     && matches!(
                         result,
@@ -728,7 +744,9 @@ fn spawn_input_thread(tx: tokio::sync::mpsc::Sender<Msg>) -> InputThread {
                 std::thread::sleep(Duration::from_millis(10));
                 continue;
             }
-            match event::poll(Duration::from_millis(100)) {
+            // Short, so `pause` (before $EDITOR or `bw login` takes the
+            // terminal) never waits long for this thread to let go.
+            match event::poll(Duration::from_millis(25)) {
                 Ok(true) => match event::read() {
                     Ok(Event::Key(key)) => {
                         if tx.blocking_send(Msg::Key(key)).is_err() {
@@ -851,7 +869,7 @@ fn restore_terminal() {
     let _ = out.flush();
 }
 
-fn run_suspended(task: SuspendTask, editor: &str) -> Suspended {
+fn run_suspended(task: SuspendTask, editor: &str, bw: Option<PathBuf>) -> Suspended {
     match task {
         SuspendTask::Login { sso } => {
             let kind = if sso {
@@ -862,7 +880,9 @@ fn run_suspended(task: SuspendTask, editor: &str) -> Suspended {
             println!(
                 "lazybw › Running \"bw login\". Follow the prompts; lazybw resumes when it finishes."
             );
-            let Some(path) = locate_path() else {
+            // The `bw` found at start-up; looking again would run
+            // `bw --version`, a second of Node, before the prompt appears.
+            let Some(path) = bw else {
                 println!("lazybw › Login failed: bw was not found. Press Enter to return.");
                 let _ = std::io::stdin().read_line(&mut String::new());
                 return Suspended::Login(None);
@@ -928,11 +948,6 @@ fn run_suspended(task: SuspendTask, editor: &str) -> Suspended {
         }
         SuspendTask::LoginFailed => Suspended::LoginFailed,
     }
-}
-
-fn locate_path() -> Option<PathBuf> {
-    let config = Config::load(&Paths::resolve().config_file()).ok()?.0;
-    locate::locate(&config.bw.path).ok().map(|location| location.path)
 }
 
 /// The start-up screen for a CLI that could not be found or used. lazybw

@@ -30,7 +30,7 @@ expression: "render(&state, width, height)"
 │                                                                                        │
 │                                                                                        │
 ╰────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › GitHub                   2 min ago │  locks 14:15 │  2/7 
+ NORMAL  Vault › All items › GitHub                2 min ago │  locks at 14:15 │  2/7 
                                                                                           
 styles:
 00:f7be698e18ae852c
@@ -61,5 +61,5 @@ styles:
 25:2a1d18d45ca4384a
 26:2a1d18d45ca4384a
 27:074e5aaf9d1674cb
-28:9f71256c05589973
+28:2349e4cd40311618
 29:35507918efb144e4

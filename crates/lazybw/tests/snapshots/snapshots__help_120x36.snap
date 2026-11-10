@@ -36,7 +36,7 @@ expression: "render(&state, 120, 36)"
 │  N                   Previous match                                                                      search.prev │
 │  gT                  Previous tab                                                                           tab.prev │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Help                                                                              2 min ago │  locks 14:15 
+ NORMAL  Help                                                                           2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:ea608195bd6e6fb7
@@ -73,5 +73,5 @@ styles:
 31:f064a7880ac1dd35
 32:8993fd994eaf7fe5
 33:f86dfdf534e2740f
-34:29061a57020b8721
+34:718c36f80abbd845
 35:ad0696d4f8ac6d6b

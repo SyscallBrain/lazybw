@@ -2,7 +2,6 @@
 //! changes, plus completion candidates.
 
 use crate::app::state::{Action, AppState, MessageLevel};
-use crate::bw::service::ExportFormat;
 use crate::config::SortOrder;
 use crate::vault::cache::Filter;
 
@@ -134,7 +133,24 @@ pub fn parse(line: &str) -> Command {
             Command::Action(action)
         }
         "history" => Command::Action(Action::new("item.history")),
-        "gen" => Command::Action(Action::new("generator.open")),
+        // `:gen` opens the generator (ADR-010); `:gen 32` and
+        // `:gen phrase 6` make one and copy it without leaving the screen.
+        "gen" => match args.as_slice() {
+            [] => Command::Action(Action::new("generator.open")),
+            ["phrase" | "passphrase"] => {
+                Command::Action(Action::with("generator.quick", &["phrase"]))
+            }
+            ["phrase" | "passphrase", n] if n.parse::<u8>().is_ok() => {
+                Command::Action(Action::with("generator.quick", &["phrase", n]))
+            }
+            [n] if n.parse::<u8>().is_ok() => {
+                Command::Action(Action::with("generator.quick", &["password", n]))
+            }
+            _ => Command::Message(
+                MessageLevel::Error,
+                format!("E474: :gen takes a length, or phrase and a word count: {rest}"),
+            ),
+        },
         "folder" => match args.first().copied() {
             Some("new") => folder_action("folder.new", after_first_word(rest)),
             Some("rename") => folder_action("folder.rename", after_first_word(rest)),
@@ -145,8 +161,13 @@ pub fn parse(line: &str) -> Command {
             ),
         },
         "sort" => {
-            let text = rest.trim_end_matches('!');
+            // `!` reverses, as in Vim's `:sort!`.
+            let reverse = rest.ends_with('!');
+            let text = rest.trim_end_matches('!').trim();
             match SortOrder::parse(text) {
+                Some(order) if reverse => {
+                    Command::Action(Action::with("sort.set", &[order.label(), "reverse"]))
+                }
                 Some(order) => Command::Action(Action::with("sort.set", &[order.label()])),
                 None => Command::Message(
                     MessageLevel::Error,
@@ -427,17 +448,6 @@ pub fn setting_keys() -> Vec<String> {
     keys
 }
 
-/// Formats the current export format for `:export` completion.
-#[must_use]
-pub fn export_format_name(format: ExportFormat) -> &'static str {
-    match format {
-        ExportFormat::Json => "json",
-        ExportFormat::PasswordProtectedJson => "encrypted",
-        ExportFormat::AccountEncryptedJson => "account",
-        ExportFormat::Csv => "csv",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,8 +477,19 @@ mod tests {
         assert_eq!(parse("delete!"), Command::Action(Action::new("item.delete")));
         assert_eq!(
             parse("sort modified!"),
-            Command::Action(Action::with("sort.set", &["modified"]))
+            Command::Action(Action::with("sort.set", &["modified", "reverse"]))
         );
+        assert_eq!(parse("sort name"), Command::Action(Action::with("sort.set", &["name"])));
+        assert_eq!(parse("gen"), Command::Action(Action::new("generator.open")));
+        assert_eq!(
+            parse("gen 32"),
+            Command::Action(Action::with("generator.quick", &["password", "32"]))
+        );
+        assert_eq!(
+            parse("gen phrase 6"),
+            Command::Action(Action::with("generator.quick", &["phrase", "6"]))
+        );
+        assert!(matches!(parse("gen lots"), Command::Message(MessageLevel::Error, _)));
         assert_eq!(parse("12"), Command::Action(Action::new("nav.bottom").counted(Some(12))));
         assert_eq!(parse("trash"), Command::SetFilter(Filter::Trash));
     }

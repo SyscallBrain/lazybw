@@ -20,8 +20,6 @@ pub enum Suspended {
     ItemJson(crate::bw::sensitive::Sensitive),
     /// `$EDITOR` returned a new SSH private key.
     SshPrivateKey(crate::bw::sensitive::Sensitive),
-    /// `$EDITOR` returned new text for the keymap capture (unused).
-    Other(String),
     /// The external task failed with a message.
     Failed(String),
     /// The editor was closed without changes.

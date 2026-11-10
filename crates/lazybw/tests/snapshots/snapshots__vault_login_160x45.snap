@@ -17,7 +17,7 @@ expression: "render(&state, width, height)"
 │      Banking        0 ││   Personal visa                                  ││ WEBSITES                                                                      │
 │    Work             0 ││    Visa •••• 4242                                 ││ https://github.com  default                                                   │
 │    No folder        6 ││   Router notes                                   ││ CUSTOM FIELDS                                                                 │
-│ ────────────────────── ││    admin / hunter2                                ││ Recovery token  ••••••  hidden                                                │
+│ ────────────────────── ││    1 line                                         ││ Recovery token  ••••••  hidden                                                │
 │   Trash             0 ││                                                   ││ 2FA enabled     ☑ yes  boolean                                                │
 │                        ││                                                   ││ NOTES                                                                         │
 │                        ││                                                   ││ Recovery codes are in the safe, drawer 2.                                     │
@@ -45,7 +45,7 @@ expression: "render(&state, width, height)"
 │                        ││                                                   ││                                                                               │
 │                        ││                                                   ││                                                                               │
 ╰────────────────────────╯╰───────────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › GitHub                                                                                         2 min ago │  locks 14:15 │  2/7 
+ NORMAL  Vault › All items › GitHub                                                                                      2 min ago │  locks at 14:15 │  2/7 
                                                                                                                                                                 
 styles:
 00:c8690fcc12e10c1a
@@ -63,7 +63,7 @@ styles:
 12:67340fae1c72c312
 13:4a258bf985a8d58e
 14:414342e740afc444
-15:89e23d3cc25f8763
+15:9d6ffa7ec892de41
 16:f89453e219f0360e
 17:9cfa5ee2bc340266
 18:bfe139ebc10dc66c
@@ -91,5 +91,5 @@ styles:
 40:bfe139ebc10dc66c
 41:bfe139ebc10dc66c
 42:9311dad2d6b027cf
-43:05d55bda48ff47e2
+43:053e5128db2ee0b3
 44:810502b98c661ba7

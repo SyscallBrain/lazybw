@@ -4,7 +4,7 @@ use super::{
     Action, AppState, BTreeMap, Card, CommandKind, ConfirmState, DetailState, EditorState,
     EditorTarget, Effect, Field, FieldKind, FormKey, FormKind, FormRow, Identity, Item, ItemType,
     Key, Login, LoginUri, MessageLevel, Pending, PickerEntry, PickerKind, PickerState, PromptState,
-    Screen, SshKey, SuspendTask, UriMatch, apply, current_folder_id, request,
+    Screen, SshKey, SuspendTask, UriMatch, apply, current_folder_id, generate, request,
 };
 
 pub(crate) fn open_editor(state: &mut AppState, item: Item, is_new: bool) {
@@ -29,6 +29,40 @@ pub(crate) fn open_editor(state: &mut AppState, item: Item, is_new: bool) {
     state.detail = DetailState::default();
 }
 
+/// The editor row of a detail-pane field (`"password"`, `"uri:1"`, …).
+pub(crate) fn form_key_for_detail(key: &str) -> Option<FormKey> {
+    let indexed = |prefix: &str| key.strip_prefix(prefix).and_then(|i| i.parse::<usize>().ok());
+    if let Some(index) = indexed("uri:") {
+        return Some(FormKey::Uri(index));
+    }
+    if let Some(index) = indexed("field:") {
+        return Some(FormKey::FieldValue(index));
+    }
+    if key.starts_with("note:") {
+        return Some(FormKey::Notes);
+    }
+    Some(match key {
+        "username" => FormKey::Username,
+        "password" => FormKey::Password,
+        "totp" => FormKey::Totp,
+        "notes" => FormKey::Notes,
+        "cardholder" => FormKey::Cardholder,
+        "number" => FormKey::CardNumber,
+        "expiry" => FormKey::ExpMonth,
+        "code" => FormKey::CardCode,
+        "id:name" => FormKey::IdFirst,
+        "id:contact" => FormKey::IdEmail,
+        "id:address" => FormKey::IdAddress1,
+        "id:ssn" => FormKey::IdSsn,
+        "id:passport" => FormKey::IdPassport,
+        "id:license" => FormKey::IdLicense,
+        "public_key" => FormKey::SshPublic,
+        "fingerprint" => FormKey::SshFingerprint,
+        "private_key" => FormKey::SshPrivate,
+        _ => return None,
+    })
+}
+
 pub(crate) fn open_new_editor(state: &mut AppState, kind: ItemType) {
     let mut item = Item::new(kind);
     item.folder_id = current_folder_id(state);
@@ -42,18 +76,15 @@ pub(crate) fn close_editor(state: &mut AppState) {
         } else {
             format!("“{}”", editor.item.name)
         };
-        state.open(ConfirmState {
-            title: "Unsaved changes".to_owned(),
-            message: format!("Save changes to {name}?"),
-            confirm_label: "Save".to_owned(),
-            danger: false,
-            requires_word: None,
-            input: String::new(),
-            also_subfolders: false,
-            subfolder_count: 0,
-            on_deny: Some(Action::new("editor.discard")),
-            on_confirm: Action::new("editor.save_close"),
-        });
+        state.open(
+            ConfirmState::new(
+                "Unsaved changes",
+                format!("Save changes to {name}?"),
+                "Save",
+                Action::new("editor.save_close"),
+            )
+            .deny(Action::new("editor.discard")),
+        );
         return;
     }
     state.editor = None;
@@ -349,7 +380,7 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     });
     rows.push(FormRow {
         key: FormKey::Reprompt,
-        label: "Master password ask".to_owned(),
+        label: "Password re-prompt".to_owned(),
         value: (item.reprompt == 1).to_string(),
         kind: FormKind::Bool,
         section: None,
@@ -475,6 +506,7 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
                 editor.insert = false;
                 editor.cursor = editor.cursor.saturating_sub(1);
             }
+            sync_editor(state);
             return Vec::new();
         }
         "editor.insert" | "editor.append" | "editor.insert_start" | "editor.append_end" => {
@@ -552,11 +584,7 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
                 editor.insert = false;
             }
             state.generator.popup = true;
-            return vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )];
+            return vec![generate(state, true, false)];
         }
         "editor.external" => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
@@ -612,82 +640,61 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
 }
 
 pub(crate) fn editor_insert_key(state: &mut AppState, key: Key) -> Vec<Effect> {
-    use crate::config::keymap::Code;
-    // Control keys leave INSERT or open tools; everything else inserts.
+    use crate::config::keymap::{Code, Mods};
+    // Keys bound in the `insert` context come first (Esc, Tab, Ctrl-s and
+    // the rest by default, and whatever the user rebinds there); printable
+    // keys are always text.
+    if !key.is_printable()
+        && let Some(call) = state.keymap.action("insert", &[key])
+    {
+        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
+        return apply(state, action);
+    }
     match key.code {
-        Code::Esc => {
-            if let Some(editor) = &mut state.editor {
-                editor.insert = false;
-                sync_editor(state);
-            }
-            Vec::new()
-        }
-        Code::Tab | Code::Enter => editor_action(
-            state,
-            Action::new(if key.code == Code::Tab {
-                "editor.next_field"
-            } else if key.mods.contains(crate::config::keymap::Mods::CTRL) {
-                "editor.activate"
-            } else {
-                "editor.next_field"
-            }),
-        ),
-        Code::BackTab => editor_action(state, Action::new("editor.prev_field")),
-        Code::Backspace => {
-            editor_value_backspace(state);
-            Vec::new()
-        }
-        Code::Delete => {
-            editor_value_delete(state);
-            Vec::new()
-        }
-        Code::Left => {
-            if let Some(editor) = &mut state.editor {
-                editor.cursor = editor.cursor.saturating_sub(1);
-            }
-            Vec::new()
-        }
-        Code::Right => {
-            if let Some(editor) = &mut state.editor {
-                let len = editor.rows.get(editor.row).map(|r| r.value.chars().count()).unwrap_or(0);
-                editor.cursor = (editor.cursor + 1).min(len);
-            }
-            Vec::new()
-        }
-        Code::Home => {
-            if let Some(editor) = &mut state.editor {
-                editor.cursor = 0;
-            }
-            Vec::new()
-        }
-        Code::End => {
-            if let Some(editor) = &mut state.editor {
-                editor.cursor =
-                    editor.rows.get(editor.row).map(|r| r.value.chars().count()).unwrap_or(0);
-            }
-            Vec::new()
-        }
-        Code::Char('g') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            editor_action(state, Action::new("editor.generate"))
-        }
-        Code::Char('e') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            editor_action(state, Action::new("editor.external"))
-        }
-        Code::Char('s') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            editor_action(state, Action::new("editor.save"))
-        }
-        Code::Char('a') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            editor_action(state, Action::new("editor.cycle_next"))
-        }
-        Code::Char('x') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
-            editor_action(state, Action::new("editor.cycle_prev"))
+        Code::Enter if key.mods.contains(Mods::CTRL) => {
+            editor_action(state, Action::new("editor.activate"))
         }
         Code::Char(c) if key.is_printable() => {
             editor_value_insert(state, &c.to_string());
             Vec::new()
         }
-        _ => Vec::new(),
+        _ => {
+            editor_value_edit(state, key);
+            Vec::new()
+        }
     }
+}
+
+/// Moves the cursor or deletes in the value under the cursor (arrows,
+/// `Home`, `End`, `Backspace`, `Delete`, `Ctrl-w`, `Ctrl-u`).
+fn editor_value_edit(state: &mut AppState, key: Key) {
+    use crate::config::keymap::Code;
+    let Some(editor) = &mut state.editor else { return };
+    let Some(row) = editor.rows.get_mut(editor.row) else { return };
+    let moves = matches!(key.code, Code::Left | Code::Right | Code::Home | Code::End);
+    if !moves && !takes_text(&row.kind) {
+        return;
+    }
+    let mut value = row.value.clone();
+    let mut cursor = editor.cursor;
+    if !crate::input::line::edit_string(&mut value, &mut cursor, key) {
+        zeroize_string(value);
+        return;
+    }
+    editor.cursor = cursor;
+    if value == row.value {
+        zeroize_string(value);
+        return;
+    }
+    zeroize_string(std::mem::replace(&mut row.value, value));
+    editor.dirty = true;
+    sync_editor(state);
+}
+
+/// Wipes a value the form no longer uses (it may be a password).
+fn zeroize_string(mut text: String) {
+    use zeroize::Zeroize;
+    text.zeroize();
 }
 
 /// Whether typing in INSERT changes this row. Choices, checkboxes and
@@ -707,39 +714,9 @@ pub(crate) fn editor_value_insert(state: &mut AppState, text: &str) {
         chars.insert(at + offset, ch);
     }
     editor.cursor = at + text.chars().count();
-    row.value = chars.into_iter().collect();
+    zeroize_string(std::mem::replace(&mut row.value, chars.into_iter().collect()));
     editor.dirty = true;
     sync_editor(state);
-}
-
-pub(crate) fn editor_value_backspace(state: &mut AppState) {
-    let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
-        return;
-    };
-    let mut chars: Vec<char> = row.value.chars().collect();
-    if editor.cursor > 0 && editor.cursor <= chars.len() {
-        let at = editor.cursor - 1;
-        chars.remove(at);
-        editor.cursor = at;
-        row.value = chars.into_iter().collect();
-        editor.dirty = true;
-        sync_editor(state);
-    }
-}
-
-pub(crate) fn editor_value_delete(state: &mut AppState) {
-    let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
-        return;
-    };
-    let mut chars: Vec<char> = row.value.chars().collect();
-    if editor.cursor < chars.len() {
-        chars.remove(editor.cursor);
-        row.value = chars.into_iter().collect();
-        editor.dirty = true;
-        sync_editor(state);
-    }
 }
 
 pub(crate) fn editor_cycle(state: &mut AppState, forward: bool) -> Vec<Effect> {
@@ -1013,6 +990,13 @@ pub(crate) fn editor_delete_row(state: &mut AppState) -> Vec<Effect> {
 
 pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
     let Some(editor) = &state.editor else { return Vec::new() };
+    // A new item has no id until the first save is answered: a second
+    // `Ctrl-s` meanwhile would create it twice.
+    let creating = state.awaiting(|p| matches!(p, Pending::Save { id: None, editor: Some(_), .. }));
+    if editor.is_new && creating {
+        state.message(MessageLevel::Info, "Still creating the item…");
+        return Vec::new();
+    }
     if editor.rows.iter().any(|r| r.key == FormKey::Name && r.value.trim().is_empty()) {
         state.message(MessageLevel::Error, "The name cannot be empty.");
         return Vec::new();
@@ -1033,6 +1017,13 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         return Vec::new();
     }
     let Some(editor) = &state.editor else { return Vec::new() };
+    // A card number that fails the Luhn check is most likely mistyped; it is
+    // still saved (test cards and some store cards fail it on purpose).
+    let mistyped_card = editor.rows.iter().any(|row| {
+        row.key == FormKey::CardNumber
+            && !row.value.trim().is_empty()
+            && !crate::util::luhn_valid(&row.value)
+    });
     let item = editor.item.clone();
     let id = item.id.clone();
     // The generator popup and the folder picker change only the form rows;
@@ -1050,6 +1041,12 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         },
         Pending::Save { id, close, editor: Some(revision) },
     );
+    if mistyped_card {
+        state.message(
+            MessageLevel::Warn,
+            "The card number looks mistyped (Luhn check); saved anyway.",
+        );
+    }
     vec![request_effect]
 }
 
@@ -1060,12 +1057,6 @@ pub(crate) fn validate_editor(state: &mut AppState) -> Vec<(Option<usize>, Strin
         match row.key {
             FormKey::Totp if !row.value.trim().is_empty() && !crate::totp::is_valid(&row.value) => {
                 errors.push((Some(index), "Not a valid authenticator key".to_owned()));
-            }
-            FormKey::CardNumber if !row.value.trim().is_empty() => {
-                if !crate::util::luhn_valid(&row.value) {
-                    // Warning only: store it in errors but not blocking.
-                    // Luhn failures are common for test cards; we warn.
-                }
             }
             FormKey::ExpMonth
                 if !row.value.trim().is_empty()
@@ -1290,24 +1281,35 @@ pub(crate) fn non_empty(value: String) -> Option<String> {
     if value.trim().is_empty() { None } else { Some(value) }
 }
 
-pub(crate) fn close_notes(state: &mut AppState) {
-    let Some(notes) = state.notes.take() else { return };
-    let notes = notes.into_inner();
+/// Copies the text of the notes editor into the form, which keeps it open.
+/// The item only becomes dirty when the text changed.
+pub(crate) fn sync_notes(state: &mut AppState) {
+    let Some(notes) = &state.notes else { return };
     let text: String = notes
+        .borrow()
         .editor
         .lines
         .iter_row()
         .map(|row| row.iter().collect::<String>())
         .collect::<Vec<_>>()
         .join("\n");
-    if let Some(editor) = &mut state.editor {
-        if let Some(row) = editor.rows.iter_mut().find(|row| row.key == FormKey::Notes) {
-            row.value = text.clone();
-        }
-        editor.item.notes =
-            if text.is_empty() { None } else { Some(crate::bw::sensitive::Sensitive::new(text)) };
-        editor.dirty = true;
+    let Some(editor) = &mut state.editor else { return };
+    let current = editor.item.notes.as_ref().map(|n| n.expose()).unwrap_or("");
+    if current == text {
+        zeroize_string(text);
+        return;
     }
+    if let Some(row) = editor.rows.iter_mut().find(|row| row.key == FormKey::Notes) {
+        zeroize_string(std::mem::replace(&mut row.value, text.clone()));
+    }
+    editor.item.notes =
+        if text.is_empty() { None } else { Some(crate::bw::sensitive::Sensitive::new(text)) };
+    editor.dirty = true;
+}
+
+pub(crate) fn close_notes(state: &mut AppState) {
+    sync_notes(state);
+    state.notes = None;
 }
 
 pub(crate) fn notes_key(state: &mut AppState, key: Key) -> Vec<Effect> {
@@ -1322,7 +1324,9 @@ pub(crate) fn notes_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 return editor_action(state, Action::new("editor.external"));
             }
             Code::Char('s') => {
+                // Save what is typed in the notes too; the notes stay open.
                 drop(notes);
+                sync_notes(state);
                 return editor_action(state, Action::new("editor.save"));
             }
             _ => {}

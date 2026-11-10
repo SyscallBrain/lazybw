@@ -5,7 +5,8 @@ expression: "render(&state, 120, 36)"
  󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
 ╭ Keybindings ─────────────────────────────────────────────────────────────────────────────────── context ‹ list › Tab ╮
 │  DESCRIPTION                      ACTION                    KEYS                                                     ┃
-│▌ A page down                     nav.page_down             PageDown                                                  ┃
+│▌ A page down                     nav.page_down             Ctrl-f                                                    ┃
+│  A page down                     nav.page_down             PageDown                                                  ┃
 │  A page up                       nav.page_up               Ctrl-b                                                    ┃
 │  A page up                       nav.page_up               PageUp                                                    ┃
 │  Add to or remove from favorites item.favorite             *                                                         ┃
@@ -22,7 +23,7 @@ expression: "render(&state, 120, 36)"
 │  Edit item                       item.edit                 e                                                         ┃
 │  Edit item                       item.edit                 i                                                         ┃
 │  Empty the trash                 trash.empty               X                                                         ┃
-│  Generate and save a new passworditem.generate_password    gp                                                        ┃
+│  Generate and save a new passworditem.generate_password    gp                                                        │
 │  Go to the first row             nav.top                   gg                                                        │
 │  Go to the last row              nav.bottom                G                                                         │
 │  Go to this item's folder        item.goto_folder          gf                                                        │
@@ -34,44 +35,43 @@ expression: "render(&state, 120, 36)"
 │  Middle of the screen            nav.screen_middle         M                                                         │
 │  Move down                       nav.down                  j                                                         │
 │  Move down                       nav.down                  Down                                                      │
-│  Move to folder                  item.move                 m                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Keybindings                                                                       2 min ago │  locks 14:15 
+ NORMAL  Keybindings                                                                    2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:ea608195bd6e6fb7
 01:b89607c6e2ccec85
 02:71ad90e1a186d1aa
-03:b4711072aea45c5a
-04:60d311244b9a004d
+03:a8b9ae57ae2947a8
+04:8e52a2c588a43f32
 05:60d311244b9a004d
-06:67048df4d253d218
+06:60d311244b9a004d
 07:67048df4d253d218
 08:67048df4d253d218
-09:53c775d91e08ab43
+09:67048df4d253d218
 10:53c775d91e08ab43
 11:53c775d91e08ab43
 12:53c775d91e08ab43
 13:53c775d91e08ab43
 14:53c775d91e08ab43
-15:67048df4d253d218
-16:53c775d91e08ab43
-17:67048df4d253d218
+15:53c775d91e08ab43
+16:67048df4d253d218
+17:53c775d91e08ab43
 18:67048df4d253d218
 19:67048df4d253d218
-20:53c775d91e08ab43
+20:67048df4d253d218
 21:79bd39f29d98e3d1
-22:b24e42505efe3b84
-23:79bd39f29d98e3d1
-24:47cfec8a34f518ca
+22:79bd39f29d98e3d1
+23:b24e42505efe3b84
+24:79bd39f29d98e3d1
 25:47cfec8a34f518ca
-26:79bd39f29d98e3d1
-27:b24e42505efe3b84
+26:47cfec8a34f518ca
+27:79bd39f29d98e3d1
 28:b24e42505efe3b84
 29:b24e42505efe3b84
 30:b24e42505efe3b84
-31:c2277746f15f7611
-32:b24e42505efe3b84
+31:b24e42505efe3b84
+32:c2277746f15f7611
 33:f86dfdf534e2740f
-34:41139f14e071055d
+34:7e6ecd7473b574e4
 35:ad0696d4f8ac6d6b

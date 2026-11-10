@@ -2,18 +2,14 @@
 
 use super::{
     Action, AppState, CommandKind, Effect, FormKind, HealthCategory, ItemType, MessageLevel,
-    Pending, Screen, Tab, apply, copy_value, editable, reprompt_for, reprompt_required, request,
-    select_item_by_id, switch_tab,
+    Pending, Screen, Tab, apply, copy_value, editable, generate, reprompt_for, reprompt_required,
+    request, select_item_by_id, switch_tab,
 };
 
 pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effect> {
     match action.id.as_str() {
         "generator.regenerate" => {
-            vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )]
+            vec![generate(state, true, false)]
         }
         "generator.copy" => {
             let value = state.generator.output.clone();
@@ -25,11 +21,7 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
         "generator.toggle_mode" => {
             state.generator.request.passphrase = !state.generator.request.passphrase;
             state.generator.row = 0;
-            vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )]
+            vec![generate(state, true, false)]
         }
         "generator.increase" | "generator.decrease" | "generator.toggle_option" => {
             let delta: i16 = match action.id.as_str() {
@@ -75,11 +67,7 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
                     state.message(MessageLevel::Warn, "At least one character set stays on.");
                 }
             }
-            vec![request(
-                state,
-                CommandKind::Generate(state.generator.request.clone()),
-                Pending::Generate,
-            )]
+            vec![generate(state, false, false)]
         }
         "generator.use" => {
             if state.generator.popup {
@@ -126,7 +114,11 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
 pub(crate) fn health_action(state: &mut AppState, action: Action) -> Vec<Effect> {
     match action.id.as_str() {
         "health.rerun" if state.checking_health() => Vec::new(),
-        "health.rerun" => vec![request(state, CommandKind::Health, Pending::Health)],
+        "health.rerun" => vec![request(
+            state,
+            CommandKind::Health { check_exposed: state.config.health.check_exposed },
+            Pending::Health,
+        )],
         "health.next_category" => {
             let categories = HealthCategory::ALL;
             let index = categories.iter().position(|c| *c == state.health.category).unwrap_or(0);

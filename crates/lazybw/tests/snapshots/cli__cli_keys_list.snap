@@ -6,6 +6,7 @@ CONTEXT          KEYS               ACTION                       DESCRIPTION    
 list             *                  item.favorite                Add to or remove from favorites          Default
 list             Ctrl-b             nav.page_up                  A page up                                Default
 list             Ctrl-d             nav.half_down                Half a page down                         Default
+list             Ctrl-f             nav.page_down                A page down                              Default
 list             Ctrl-r             redo                         Redo                                     Default
 list             Ctrl-u             nav.half_up                  Half a page up                           Default
 list             D                  item.delete                  Delete permanently                       Default

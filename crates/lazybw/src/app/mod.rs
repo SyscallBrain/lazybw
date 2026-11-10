@@ -143,7 +143,7 @@ impl App {
                     }
                 }
                 Effect::ClearClipboard => {
-                    self.state.clipboard.clear_now();
+                    self.state.clipboard.clear_ours();
                 }
                 Effect::SaveConfig(updates) => {
                     let path = self.state.paths.config_file();
@@ -181,7 +181,14 @@ impl App {
                     self.state.next_request_id += 1;
                     self.state.pending.insert(id, state::Pending::Health);
                     if let Some(backend) = &self.backend {
-                        let _ = backend.send(id, crate::bw::service::CommandKind::Health).await;
+                        let kind = crate::bw::service::CommandKind::Health {
+                            check_exposed: self.state.config.health.check_exposed,
+                        };
+                        if backend.send(id, kind).await.is_err() {
+                            self.state.pending.remove(&id);
+                        }
+                    } else {
+                        self.state.pending.remove(&id);
                     }
                 }
                 Effect::SaveFolds => save_folds(&self.state),
@@ -204,7 +211,6 @@ impl App {
                 Effect::Lock => {
                     self.state.drop_secrets();
                 }
-                Effect::RefreshList => {}
             }
         }
         deferred
@@ -218,7 +224,6 @@ impl App {
         let (backend, events) = crate::bw::service::spawn(config);
         self.backend = Some(backend);
         self.backend_events = Some(events);
-        self.state.backend_alive = true;
     }
 }
 
@@ -237,12 +242,18 @@ fn save_command_history(state: &AppState) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
+    let mut text = state.command_history.join("\n");
+    text.push('\n');
+    let _ = crate::util::atomic::write_atomic(&path, text.as_bytes(), 0o600);
+}
+
+/// Reads the command-line history saved by an earlier session.
+pub fn load_command_history(state: &mut AppState) {
+    let Ok(text) = std::fs::read_to_string(state.paths.command_history()) else { return };
     let lines: Vec<String> =
-        state.messages.iter().filter_map(|m| m.text.strip_prefix(':').map(str::to_owned)).collect();
-    if lines.is_empty() {
-        return;
-    }
-    let _ = crate::util::atomic::write_atomic(&path, lines.join("\n").as_bytes(), 0o600);
+        text.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned).collect();
+    let skip = lines.len().saturating_sub(crate::app::update::HISTORY_LIMIT);
+    state.command_history = lines.into_iter().skip(skip).collect();
 }
 
 /// Builds a state for tests: fixed clock, memory clipboard, no backend.

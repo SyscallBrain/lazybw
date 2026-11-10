@@ -12,7 +12,7 @@ expression: "render(&state, width, height)"
 │ ACCOUNT NUMBER                                                                         │
 │ •••••••••••••••••••                                                                    │
 │ ────────────────────────────────────────────────────────────────────────────────────── │
-│ created                                                                                │
+│                                                                                        │
 │                                                                                        │
 │                                                                                        │
 │                                                                                        │
@@ -30,7 +30,7 @@ expression: "render(&state, width, height)"
 │                                                                                        │
 │                                                                                        │
 ╰────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Bank account             2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items › Bank account          2 min ago │  locks at 14:15 │  1/7 
                                                                                           
 styles:
 00:f7be698e18ae852c
@@ -43,7 +43,7 @@ styles:
 07:d9d4cccd951ae84a
 08:408c7666661584b3
 09:2d1b323c259dc87c
-10:28505eee7ca45171
+10:2a1d18d45ca4384a
 11:2a1d18d45ca4384a
 12:2a1d18d45ca4384a
 13:2a1d18d45ca4384a
@@ -61,5 +61,5 @@ styles:
 25:2a1d18d45ca4384a
 26:2a1d18d45ca4384a
 27:074e5aaf9d1674cb
-28:addb83c7afa4bd82
+28:c1bd641ff9a4e2b3
 29:35507918efb144e4

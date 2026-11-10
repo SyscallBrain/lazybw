@@ -9,13 +9,11 @@
 
 use crate::bw::client::BwClient;
 use crate::bw::envelope::BwError;
-use crate::bw::models::Status;
 use crate::config::Transport;
 use command_fds::{CommandFdExt, FdMapping};
 use std::collections::VecDeque;
-use std::io;
 use std::os::fd::OwnedFd;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -294,43 +292,6 @@ pub fn redact(line: &str) -> String {
         }
     }
     out
-}
-
-/// Waits until the child's `/status` reports the given predicate, with the
-/// readiness backoff used on startup.
-pub async fn wait_for_status(
-    client: &mut BwClient,
-    predicate: impl Fn(&Status) -> bool,
-    timeout: Duration,
-) -> Result<Status, BwError> {
-    let deadline = Instant::now() + timeout;
-    let mut delay = Duration::from_millis(100);
-    loop {
-        match client.status().await {
-            Ok(status) if predicate(&status) => return Ok(status),
-            Ok(status) => {
-                if Instant::now() >= deadline {
-                    return Ok(status);
-                }
-            }
-            Err(err) => {
-                if Instant::now() >= deadline {
-                    return Err(err);
-                }
-            }
-        }
-        tokio::time::sleep(delay).await;
-        delay = delay.mul_f32(1.5).min(Duration::from_millis(1000));
-    }
-}
-
-/// Removes a stale socket file, reporting errors that matter.
-pub fn clean_socket(path: &Path) -> io::Result<()> {
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(err) => Err(err),
-    }
 }
 
 #[cfg(test)]

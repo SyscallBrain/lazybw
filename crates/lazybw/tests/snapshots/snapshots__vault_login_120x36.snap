@@ -17,7 +17,7 @@ expression: "render(&state, width, height)"
 │ ─ ││   Personal visa                           ││ WEBSITES                                                          │
 │  ││    Visa •••• 4242                          ││ https://github.com  default                                       │
 │   ││   Router notes                            ││ CUSTOM FIELDS                                                     │
-│   ││    admin / hunter2                         ││ Recovery token  ••••••  hidden                                    │
+│   ││    1 line                                  ││ Recovery token  ••••••  hidden                                    │
 │   ││                                            ││ 2FA enabled     ☑ yes  boolean                                    │
 │   ││                                            ││ NOTES                                                             │
 │   ││                                            ││ Recovery codes are in the safe, drawer 2.                         │
@@ -36,7 +36,7 @@ expression: "render(&state, width, height)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › GitHub                                                 2 min ago │  locks 14:15 │  2/7 
+ NORMAL  Vault › All items › GitHub                                              2 min ago │  locks at 14:15 │  2/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -54,7 +54,7 @@ styles:
 12:c653abfa7287ae39
 13:0d520433f783d288
 14:24d392d4c36ef03d
-15:a6b82596b4550e11
+15:e201314040f39000
 16:88c190493d2d3f0d
 17:ff72122697311f47
 18:8f9c21557c53efca
@@ -73,5 +73,5 @@ styles:
 31:8f9c21557c53efca
 32:8f9c21557c53efca
 33:2005a5d698610726
-34:c87d5bd395e88a5c
+34:ec15e2a5765a3bdf
 35:ad0696d4f8ac6d6b

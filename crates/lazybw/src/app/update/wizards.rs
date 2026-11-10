@@ -80,14 +80,30 @@ pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     }
     let Some(Overlay::Export(export)) = &mut state.overlay else { return Vec::new() };
     match (export.step, key.code) {
-        (Format, Code::Char('j') | Code::Down) => export.format = next_format(export.format, true),
-        (Format, Code::Char('k') | Code::Up) => export.format = next_format(export.format, false),
+        (Format, Code::Char('j') | Code::Down) => {
+            export.path =
+                with_extension(&export.path, export.format, next_format(export.format, true));
+            export.format = next_format(export.format, true);
+        }
+        (Format, Code::Char('k') | Code::Up) => {
+            export.path =
+                with_extension(&export.path, export.format, next_format(export.format, false));
+            export.format = next_format(export.format, false);
+        }
         (Format, Code::Tab | Code::BackTab) => export.step = Destination,
         (Destination, Code::Tab) => export.path = complete_path(&export.path),
         (Destination, Code::BackTab) => export.step = Format,
         (FilePassword, Code::Tab | Code::BackTab) => export.step = ConfirmPassword,
         (ConfirmPassword, Code::Tab | Code::BackTab) => export.step = FilePassword,
         (Format | Destination, Code::Enter) => {
+            // An existing file is replaced only on a second Enter.
+            let target = shellexpand_home(&export.path);
+            let exists = std::path::Path::new(&target).exists();
+            if exists && export.overwrite.as_deref() != Some(target.as_str()) {
+                export.error = Some(format!("{} exists. Enter again replaces it.", export.path));
+                export.overwrite = Some(target);
+                return Vec::new();
+            }
             export.error = None;
             export.step =
                 if export.format.needs_password() { FilePassword } else { MasterPassword };
@@ -121,6 +137,14 @@ pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 Pending::Export,
             )];
         }
+        (Destination, _) if crate::input::line::edit_at_end(&mut export.path, key) => {}
+        (FilePassword | ConfirmPassword | MasterPassword, _) if super::is_ctrl(key, 'u') => {
+            match export.step {
+                FilePassword => export.password.clear(),
+                ConfirmPassword => export.confirmation.clear(),
+                _ => export.master.clear(),
+            }
+        }
         (_, Code::Backspace) => export.backspace(),
         // Printable keys are text in every field, `j` and `k` included;
         // only the format list reads them as moves.
@@ -128,6 +152,15 @@ pub(crate) fn export_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         _ => {}
     }
     Vec::new()
+}
+
+/// The destination with the extension of the new format, when it still
+/// has the old one (a path the user typed with another name is kept).
+pub(crate) fn with_extension(path: &str, from: ExportFormat, to: ExportFormat) -> String {
+    match path.strip_suffix(&format!(".{}", from.extension())) {
+        Some(stem) if from.extension() != to.extension() => format!("{stem}.{}", to.extension()),
+        _ => path.to_owned(),
+    }
 }
 
 pub(crate) fn next_format(format: ExportFormat, forward: bool) -> ExportFormat {
@@ -155,6 +188,14 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::{Code, Mods};
     let key = ctrl_np_as_arrows(key);
     if state.importing() {
+        // The CLI keeps going; its answer arrives as a message either way.
+        if key.code == crate::config::keymap::Code::Esc {
+            state.overlay = None;
+            state.message(
+                crate::app::state::MessageLevel::Info,
+                "The import goes on; lazybw says when it is done.",
+            );
+        }
         return Vec::new();
     }
     let Some(Overlay::Import(import)) = &mut state.overlay else { return Vec::new() };
@@ -187,12 +228,7 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
                 import.format_index = (import.format_index + len - 1) % len;
             }
         }
-        (ImportStep::Format, Code::Backspace) => {
-            import.filter.pop();
-            import.format_index = 0;
-        }
-        (ImportStep::Format, Code::Char(c)) if key.is_printable() => {
-            import.filter.push(c);
+        (ImportStep::Format, _) if crate::input::line::edit_at_end(&mut import.filter, key) => {
             import.format_index = 0;
         }
         (ImportStep::Format, Code::Enter) => {
@@ -215,13 +251,11 @@ pub(crate) fn import_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             }
         }
         (ImportStep::Password, Code::Tab | Code::BackTab) => import.step = ImportStep::Path,
-        (ImportStep::Path, Code::Backspace) => {
-            import.path.pop();
-        }
+        (ImportStep::Path, _) if crate::input::line::edit_at_end(&mut import.path, key) => {}
         (ImportStep::Password, Code::Backspace) => {
             import.password.pop();
         }
-        (ImportStep::Path, Code::Char(c)) if key.is_printable() => import.path.push(c),
+        (ImportStep::Password, _) if super::is_ctrl(key, 'u') => import.password.clear(),
         (ImportStep::Password, Code::Char(c)) if key.is_printable() => import.password.push(c),
         (ImportStep::Path | ImportStep::Password, Code::Enter) => {
             if import.path.is_empty() {

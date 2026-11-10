@@ -36,7 +36,13 @@ use std::time::Instant;
 /// Draws the whole UI.
 pub fn draw(frame: &mut Frame<'_>, state: &AppState) {
     let area = frame.area();
-    let plan = LayoutPlan::compute(area, state.sidebar_visible);
+    // The same plan the mouse uses, with the widths dragged by the user.
+    let plan = LayoutPlan::compute_sized(
+        area,
+        state.sidebar_visible,
+        state.sidebar_width,
+        state.list_width,
+    );
     if plan.too_small {
         draw_too_small(frame, area, state);
         // Nothing animated is on screen, and an effect that is never

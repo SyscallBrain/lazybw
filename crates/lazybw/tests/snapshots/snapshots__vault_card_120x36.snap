@@ -17,7 +17,7 @@ expression: "render(&state, width, height)"
 │ ─ ││   Personal visa                           ││ ───────────────────────────────────────────────────────────────── │
 │  ││    Visa •••• 4242                          ││ created 1 Jan 2023                                                │
 │   ││   Router notes                            ││                                                                   │
-│   ││    admin / hunter2                         ││                                                                   │
+│   ││    1 line                                  ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
@@ -36,7 +36,7 @@ expression: "render(&state, width, height)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Personal visa                                          2 min ago │  locks 14:15 │  6/7 
+ NORMAL  Vault › All items › Personal visa                                       2 min ago │  locks at 14:15 │  6/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -54,7 +54,7 @@ styles:
 12:f001dd02a1cde15f
 13:6867378db2ebaf31
 14:0eeddbd673d777b2
-15:33aaf7ddca25b47a
+15:31c320db4c148fb8
 16:8f9c21557c53efca
 17:8f9c21557c53efca
 18:8f9c21557c53efca
@@ -73,5 +73,5 @@ styles:
 31:8f9c21557c53efca
 32:8f9c21557c53efca
 33:2005a5d698610726
-34:ff880ce255e7ae47
+34:47efbc90450fe857
 35:ad0696d4f8ac6d6b

@@ -1,6 +1,31 @@
 //! A single-line editor with the Vim motions and operators used by the
 //! command line, search, unlock field, quick open and editor values.
 
+use crate::config::keymap::{Code, Key, Mods};
+
+/// Applies a text-editing key ([`Line::edit_key`]) to a plain string with
+/// its cursor, in characters. Returns false when the key is not one.
+pub fn edit_string(text: &mut String, cursor: &mut usize, key: Key) -> bool {
+    let mut line = Line::new(text);
+    line.cursor = (*cursor).min(line.len());
+    if !line.edit_key(key) {
+        return false;
+    }
+    *text = line.text();
+    *cursor = line.cursor;
+    true
+}
+
+/// Like [`edit_string`] for a field whose cursor is always at the end
+/// (search, paths, filters): typing, `Backspace`, `Ctrl-w`, `Ctrl-u`.
+pub fn edit_at_end(text: &mut String, key: Key) -> bool {
+    if matches!(key.code, Code::Left | Code::Right | Code::Home | Code::End | Code::Delete) {
+        return false;
+    }
+    let mut cursor = text.chars().count();
+    edit_string(text, &mut cursor, key)
+}
+
 /// Editable text with a cursor (in characters, not bytes).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Line {
@@ -222,6 +247,39 @@ impl Line {
         !self.undo.is_empty()
     }
 
+    /// `Ctrl-w`: delete the word before the cursor.
+    pub fn delete_word_backward(&mut self) {
+        let end = self.cursor;
+        self.word_backward();
+        self.delete_range(self.cursor, end);
+    }
+
+    /// `Ctrl-u`: delete everything before the cursor.
+    pub fn delete_to_start(&mut self) {
+        let end = self.cursor;
+        self.delete_range(0, end);
+        self.cursor = 0;
+    }
+
+    /// Applies a text-editing key: the arrows, `Home`, `End`, `Backspace`,
+    /// `Delete`, `Ctrl-w`, `Ctrl-u` and printable characters. Returns false
+    /// for any other key, which the caller handles.
+    pub fn edit_key(&mut self, key: Key) -> bool {
+        match (key.code, key.mods == Mods::CTRL) {
+            (Code::Backspace, _) | (Code::Char('h'), true) => self.backspace(),
+            (Code::Delete, _) => self.delete(),
+            (Code::Left, _) => self.left(),
+            (Code::Right, _) => self.right(),
+            (Code::Home, _) => self.home(),
+            (Code::End, _) => self.end(),
+            (Code::Char('w'), true) => self.delete_word_backward(),
+            (Code::Char('u'), true) => self.delete_to_start(),
+            (Code::Char(c), false) if key.is_printable() => self.insert_char(c),
+            _ => return false,
+        }
+        true
+    }
+
     /// Deletes `start..end` characters.
     pub fn delete_range(&mut self, start: usize, end: usize) {
         let start = start.min(self.chars.len());
@@ -244,6 +302,30 @@ impl Line {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::keymap::parse_keys;
+
+    fn key(notation: &str) -> Key {
+        parse_keys(notation).unwrap()[0]
+    }
+
+    #[test]
+    fn readline_keys_edit_a_string_at_its_cursor() {
+        let mut text = "move Social media".to_owned();
+        let mut cursor = text.chars().count();
+        assert!(edit_string(&mut text, &mut cursor, key("<C-w>")));
+        assert_eq!((text.as_str(), cursor), ("move Social ", 12));
+        assert!(edit_string(&mut text, &mut cursor, key("<Left>")));
+        assert!(edit_string(&mut text, &mut cursor, key("<BS>")));
+        assert_eq!((text.as_str(), cursor), ("move Socia ", 10));
+        assert!(edit_string(&mut text, &mut cursor, key("<C-u>")));
+        assert_eq!((text.as_str(), cursor), (" ", 0));
+        assert!(!edit_string(&mut text, &mut cursor, key("<CR>")));
+        let mut path = "~/backups/vault.json".to_owned();
+        assert!(edit_at_end(&mut path, key("<C-w>")));
+        assert_eq!(path, "~/backups/vault.");
+        assert!(!edit_at_end(&mut path, key("<Left>")));
+    }
+
     use super::*;
 
     #[test]

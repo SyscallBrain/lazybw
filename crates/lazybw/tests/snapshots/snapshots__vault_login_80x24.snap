@@ -24,7 +24,7 @@ expression: "render(&state, width, height)"
 │ ──────────────────────────────────────────────────────────────────────────── │
 │ created 12 Mar 2023                                 password history (0) gh  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › GitHub         2 min ago │  locks 14:15 │  2/7 
+ NORMAL  Vault › All items › GitHub      2 min ago │  locks at 14:15 │  2/7 
                                                                                 
 styles:
 00:05fd8a4e6ab511ca
@@ -49,5 +49,5 @@ styles:
 19:e49bcd068489b901
 20:873341e26b91f679
 21:3d7b3d8d4262dcae
-22:981b9c1b56c02e58
+22:3d0499757006e54b
 23:864cdd2311874b6a

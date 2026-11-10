@@ -4,7 +4,7 @@ expression: "render(&state, 120, 36)"
 ---
  󰍁 lazybw   1 Vault  2 Generator  3 Health                            you@example.com │ vault.bitwarden.eu │  unlocked 
 ╭ Vault health ────────────────────────────────────────────────────────────────────────────────────── 2 logins checked ╮
-│ Password score 85 / 100  ▰▰▰▰▰▰▰▰▱▱   would be 85 after fixing the exposed and reused passwords                      │
+│ Password score 85 / 100  ▰▰▰▰▰▰▰▰▱▱                                                                                  │
 │╭─────────────╮╭─────────────╮╭─────────────╮╭─────────────╮╭─────────────╮                                           │
 ││ 0           ││ 0           ││ 0           ││ 2           ││ 0           │                                           │
 ││ exposed     ││ reused      ││ weak        ││ over 1 year ││ no HTTPS    │                                           │
@@ -36,12 +36,12 @@ expression: "render(&state, 120, 36)"
 │                                                                                                                      │
 │                                                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Health › exposed                                          HIBP via k-anonymity │  2 min ago │  locks 14:15 
+ NORMAL  Health › exposed                                       HIBP via k-anonymity │  2 min ago │  locks at 14:15 
                                                                                                                         
 styles:
 00:4e03ebad161251b6
 01:8489b592dd15df05
-02:bb156664b99293f0
+02:3f970e9fa95a5bd7
 03:59518df9def37082
 04:6bd25e690038f73b
 05:77104a18fd21f886
@@ -73,5 +73,5 @@ styles:
 31:3175436798b7a0ea
 32:3175436798b7a0ea
 33:f86dfdf534e2740f
-34:6aeb61fe9392c5c5
+34:aa3e769e18d80017
 35:ad0696d4f8ac6d6b

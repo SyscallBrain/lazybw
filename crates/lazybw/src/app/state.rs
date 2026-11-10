@@ -277,6 +277,65 @@ pub struct ConfirmState {
     pub subfolder_count: usize,
 }
 
+impl ConfirmState {
+    /// A yes/no question: `on_confirm` runs on `y` or Enter.
+    #[must_use]
+    pub fn new(
+        title: impl Into<String>,
+        message: impl Into<String>,
+        confirm_label: impl Into<String>,
+        on_confirm: Action,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            message: message.into(),
+            confirm_label: confirm_label.into(),
+            danger: false,
+            requires_word: None,
+            input: String::new(),
+            on_confirm,
+            on_deny: None,
+            also_subfolders: false,
+            subfolder_count: 0,
+        }
+    }
+
+    /// Drawn in the danger colour (deletes, logout, discarding changes).
+    #[must_use]
+    pub fn danger(self) -> Self {
+        self.danger_if(true)
+    }
+
+    /// Danger styling when `danger` holds.
+    #[must_use]
+    pub fn danger_if(mut self, danger: bool) -> Self {
+        self.danger = danger;
+        self
+    }
+
+    /// The user must type `word` to confirm (emptying the trash).
+    #[must_use]
+    pub fn word(mut self, word: impl Into<String>) -> Self {
+        self.requires_word = Some(word.into());
+        self
+    }
+
+    /// A three-way dialog: `n` runs `action`, `c` and Esc cancel.
+    #[must_use]
+    pub fn deny(mut self, action: Action) -> Self {
+        self.on_deny = Some(action);
+        self
+    }
+
+    /// Offers to include `count` subfolders, starting with `also`.
+    #[must_use]
+    pub fn subfolders(mut self, count: usize, also: bool) -> Self {
+        self.subfolder_count = count;
+        self.also_subfolders = also;
+        self
+    }
+}
+
 /// The edtui notes editor and its Vim state.
 pub struct NotesState {
     /// The edtui editor state.
@@ -534,6 +593,16 @@ pub struct FormRow {
     pub section: Option<&'static str>,
     /// Right-aligned hint.
     pub hint: Option<String>,
+}
+
+impl Drop for FormRow {
+    /// A row's value can be a password, a card number or a private key, in
+    /// a plain string: wipe it when the row goes (the undo history and every
+    /// rebuild of the form drop rows all the time).
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.value.zeroize();
+    }
 }
 
 /// The value kind of a form row.
@@ -908,6 +977,10 @@ pub struct CmdlineState {
     pub completion_index: usize,
     /// Which completion is shown.
     pub show_completions: bool,
+    /// The history entry shown (`Up`/`Down`), counted from the newest.
+    pub history_index: Option<usize>,
+    /// What was typed before going through the history.
+    pub draft: String,
 }
 
 /// Password history popup.
@@ -1030,6 +1103,8 @@ pub struct ExportState {
     pub master: crate::input::secret::SecretInput,
     /// Error.
     pub error: Option<String>,
+    /// The existing file the user agreed to replace (a second Enter).
+    pub overwrite: Option<String>,
 }
 
 impl ExportState {
@@ -1190,8 +1265,6 @@ pub enum UndoOp {
         /// Item ids.
         ids: Vec<String>,
     },
-    /// Permanent delete (not undoable, kept for completeness).
-    Purge,
     /// Edit an item.
     Edit {
         /// Item id.
@@ -1290,7 +1363,6 @@ impl UndoOp {
             Self::Trash { ids } => format!("moved {} items to Trash", ids.len()),
             Self::Restore { ids } if ids.len() == 1 => "restored 1 item".to_owned(),
             Self::Restore { ids } => format!("restored {} items", ids.len()),
-            Self::Purge => "deleted permanently".to_owned(),
             Self::Edit { .. } => "edited an item".to_owned(),
             Self::Create { .. } => "created an item".to_owned(),
             Self::Favorite { ids, .. } => format!("changed {} favourite(s)", ids.len()),
@@ -1445,7 +1517,12 @@ pub enum Pending {
     /// A folder operation.
     Folder,
     /// Generating.
-    Generate,
+    Generate {
+        /// Keep the password in the session history.
+        record: bool,
+        /// Copy it when it arrives.
+        copy: bool,
+    },
     /// Loading an item.
     GetItem,
     /// Exporting.
@@ -1604,8 +1681,6 @@ pub struct AppState {
     pub sidebar_visible: bool,
     /// Selected item index in the list.
     pub list_row: usize,
-    /// List scroll offset.
-    pub list_offset: usize,
     /// Marks for bulk actions.
     pub marks: BTreeSet<String>,
     /// Visual mode anchor.
@@ -1648,6 +1723,8 @@ pub struct AppState {
     pub toasts: Vec<Toast>,
     /// `:messages` log.
     pub messages: Vec<LogMessage>,
+    /// Command lines run with `:`, oldest first; kept between sessions.
+    pub command_history: Vec<String>,
     /// Message shown on the message line.
     pub status_message: Option<LogMessage>,
     /// Which-key / statusline showcmd.
@@ -1697,10 +1774,12 @@ pub struct AppState {
     pub transport: Transport,
     /// Terminals key enhancement.
     pub keyboard_enhanced: bool,
-    /// True when the backend is alive.
-    pub backend_alive: bool,
     /// Last lock activity.
     pub last_input: Instant,
+    /// The same moment on the wall clock. `Instant` stops while the machine
+    /// sleeps, so on its own a laptop closed for a night would come back
+    /// still unlocked; the auto-lock counts whichever clock moved further.
+    pub last_input_wall: std::time::SystemTime,
     /// When the last successful sync finished.
     pub last_sync_at: Option<Instant>,
     /// Item whose master password re-prompt just succeeded; consumed by the
@@ -1720,6 +1799,9 @@ pub struct AppState {
     /// Scroll offsets the renderer settled on, per view, so scrolling is
     /// stable and mouse clicks map to the rows actually on screen.
     pub ui_scroll: std::cell::RefCell<BTreeMap<&'static str, usize>>,
+    /// How many rows each view showed in the last frame, for page-sized
+    /// motions (`Ctrl-d`, `Ctrl-f`, `H`, `M`, `L`).
+    pub ui_pages: std::cell::RefCell<BTreeMap<&'static str, usize>>,
     /// The edtui notes editor, open over the form.
     pub notes: Option<std::cell::RefCell<NotesState>>,
     /// Width of the sidebar while the user drags the divider.
@@ -1809,7 +1891,6 @@ impl AppState {
             collapsed: BTreeSet::new(),
             sidebar_visible: true,
             list_row: 0,
-            list_offset: 0,
             marks: BTreeSet::new(),
             visual_anchor: None,
             search: SearchState::default(),
@@ -1830,6 +1911,7 @@ impl AppState {
             clipboard_label: None,
             toasts: Vec::new(),
             messages: Vec::new(),
+            command_history: Vec::new(),
             status_message: None,
             showcmd: String::new(),
             email: None,
@@ -1854,8 +1936,8 @@ impl AppState {
             capabilities: None,
             transport,
             keyboard_enhanced: true,
-            backend_alive: false,
             last_input: Instant::now(),
+            last_input_wall: std::time::SystemTime::now(),
             last_sync_at: None,
             reprompt_once: None,
             reprompt_passed: None,
@@ -1864,6 +1946,7 @@ impl AppState {
             help_chain: Vec::new(),
             last_import: None,
             ui_scroll: std::cell::RefCell::new(BTreeMap::new()),
+            ui_pages: std::cell::RefCell::new(BTreeMap::new()),
             fx: std::cell::RefCell::new(crate::ui::fx::Fx::new(animations_enabled)),
             notes: None,
             sidebar_width: None,
@@ -1949,6 +2032,31 @@ impl AppState {
         let rows: VisibleRows = rows.into();
         *self.visible_cache.borrow_mut() = Some((key, rows.clone()));
         rows
+    }
+
+    /// Records activity for the auto-lock.
+    pub fn touch(&mut self) {
+        self.last_input = Instant::now();
+        self.last_input_wall = std::time::SystemTime::now();
+    }
+
+    /// How long since the last activity, counting time spent asleep.
+    #[must_use]
+    pub fn idle_for(&self) -> Duration {
+        let wall =
+            std::time::SystemTime::now().duration_since(self.last_input_wall).unwrap_or_default();
+        self.last_input.elapsed().max(wall)
+    }
+
+    /// How many rows the view `key` showed in the last frame; a guess
+    /// before the first one.
+    #[must_use]
+    pub fn page(&self, key: &str) -> usize {
+        self.ui_pages
+            .borrow()
+            .get(key)
+            .copied()
+            .unwrap_or_else(|| (self.size.1 as usize).saturating_sub(6).max(1))
     }
 
     /// True when the sort is reversed.
@@ -2359,7 +2467,7 @@ impl AppState {
         self.collapsed.clear();
         self.folds_restored = false;
         self.clear_selection();
-        self.clipboard.clear_now();
+        self.clipboard.clear_ours();
         // Answers to requests sent before the lock carry vault data; forget
         // the requests so those answers are dropped when they arrive. Only
         // the session's own steps stay.

@@ -204,7 +204,11 @@ pub enum CommandKind {
     /// `bw import --formats`.
     ImportFormats,
     /// Run the password health report.
-    Health,
+    Health {
+        /// Ask Have I Been Pwned about each password (`health.check_exposed`
+        /// as it is now, not as it was when lazybw started).
+        check_exposed: bool,
+    },
     /// API-key login.
     LoginApiKey {
         /// Client id.
@@ -345,8 +349,14 @@ pub struct BackendConfig {
     pub inherit_session: bool,
     /// Version gates of the located CLI.
     pub capabilities: crate::bw::locate::Capabilities,
-    /// Check Have I Been Pwned in the health report.
-    pub check_exposed: bool,
+}
+
+/// A command that runs as its own `bw` process, apart from `bw serve`.
+struct BackgroundTask {
+    task: tokio::task::JoinHandle<()>,
+    /// Stopped by a lock or a logout. An import is not: stopping `bw import`
+    /// half way could leave half a file in the vault.
+    stops_on_lock: bool,
 }
 
 struct Service {
@@ -354,11 +364,53 @@ struct Service {
     client: Option<BwClient>,
     serve: Option<Serve>,
     session: Option<SecretString>,
+    /// Where answers go, also those of background tasks.
+    events: mpsc::Sender<BackendEvent>,
+    /// The health report, imports and exports run as separate `bw`
+    /// processes for minutes; they run beside the queue so that a lock (or
+    /// a generated password) is not stuck behind them.
+    background: Vec<BackgroundTask>,
+}
+
+/// A temporary file of lazybw's that is shredded when dropped, however the
+/// task holding it ends.
+struct ShredOnDrop(Option<PathBuf>);
+
+impl Drop for ShredOnDrop {
+    fn drop(&mut self) {
+        if let Some(path) = self.0.take() {
+            let _ = crate::security::shred_and_remove(&path);
+        }
+    }
 }
 
 impl Service {
-    fn new(config: BackendConfig) -> Self {
-        Self { config, client: None, serve: None, session: None }
+    fn new(config: BackendConfig, events: mpsc::Sender<BackendEvent>) -> Self {
+        Self { config, client: None, serve: None, session: None, events, background: Vec::new() }
+    }
+
+    /// Runs `work` beside the queue; its answer is sent as request `id`.
+    fn spawn_background<F>(&mut self, id: u64, stops_on_lock: bool, work: F)
+    where
+        F: std::future::Future<Output = BwEvent> + Send + 'static,
+    {
+        self.background.retain(|task| !task.task.is_finished());
+        let events = self.events.clone();
+        let task = tokio::spawn(async move {
+            let event = work.await;
+            let _ = events.send(BackendEvent { id, event }).await;
+        });
+        self.background.push(BackgroundTask { task, stops_on_lock });
+    }
+
+    /// Stops the background tasks that must not outlive the session.
+    fn stop_background(&mut self) {
+        for task in self.background.drain(..) {
+            if task.stops_on_lock {
+                // Dropping the future kills its `bw` child (`kill_on_drop`).
+                task.task.abort();
+            }
+        }
     }
 
     async fn ensure_client(&mut self) -> Result<&mut BwClient, BwError> {
@@ -394,8 +446,10 @@ impl Service {
         client.status().await
     }
 
-    async fn execute(&mut self, kind: CommandKind) -> BwEvent {
-        match kind {
+    /// Runs a command. `None` when it went to the background, which answers
+    /// on its own.
+    async fn execute(&mut self, id: u64, kind: CommandKind) -> Option<BwEvent> {
+        Some(match kind {
             CommandKind::Start => {
                 let result = async {
                     if self.session.is_none()
@@ -412,6 +466,7 @@ impl Service {
                 BwEvent::Started(result)
             }
             CommandKind::SetSession(key) => {
+                self.stop_background();
                 self.session = Some(key);
                 self.client = None;
                 if let Some(serve) = self.serve.take() {
@@ -424,6 +479,7 @@ impl Service {
                 BwEvent::Unlocked(result)
             }
             CommandKind::Lock => {
+                self.stop_background();
                 let result = async {
                     let client = self.ensure_client().await?;
                     client.lock().await
@@ -522,35 +578,47 @@ impl Service {
                 BwEvent::Generated(result)
             }
             CommandKind::Export { format, destination, password, master } => {
-                let result = async {
-                    // `POST /unlock` checks the master password (and refreshes
-                    // the session key); a wrong one fails with the CLI message.
-                    self.unlock(master.expose_secret()).await?;
-                    self.export(format, &destination, password).await
+                // `POST /unlock` checks the master password (and refreshes
+                // the session key); a wrong one fails with the CLI message.
+                // That is quick and needs `bw serve`; the export itself runs
+                // in the background.
+                if let Err(err) = self.unlock(master.expose_secret()).await {
+                    return Some(BwEvent::Exported(Err(err)));
                 }
-                .await;
-                BwEvent::Exported(result)
+                let session = match self.session() {
+                    Ok(session) => session,
+                    Err(err) => return Some(BwEvent::Exported(Err(err))),
+                };
+                let bw = self.config.bw_path.clone();
+                self.spawn_background(id, true, async move {
+                    BwEvent::Exported(export(&bw, &session, format, &destination, password).await)
+                });
+                return None;
             }
             CommandKind::Import(request) => {
-                let result = async {
-                    let session = self.session()?;
-                    let path = self.config.bw_path.clone();
-                    let result = subprocess::import(
-                        &path,
-                        &request.format,
-                        &request.path,
-                        &session,
-                        request.password.as_ref().map(|p| p.expose_secret()),
-                        Duration::from_secs(600),
+                // The filtered copy is shredded whatever happens next: a
+                // locked vault, a failed run, a task stopped half way.
+                let temporary = ShredOnDrop(request.temporary.then(|| request.path.clone()));
+                let session = match self.session() {
+                    Ok(session) => session,
+                    Err(err) => return Some(BwEvent::Imported(Err(err))),
+                };
+                let bw = self.config.bw_path.clone();
+                self.spawn_background(id, false, async move {
+                    let _temporary = temporary;
+                    BwEvent::Imported(
+                        subprocess::import(
+                            &bw,
+                            &request.format,
+                            &request.path,
+                            &session,
+                            request.password.as_ref().map(|p| p.expose_secret()),
+                            Duration::from_secs(600),
+                        )
+                        .await,
                     )
-                    .await;
-                    if request.temporary {
-                        let _ = crate::security::shred_and_remove(&request.path);
-                    }
-                    result
-                }
-                .await;
-                BwEvent::Imported(result)
+                });
+                return None;
             }
             CommandKind::ImportFormats => {
                 let session = self.session.as_ref().map(|s| s.expose_secret().to_owned());
@@ -558,14 +626,16 @@ impl Service {
                     subprocess::import_formats(&self.config.bw_path, session.as_deref()).await,
                 )
             }
-            CommandKind::Health => {
-                let result = async {
-                    let session = self.session()?;
-                    let path = self.config.bw_path.clone();
-                    subprocess::report_health(&path, &session, self.config.check_exposed).await
-                }
-                .await;
-                BwEvent::Health(result)
+            CommandKind::Health { check_exposed } => {
+                let session = match self.session() {
+                    Ok(session) => session,
+                    Err(err) => return Some(BwEvent::Health(Err(err))),
+                };
+                let bw = self.config.bw_path.clone();
+                self.spawn_background(id, true, async move {
+                    BwEvent::Health(subprocess::report_health(&bw, &session, check_exposed).await)
+                });
+                return None;
             }
             CommandKind::LoginApiKey { client_id, client_secret } => {
                 let result = async {
@@ -586,6 +656,7 @@ impl Service {
                 BwEvent::LoggedIn(result)
             }
             CommandKind::Logout => {
+                self.stop_background();
                 let result = async {
                     if let Some(serve) = self.serve.take() {
                         serve.shutdown().await;
@@ -603,13 +674,14 @@ impl Service {
                 BwEvent::ServerConfigured(subprocess::config_server(&path, &url).await)
             }
             CommandKind::Shutdown => {
+                self.stop_background();
                 if let Some(serve) = self.serve.take() {
                     serve.shutdown().await;
                 }
                 self.client = None;
                 BwEvent::Fatal("backend stopped".to_owned())
             }
-        }
+        })
     }
 
     fn session(&self) -> Result<String, BwError> {
@@ -646,81 +718,75 @@ impl Service {
         // and the call would add about 100 ms before the vault shows.
         Ok(VaultSnapshot { items, folders, trash, archived })
     }
+}
 
-    async fn export(
-        &mut self,
-        format: ExportFormat,
-        destination: &std::path::Path,
-        password: Option<SecretString>,
-    ) -> Result<ExportOutcome, BwError> {
-        let session = self.session()?;
-        let path = self.config.bw_path.clone();
-        let bytes = match format {
-            ExportFormat::PasswordProtectedJson => {
-                // bw writes this file itself, so it must not get a guessable
-                // name next to the destination (which may be a shared
-                // directory): use a fresh name in lazybw's private 0700
-                // runtime directory instead.
-                let tmp = crate::security::secure_temp_dir()
-                    .map_err(|e| BwError::Other(format!("no private temporary directory: {e}")))?
-                    .join(format!(
-                        "export-{}-{:x}.json",
-                        std::process::id(),
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .map(|d| d.as_nanos())
-                            .unwrap_or_default()
-                    ));
-                let password = password
-                    .as_ref()
-                    .ok_or_else(|| BwError::Other("a file password is required".to_owned()))?;
-                let exported = subprocess::export_password_protected(
-                    &path,
-                    &tmp,
-                    password.expose_secret(),
-                    &session,
-                    Duration::from_secs(180),
-                )
-                .await
-                .and_then(|()| {
-                    std::fs::read(&tmp)
-                        .map_err(|e| BwError::Other(format!("could not read the export: {e}")))
-                });
-                // Whatever happened, nothing stays behind in the runtime dir.
-                if tmp.exists() {
-                    let _ = crate::security::shred_and_remove(&tmp);
-                }
-                let bytes = exported?;
-                let encrypted =
-                    serde_json::from_slice::<serde_json::Value>(&bytes).ok().and_then(|parsed| {
-                        parsed.get("encrypted").and_then(serde_json::Value::as_bool)
-                    });
-                if encrypted != Some(true) {
-                    return Err(BwError::Other(
-                        "the export is not an encrypted file; nothing was written".to_owned(),
-                    ));
-                }
-                crate::util::atomic::write_atomic(destination, &bytes, 0o600)
-                    .map_err(|e| BwError::Other(format!("could not write the export: {e}")))?;
-                return Ok(ExportOutcome {
-                    path: destination.to_path_buf(),
-                    bytes: bytes.len() as u64,
-                });
+/// Writes an export of the vault to `destination`.
+async fn export(
+    path: &std::path::Path,
+    session: &str,
+    format: ExportFormat,
+    destination: &std::path::Path,
+    password: Option<SecretString>,
+) -> Result<ExportOutcome, BwError> {
+    let bytes = match format {
+        ExportFormat::PasswordProtectedJson => {
+            // bw writes this file itself, so it must not get a guessable
+            // name next to the destination (which may be a shared
+            // directory): use a fresh name in lazybw's private 0700
+            // runtime directory instead.
+            let tmp = crate::security::secure_temp_dir()
+                .map_err(|e| BwError::Other(format!("no private temporary directory: {e}")))?
+                .join(format!(
+                    "export-{}-{:x}.json",
+                    std::process::id(),
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_nanos())
+                        .unwrap_or_default()
+                ));
+            let password = password
+                .as_ref()
+                .ok_or_else(|| BwError::Other("a file password is required".to_owned()))?;
+            let exported = subprocess::export_password_protected(
+                path,
+                &tmp,
+                password.expose_secret(),
+                session,
+                Duration::from_secs(180),
+            )
+            .await
+            .and_then(|()| {
+                std::fs::read(&tmp)
+                    .map_err(|e| BwError::Other(format!("could not read the export: {e}")))
+            });
+            // Whatever happened, nothing stays behind in the runtime dir.
+            if tmp.exists() {
+                let _ = crate::security::shred_and_remove(&tmp);
             }
-            _ => {
-                subprocess::export_raw(
-                    &path,
-                    format.bw_format(),
-                    &session,
-                    Duration::from_secs(180),
-                )
+            let bytes = exported?;
+            let encrypted = serde_json::from_slice::<serde_json::Value>(&bytes)
+                .ok()
+                .and_then(|parsed| parsed.get("encrypted").and_then(serde_json::Value::as_bool));
+            if encrypted != Some(true) {
+                return Err(BwError::Other(
+                    "the export is not an encrypted file; nothing was written".to_owned(),
+                ));
+            }
+            crate::util::atomic::write_atomic(destination, &bytes, 0o600)
+                .map_err(|e| BwError::Other(format!("could not write the export: {e}")))?;
+            return Ok(ExportOutcome {
+                path: destination.to_path_buf(),
+                bytes: bytes.len() as u64,
+            });
+        }
+        _ => {
+            subprocess::export_raw(path, format.bw_format(), session, Duration::from_secs(180))
                 .await?
-            }
-        };
-        crate::util::atomic::write_atomic(destination, &bytes, 0o600)
-            .map_err(|e| BwError::Other(format!("could not write the export: {e}")))?;
-        Ok(ExportOutcome { path: destination.to_path_buf(), bytes: bytes.len() as u64 })
-    }
+        }
+    };
+    crate::util::atomic::write_atomic(destination, &bytes, 0o600)
+        .map_err(|e| BwError::Other(format!("could not write the export: {e}")))?;
+    Ok(ExportOutcome { path: destination.to_path_buf(), bytes: bytes.len() as u64 })
 }
 
 /// Spawns the backend task and returns a handle plus the event receiver.
@@ -728,12 +794,13 @@ impl Service {
 pub fn spawn(config: BackendConfig) -> (Backend, mpsc::Receiver<BackendEvent>) {
     let (command_tx, mut command_rx) = mpsc::unbounded_channel::<Command>();
     let (event_tx, event_rx) = mpsc::channel::<BackendEvent>(256);
+    let events = event_tx.clone();
     tokio::spawn(async move {
-        let mut service = Service::new(config);
+        let mut service = Service::new(config, events);
         while let Some(command) = command_rx.recv().await {
             let shutdown = matches!(command.kind, CommandKind::Shutdown);
             let id = command.id;
-            let event = service.execute(command.kind).await;
+            let Some(event) = service.execute(id, command.kind).await else { continue };
             if event.is_disconnected() {
                 // `bw serve` died or closed the socket: restart it once with
                 // the cached session key so the next request works again.
@@ -757,18 +824,6 @@ pub fn spawn(config: BackendConfig) -> (Backend, mpsc::Receiver<BackendEvent>) {
         }
     });
     (Backend { sender: command_tx }, event_rx)
-}
-
-/// A retry wrapper used by the UI for transient disconnections.
-pub async fn with_one_restart<T, F, Fut>(mut operation: F) -> Result<T, BwError>
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<T, BwError>>,
-{
-    match operation().await {
-        Err(err) if err.is_disconnected() => operation().await,
-        other => other,
-    }
 }
 
 #[cfg(test)]

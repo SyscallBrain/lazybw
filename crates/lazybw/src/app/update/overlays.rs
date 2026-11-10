@@ -51,7 +51,13 @@ pub(crate) fn picker_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             }
             return Vec::new();
         }
-        _ => {}
+        _ => {
+            if let Some(Overlay::Picker(picker)) = &mut state.overlay
+                && crate::input::line::edit_at_end(&mut picker.filter, key)
+            {
+                picker.refilter();
+            }
+        }
     }
     Vec::new()
 }
@@ -92,7 +98,6 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
             state.filter = filter;
             state.focus = crate::app::state::Focus::List;
             state.list_row = 0;
-            state.list_offset = 0;
             state.search = crate::app::state::SearchState::default();
         }
         PickerKind::ItemType => {
@@ -121,9 +126,9 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
                 return move_items(state, value, count);
             }
         }
-        PickerKind::Theme => {
-            return apply(state, Action::with("theme.set", &[value]));
-        }
+        // Chosen from the picker (also the Settings row): kept in config.toml,
+        // unlike `:theme`, which tries one for this session.
+        PickerKind::Theme => return super::apply_setting(state, "ui.theme", value),
         PickerKind::FieldType => {
             if let Some(editor) = &mut state.editor
                 && let Some(row) = editor.rows.get_mut(editor.row)
@@ -184,6 +189,15 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
 
 pub(crate) fn confirm_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     use crate::config::keymap::Code;
+    // The `confirm` context decides (y, n, Enter, Esc by default), except for
+    // printable keys while a confirmation word is being typed.
+    let typing = state.confirm().is_some_and(|c| c.requires_word.is_some());
+    if !(typing && key.is_printable())
+        && let Some(call) = state.keymap.action("confirm", &[key])
+    {
+        let action = Action { id: call.id.clone(), args: call.args.clone(), count: None };
+        return apply(state, action);
+    }
     match key.code {
         Code::Esc => {
             state.take_confirm();
@@ -274,14 +288,9 @@ pub(crate) fn prompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.take_prompt();
             return apply(state, action);
         }
-        Code::Backspace => prompt.input.backspace(),
-        Code::Left => prompt.input.left(),
-        Code::Right => prompt.input.right(),
-        Code::Home => prompt.input.home(),
-        Code::End => prompt.input.end(),
-        Code::Delete => prompt.input.delete(),
-        Code::Char(c) if key.is_printable() => prompt.input.insert_char(c),
-        _ => {}
+        _ => {
+            prompt.input.edit_key(key);
+        }
     }
     Vec::new()
 }
@@ -310,6 +319,7 @@ pub(crate) fn reprompt_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         Code::Backspace => {
             reprompt.password.pop();
         }
+        _ if is_ctrl(key, 'u') => reprompt.password.clear(),
         Code::Char(c) if key.is_printable() => reprompt.password.push(c),
         _ => {}
     }
@@ -399,27 +409,15 @@ pub(crate) fn quick_open_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         Code::Char('e') if key.mods.contains(crate::config::keymap::Mods::CTRL) => {
             return quick_open_action(state, &Action::new("quick_open.edit"));
         }
-        Code::Backspace => {
+        _ => {
             if let Some(Overlay::QuickOpen(quick)) = &mut state.overlay
-                && !quick.input.is_empty()
+                && crate::input::line::edit_at_end(&mut quick.input, key)
             {
-                quick.input.pop();
                 quick.cursor = quick.input.chars().count();
                 quick.index = 0;
                 refresh_quick_open(state);
             }
-            return Vec::new();
         }
-        Code::Char(c) if key.is_printable() => {
-            if let Some(Overlay::QuickOpen(quick)) = &mut state.overlay {
-                quick.input.push(c);
-                quick.cursor = quick.input.chars().count();
-                quick.index = 0;
-            }
-            refresh_quick_open(state);
-            return Vec::new();
-        }
-        _ => {}
     }
     Vec::new()
 }
@@ -545,6 +543,10 @@ pub(crate) fn starting_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             unlock.password.pop();
             unlock.submit_when_ready = false;
         }
+        _ if is_ctrl(key, 'u') => {
+            unlock.password.clear();
+            unlock.submit_when_ready = false;
+        }
         Code::Char(c) if key.is_printable() => {
             unlock.password.push(c);
             unlock.submit_when_ready = false;
@@ -585,28 +587,24 @@ pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
         }
         (_, Code::Esc) => return login_action(state, Action::new("login.back")),
         (Server | Method, Code::Char('q')) => return apply(state, Action::new("app.quit")),
-        (Server, Code::Char('j') | Code::Down) => {
-            login.server = login.server.next();
-            if login.server == LoginServer::SelfHosted && login.server_input.is_empty() {
-                login.focus = ServerUrl;
-            }
-        }
+        // Passing over "Self-hosted" does not open its URL field: Enter does
+        // (`login.submit`), so the next `k` still moves instead of typing.
+        (Server, Code::Char('j') | Code::Down) => login.server = login.server.next(),
         (Server, Code::Char('k') | Code::Up) => login.server = login.server.prev(),
         (Method, Code::Char('j') | Code::Down) => login.method = login.method.next(),
         (Method, Code::Char('k') | Code::Up) => login.method = login.method.prev(),
         (ClientId, Code::Up | Code::Down) => login.focus = ClientSecret,
         (ClientSecret, Code::Up | Code::Down) => login.focus = ClientId,
-        (ServerUrl, Code::Backspace) => {
-            login.server_input.pop();
+        (ServerUrl, _) => {
+            crate::input::line::edit_at_end(&mut login.server_input, key);
         }
-        (ClientId, Code::Backspace) => {
-            login.client_id.pop();
+        (ClientId, _) => {
+            crate::input::line::edit_at_end(&mut login.client_id, key);
         }
         (ClientSecret, Code::Backspace) => {
             login.client_secret.pop();
         }
-        (ServerUrl, Code::Char(c)) if key.is_printable() => login.server_input.push(c),
-        (ClientId, Code::Char(c)) if key.is_printable() => login.client_id.push(c),
+        (ClientSecret, _) if is_ctrl(key, 'u') => login.client_secret.clear(),
         (ClientSecret, Code::Char(c)) if key.is_printable() => login.client_secret.push(c),
         _ => {}
     }
@@ -726,6 +724,10 @@ pub(crate) fn unlock_key(state: &mut AppState, key: Key) -> Vec<Effect> {
             state.unlock.password.pop();
             Vec::new()
         }
+        _ if is_ctrl(key, 'u') => {
+            state.unlock.password.clear();
+            Vec::new()
+        }
         Code::Char(c) if key.is_printable() => {
             state.unlock.password.push(c);
             Vec::new()
@@ -737,6 +739,11 @@ pub(crate) fn unlock_key(state: &mut AppState, key: Key) -> Vec<Effect> {
 /// `Ctrl-c`, which leaves the session screens (starting, error, login) and
 /// cancels the master password prompt, like it does everywhere else.
 fn is_ctrl_c(key: Key) -> bool {
+    is_ctrl(key, 'c')
+}
+
+/// `Ctrl` and a letter, nothing else held.
+pub(crate) fn is_ctrl(key: Key, letter: char) -> bool {
     use crate::config::keymap::{Code, Mods};
-    key.code == Code::Char('c') && key.mods == Mods::CTRL
+    key.code == Code::Char(letter) && key.mods == Mods::CTRL
 }

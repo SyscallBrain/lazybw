@@ -19,12 +19,12 @@ expression: "render(&state, width, height)"
 │ Passport number   —                                                          │
 │ Licence number    —                                                          │
 │ ──────────────────────────────────────────────────────────────────────────── │
-│ created                                                                      │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Jane Example   2 min ago │  locks 14:15 │  5/7 
+ NORMAL  Vault › All items › Jane Example              locks at 14:15 │  5/7 
                                                                                 
 styles:
 00:05fd8a4e6ab511ca
@@ -44,10 +44,10 @@ styles:
 14:7d3cca4ed3c0e966
 15:7d3cca4ed3c0e966
 16:e49bcd068489b901
-17:d4dcfee15f8d3b40
+17:ec31fbea254bb9ea
 18:ec31fbea254bb9ea
 19:ec31fbea254bb9ea
 20:ec31fbea254bb9ea
 21:3d7b3d8d4262dcae
-22:4dfb69943e5865db
+22:ce24b79ca74b2d44
 23:864cdd2311874b6a

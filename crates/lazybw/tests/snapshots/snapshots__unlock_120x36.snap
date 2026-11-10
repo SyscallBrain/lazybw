@@ -2,7 +2,7 @@
 source: crates/lazybw/tests/snapshots.rs
 expression: "render(&state, 120, 36)"
 ---
- 󰍁 lazybw   1 Vault  2 Generator  3 Health                              you@example.com │ vault.bitwarden.eu │  locked 
+ 󰍁 lazybw                                                               you@example.com │ vault.bitwarden.eu │  locked 
                                                                                                                         
                                                                                                                         
                                                                                                                         
@@ -39,7 +39,7 @@ expression: "render(&state, 120, 36)"
  LOCKED  Locked                                                                                            2 min ago 
                                                                                                                         
 styles:
-00:adba85378a47c209
+00:9089b6a13f5c28d7
 01:ad0696d4f8ac6d6b
 02:ad0696d4f8ac6d6b
 03:ad0696d4f8ac6d6b

@@ -285,6 +285,8 @@ pub(crate) fn draw_help(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
     let visible = content.height as usize;
     let total = lines.len();
     let offset = state.help_offset.min(total.saturating_sub(visible));
+    state.ui_pages.borrow_mut().insert("help", visible);
+    state.ui_scroll.borrow_mut().insert("help.max", total.saturating_sub(visible));
     let lines: Vec<Line<'static>> = lines.into_iter().skip(offset).take(visible).collect();
     frame.render_widget(Paragraph::new(lines).block(block), area);
     draw_scrollbar(frame, area, offset, visible, total, true, theme);
@@ -294,9 +296,11 @@ pub(crate) fn draw_messages(frame: &mut Frame<'_>, area: Rect, state: &AppState)
     let theme = &state.theme;
     let block = pane_block("Messages", "Esc close", true, theme);
     let mut lines = Vec::new();
-    for message in
-        state.messages.iter().skip(state.messages_offset).take(inner(area).height as usize)
-    {
+    let visible = inner(area).height as usize;
+    let max = state.messages.len().saturating_sub(visible);
+    state.ui_pages.borrow_mut().insert("messages", visible);
+    state.ui_scroll.borrow_mut().insert("messages.max", max);
+    for message in state.messages.iter().skip(state.messages_offset.min(max)).take(visible) {
         let token = match message.level {
             MessageLevel::Info => "fg.alt",
             MessageLevel::Ok => "ok",

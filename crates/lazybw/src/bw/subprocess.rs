@@ -9,8 +9,8 @@ use crate::bw::envelope::StatusTemplate;
 use crate::bw::envelope::{BwError, Envelope};
 use crate::bw::models::{HealthEntry, Status};
 use serde_json::Value;
-use std::ffi::{OsStr, OsString};
-use std::path::{Path, PathBuf};
+use std::ffi::OsString;
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::process::Command;
@@ -345,37 +345,6 @@ pub fn parse_health_payload(data: Value) -> Result<Vec<HealthEntry>, BwError> {
     Ok(list.data)
 }
 
-/// A convenience wrapper carrying the executable path.
-#[derive(Debug, Clone)]
-pub struct Subprocesses {
-    /// Path to `bw`.
-    pub path: PathBuf,
-}
-
-impl Subprocesses {
-    /// Wraps an executable.
-    #[must_use]
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into() }
-    }
-
-    /// `bw status`.
-    pub async fn status(&self) -> Result<Status, BwError> {
-        status(&self.path).await
-    }
-
-    /// `bw import --formats`.
-    pub async fn import_formats(&self, session: Option<&str>) -> Vec<String> {
-        import_formats(&self.path, session).await
-    }
-}
-
-/// True when a path looks like a Bitwarden CLI.
-#[must_use]
-pub fn is_bw(path: impl AsRef<OsStr>) -> bool {
-    Path::new(path.as_ref()).file_name().is_some_and(|name| name == "bw")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -429,11 +398,5 @@ mod tests {
         let bare = parse_health_payload(json!([row])).unwrap();
         assert_eq!(bare.len(), 1);
         assert_eq!(bare[0].password_strength, 3);
-    }
-
-    #[test]
-    fn detects_bw_filename() {
-        assert!(is_bw("/usr/bin/bw"));
-        assert!(!is_bw("/usr/bin/bw2"));
     }
 }

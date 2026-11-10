@@ -530,7 +530,10 @@ pub(crate) fn draw_export(
     lines.push(blank());
     if state.exporting() {
         lines.push(Line::from(Span::styled(
-            format!(" {} Exporting…", spinner_frame(tick(state))),
+            format!(
+                " {} Exporting… Esc closes this; the export goes on.",
+                spinner_frame(tick(state))
+            ),
             theme.style("info"),
         )));
     } else if let Some(error) = &export.error {
@@ -816,7 +819,10 @@ pub(crate) fn draw_import(
     }
     if state.importing() {
         lines.push(Line::from(Span::styled(
-            format!(" {} Importing…", spinner_frame(tick(state))),
+            format!(
+                " {} Importing… Esc closes this; the import goes on.",
+                spinner_frame(tick(state))
+            ),
             theme.style("info"),
         )));
     } else if let Some(error) = &import.error {

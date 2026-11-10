@@ -142,7 +142,6 @@ impl TestApp {
             runtime_dir: dir.path().to_path_buf(),
             inherit_session: true,
             capabilities: Caps::caps(),
-            check_exposed: false,
         });
         app.backend = Some(backend);
         let mut test = Self {

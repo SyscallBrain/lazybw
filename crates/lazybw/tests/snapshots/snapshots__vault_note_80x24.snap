@@ -8,7 +8,7 @@ expression: "render(&state, width, height)"
 │ Secure note                                                                  │
 │▌ 1 admin / hunter2                                                   yy copy │
 │ ──────────────────────────────────────────────────────────────────────────── │
-│ created                                                                      │
+│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │
@@ -24,7 +24,7 @@ expression: "render(&state, width, height)"
 │                                                                              │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Router notes   2 min ago │  locks 14:15 │  7/7 
+ NORMAL  Vault › All items › Router notes              locks at 14:15 │  7/7 
                                                                                 
 styles:
 00:05fd8a4e6ab511ca
@@ -33,7 +33,7 @@ styles:
 03:ddaa53c4ad216749
 04:318642bb381618d4
 05:e49bcd068489b901
-06:d4dcfee15f8d3b40
+06:ec31fbea254bb9ea
 07:ec31fbea254bb9ea
 08:ec31fbea254bb9ea
 09:ec31fbea254bb9ea
@@ -49,5 +49,5 @@ styles:
 19:ec31fbea254bb9ea
 20:ec31fbea254bb9ea
 21:3d7b3d8d4262dcae
-22:4dfb69943e5865db
+22:ce24b79ca74b2d44
 23:864cdd2311874b6a

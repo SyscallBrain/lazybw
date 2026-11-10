@@ -8,7 +8,7 @@
 
 use crate::bw::sensitive::Sensitive;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 
 /// The kind of a vault item. Unknown integers are preserved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
@@ -709,15 +709,16 @@ impl Item {
             ItemType::Identity => {
                 self.identity.as_ref().map(Identity::full_name).unwrap_or_default()
             }
+            // The note itself stays out of the list, where anyone looking at
+            // the screen reads it: it is a secret like the others (people keep
+            // recovery codes and PINs in notes), shown only in the detail pane.
             ItemType::SecureNote => {
-                if self.wants_reprompt() {
-                    return String::new();
+                let lines = self.notes.as_ref().map_or(0, |n| n.expose().lines().count());
+                match lines {
+                    0 => String::new(),
+                    1 => "1 line".to_owned(),
+                    n => format!("{n} lines"),
                 }
-                self.notes
-                    .as_ref()
-                    .and_then(|n| n.expose().lines().find(|l| !l.trim().is_empty()))
-                    .map(|l| l.trim().chars().take(80).collect())
-                    .unwrap_or_default()
             }
             ItemType::SshKey => self
                 .ssh_key
@@ -994,16 +995,11 @@ impl GenerateRequest {
     }
 }
 
-/// A JSON payload for an unknown-type item, used by the read-only view.
-#[must_use]
-pub fn unknown_type_payload(item: &Item) -> Value {
-    json!({ "type": item.kind.code(), "name": item.name })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
 
     fn sample_item_json() -> Value {
         json!({

@@ -12,12 +12,12 @@ expression: "render(&state, 140, 40)"
 │   Identities        1 ││    personal@example.com                   ││ ACCOUNT NUMBER                                                    │
 │   Secure notes      1 ││   Hetzner deploy key                     ││ •••••••••••••••••••                                               │
 │   SSH keys          1 ││    SHA256:Qx9hY2f7A                       ││ ───────────────────────────────────────────────────────────────── │
-│ FOLDERS                ││   Jane Example                           ││ created                                                           │
+│ FOLDERS                ││   Jane Example                           ││                                                                   │
 │  ▾ Personal         1 ││    Jane Example                           ││                                                                   │
 │      Banking        0 ││   Personal visa                          ││                                                                   │
 │    Work             0 ││    Visa •••• 4242                         ││                                                                   │
 │    No folder        6 ││   Router notes                           ││                                                                   │
-│ ────────────────────── ││    admin / hunter2                        ││                                                                   │
+│ ────────────────────── ││    1 line                                 ││                                                                   │
 │   Trash             0 ││                                           ││                                                                   │
 │                        ││                                           ││                                                                   │
 │                        ││                                           ││                                                                   │
@@ -40,7 +40,7 @@ expression: "render(&state, 140, 40)"
 │                        ││                                           ││                                                                   │
 │                        ││                                           ││                                                                   │
 ╰────────────────────────╯╰───────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items                                                                              2 min ago │  locks 14:15 │  1/7 
+ NORMAL  Vault › All items                                                                           2 min ago │  locks at 14:15 │  1/7 
                                                                                                                                             
 styles:
 00:ba91d31008403fd7
@@ -53,12 +53,12 @@ styles:
 07:6c9cf4454edaccd3
 08:d67d2cf64fc2bd5a
 09:d54553507f6c3405
-10:6fb9e88313d9efbe
+10:9fed39c3a5d59c70
 11:307603176d359720
 12:03f8b773ce3a8ff2
 13:8adf3feb3224aed8
 14:c1e9bf8fd4245679
-15:afa1ae02931d0c3e
+15:94980cafd81ef2ce
 16:cc7aec8f734c6afb
 17:4669908e3f13593b
 18:4669908e3f13593b
@@ -81,5 +81,5 @@ styles:
 35:4669908e3f13593b
 36:4669908e3f13593b
 37:226fba393fb16dbc
-38:389ba1b0b16fbe54
+38:72c44558a6431e6a
 39:5112c02e67bab5d3

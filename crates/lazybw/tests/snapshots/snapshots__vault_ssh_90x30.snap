@@ -13,7 +13,7 @@ expression: "render(&state, width, height)"
 │ PRIVATE KEY                                                                            │
 │ -----BEGIN OPENSSH PRIVATE KEY----- ••••                                               │
 │ ────────────────────────────────────────────────────────────────────────────────────── │
-│ created                                                                                │
+│                                                                                        │
 │                                                                                        │
 │                                                                                        │
 │                                                                                        │
@@ -30,7 +30,7 @@ expression: "render(&state, width, height)"
 │                                                                                        │
 │                                                                                        │
 ╰────────────────────────────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Hetzner deploy key       2 min ago │  locks 14:15 │  4/7 
+ NORMAL  Vault › All items › Hetzner deploy key    2 min ago │  locks at 14:15 │  4/7 
                                                                                           
 styles:
 00:f7be698e18ae852c
@@ -44,7 +44,7 @@ styles:
 08:121652b1117172d5
 09:66c90fb4c17c46cc
 10:2d1b323c259dc87c
-11:28505eee7ca45171
+11:2a1d18d45ca4384a
 12:2a1d18d45ca4384a
 13:2a1d18d45ca4384a
 14:2a1d18d45ca4384a
@@ -61,5 +61,5 @@ styles:
 25:2a1d18d45ca4384a
 26:2a1d18d45ca4384a
 27:074e5aaf9d1674cb
-28:5f5e7d306c5ae01e
+28:35441b10ca539995
 29:35507918efb144e4

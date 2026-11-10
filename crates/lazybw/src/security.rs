@@ -95,6 +95,37 @@ pub fn secure_temp_file(prefix: &str) -> io::Result<(PathBuf, File)> {
     Ok((path, file))
 }
 
+/// Shreds the temporary files of lazybw processes that are no longer
+/// running: an edit buffer, a filtered import or an export left behind by a
+/// crash or a `kill -9`. Every name is `<prefix>-<pid>-…`; files of a live
+/// process (another lazybw, this one) are left alone. Returns how many
+/// files were removed.
+pub fn sweep_stale_temp_files() -> usize {
+    let Ok(dir) = secure_temp_dir() else { return 0 };
+    let Ok(entries) = fs::read_dir(&dir) else { return 0 };
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(pid) = name.to_str().and_then(owner_pid) else { continue };
+        let alive = pid == std::process::id() || Path::new(&format!("/proc/{pid}")).exists();
+        let path = entry.path();
+        let is_file = fs::symlink_metadata(&path).is_ok_and(|meta| meta.is_file());
+        if !alive && is_file && shred_and_remove(&path).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
+
+/// The process id in a temporary file name (`edit-1234-…`, `export-1234-…`).
+fn owner_pid(name: &str) -> Option<u32> {
+    let (prefix, rest) = name.split_once('-')?;
+    if !matches!(prefix, "edit" | "import" | "export") {
+        return None;
+    }
+    rest.split('-').next()?.parse().ok()
+}
+
 /// Overwrites and removes a temporary file that held secrets.
 pub fn shred_and_remove(path: &Path) -> io::Result<()> {
     if let Ok(meta) = fs::symlink_metadata(path)
@@ -136,6 +167,23 @@ mod tests {
         assert_eq!(mode, 0o600);
         shred_and_remove(&path).unwrap();
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn stale_files_of_dead_processes_are_swept() {
+        assert_eq!(owner_pid("edit-1234-99"), Some(1234));
+        assert_eq!(owner_pid("export-77-a1b2.json"), Some(77));
+        assert_eq!(owner_pid("bw-12.sock"), None);
+        let dir = secure_temp_dir().unwrap();
+        // pid 1 is always alive and never lazybw; pick one that cannot exist.
+        let dead = dir.join("import-4194305-1");
+        fs::write(&dead, b"plaintext items").unwrap();
+        let ours = dir.join(format!("edit-{}-1", std::process::id()));
+        fs::write(&ours, b"being edited").unwrap();
+        sweep_stale_temp_files();
+        assert!(!dead.exists(), "a dead process's file was kept");
+        assert!(ours.exists(), "a live process's file was removed");
+        let _ = fs::remove_file(ours);
     }
 
     #[test]

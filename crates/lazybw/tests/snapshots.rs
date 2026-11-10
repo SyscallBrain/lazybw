@@ -510,18 +510,15 @@ fn picker_overlay() {
 #[test]
 fn confirm_overlay() {
     let mut state = state("tokyonight-night");
-    state.open(ConfirmState {
-        title: "Delete permanently?".into(),
-        message: "“Old forum” will be deleted for good. This cannot be undone.".into(),
-        confirm_label: "Delete".into(),
-        danger: true,
-        requires_word: None,
-        input: String::new(),
-        on_deny: None,
-        on_confirm: lazybw::app::state::Action::new("item.delete.confirm"),
-        also_subfolders: false,
-        subfolder_count: 0,
-    });
+    state.open(
+        ConfirmState::new(
+            "Delete permanently?",
+            "“Old forum” will be deleted for good. This cannot be undone.",
+            "Delete",
+            lazybw::app::state::Action::new("item.delete.confirm"),
+        )
+        .danger(),
+    );
     insta::assert_snapshot!("confirm_120x36", render(&state, 120, 36));
 }
 
@@ -686,6 +683,7 @@ fn wildmenu_snapshot() {
         ],
         completion_index: 0,
         show_completions: true,
+        ..Default::default()
     });
     insta::assert_snapshot!("wildmenu_120x36", render(&state, 120, 36));
 }
@@ -825,6 +823,7 @@ fn docked_popups_leave_the_statusline_and_command_line_alone() {
         completions: vec!["tokyonight-night".into(), "tokyonight-storm".into()],
         completion_index: 0,
         show_completions: false,
+        ..Default::default()
     };
     state.open(cmdline.clone());
     let typing = bottom_rows(&state, 120, 36);

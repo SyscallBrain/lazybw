@@ -44,18 +44,7 @@ fn paste(state: &mut AppState, text: &str) -> Vec<Effect> {
 }
 
 fn confirm() -> ConfirmState {
-    ConfirmState {
-        title: "Delete".into(),
-        message: "Sure?".into(),
-        confirm_label: "Delete".into(),
-        danger: true,
-        requires_word: None,
-        input: String::new(),
-        on_confirm: Action::new("noop"),
-        on_deny: None,
-        also_subfolders: false,
-        subfolder_count: 0,
-    }
+    ConfirmState::new("Delete", "Sure?", "Delete", Action::new("noop")).danger()
 }
 
 fn prompt() -> PromptState {
@@ -628,6 +617,13 @@ fn a_self_hosted_server_asks_for_its_url() {
     let mut s = login_screen();
     keys(&mut s, "jj");
     assert_eq!(s.login.server, LoginServer::SelfHosted);
+    // Passing over it keeps j and k moves: `k` goes back up, it is not typed.
+    assert_eq!(s.login.focus, LoginFocus::Server);
+    keys(&mut s, "kj");
+    assert_eq!(s.login.server, LoginServer::SelfHosted);
+    assert!(s.login.server_input.is_empty());
+    // Enter opens the URL field.
+    keys(&mut s, "<CR>");
     assert_eq!(s.login.focus, LoginFocus::ServerUrl);
     let effects = keys(&mut s, "https://vault.example.com<CR>");
     assert_eq!(backend_ids(&effects).len(), 1, "the server URL is saved");

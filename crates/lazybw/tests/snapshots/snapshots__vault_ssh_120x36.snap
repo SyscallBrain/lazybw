@@ -13,11 +13,11 @@ expression: "render(&state, width, height)"
 │  ││   Hetzner deploy key                      ││ PRIVATE KEY                                                       │
 │  ││    SHA256:Qx9hY2f7A                        ││ -----BEGIN OPENSSH PRIVATE KEY----- ••••                          │
 │ ─ ││   Jane Example                            ││ ───────────────────────────────────────────────────────────────── │
-│  ││    Jane Example                            ││ created                                                           │
+│  ││    Jane Example                            ││                                                                   │
 │ ─ ││   Personal visa                           ││                                                                   │
 │  ││    Visa •••• 4242                          ││                                                                   │
 │   ││   Router notes                            ││                                                                   │
-│   ││    admin / hunter2                         ││                                                                   │
+│   ││    1 line                                  ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
@@ -36,7 +36,7 @@ expression: "render(&state, width, height)"
 │   ││                                            ││                                                                   │
 │   ││                                            ││                                                                   │
 ╰───╯╰────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
- NORMAL  Vault › All items › Hetzner deploy key                                     2 min ago │  locks 14:15 │  4/7 
+ NORMAL  Vault › All items › Hetzner deploy key                                  2 min ago │  locks at 14:15 │  4/7 
                                                                                                                         
 styles:
 00:1d541463eb53f564
@@ -50,11 +50,11 @@ styles:
 08:602da6eccfa68640
 09:5f35a56937ebb192
 10:dfa58b95cc6bc4d0
-11:d28ce19724b17162
+11:2c38e74139193912
 12:d512fe337b69c813
 13:1d8ae12a0d12aa88
 14:0eeddbd673d777b2
-15:33aaf7ddca25b47a
+15:31c320db4c148fb8
 16:8f9c21557c53efca
 17:8f9c21557c53efca
 18:8f9c21557c53efca
@@ -73,5 +73,5 @@ styles:
 31:8f9c21557c53efca
 32:8f9c21557c53efca
 33:2005a5d698610726
-34:9a33eceaecfa2b0c
+34:b66ede674b267d77
 35:ad0696d4f8ac6d6b
