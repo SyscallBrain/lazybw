@@ -45,13 +45,13 @@ distribution.
 ### Debian and Ubuntu
 
 ```sh
-sudo apt install ./lazybw_1.1.0-1_amd64.deb     # or _arm64.deb
+sudo apt install ./lazybw_1.2.0-1_amd64.deb     # or _arm64.deb
 ```
 
 ### Fedora, openSUSE and RHEL
 
 ```sh
-sudo dnf install ./lazybw-1.1.0-1.x86_64.rpm    # or .aarch64.rpm
+sudo dnf install ./lazybw-1.2.0-1.x86_64.rpm    # or .aarch64.rpm
 ```
 
 ### Arch Linux
@@ -75,7 +75,7 @@ makepkg -si
 The release also has a ready-made package:
 
 ```sh
-sudo pacman -U lazybw-1.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U lazybw-1.2.0-1-x86_64.pkg.tar.zst
 ```
 
 On x86_64 every package pulls in `bitwarden-cli` from the Arch
@@ -84,8 +84,8 @@ repositories.
 ### Any other Linux
 
 ```sh
-tar -xzf lazybw-1.1.0-x86_64-unknown-linux-musl.tar.gz
-install -Dm755 lazybw-1.1.0-x86_64-unknown-linux-musl/lazybw ~/.local/bin/lazybw
+tar -xzf lazybw-1.2.0-x86_64-unknown-linux-musl.tar.gz
+install -Dm755 lazybw-1.2.0-x86_64-unknown-linux-musl/lazybw ~/.local/bin/lazybw
 ```
 
 Every release also has a `SHA256SUMS` file. Check your download with
@@ -98,8 +98,8 @@ The aarch64 binary runs in [Termux](https://termux.dev):
 ```sh
 pkg install nodejs
 npm install -g @bitwarden/cli
-tar -xzf lazybw-1.1.0-aarch64-unknown-linux-musl.tar.gz
-install -Dm755 lazybw-1.1.0-aarch64-unknown-linux-musl/lazybw "$PREFIX/bin/lazybw"
+tar -xzf lazybw-1.2.0-aarch64-unknown-linux-musl.tar.gz
+install -Dm755 lazybw-1.2.0-aarch64-unknown-linux-musl/lazybw "$PREFIX/bin/lazybw"
 ```
 
 Termux has no system clipboard that lazybw can reach directly; it copies

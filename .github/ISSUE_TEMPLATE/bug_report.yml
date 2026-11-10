@@ -15,7 +15,7 @@ body:
     attributes:
       label: lazybw version
       description: The output of `lazybw --version`.
-      placeholder: lazybw 1.1.0
+      placeholder: lazybw 1.2.0
     validations:
       required: true
   - type: dropdown

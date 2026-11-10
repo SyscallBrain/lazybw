@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-10
+
 ### Added
 
 - `lazybw doctor` shows the lazybw version, so its output is enough to
@@ -292,6 +294,7 @@ First public release.
 - Drawing an item, listing cards and building the health report borrow the
   vault data instead of copying passwords, card numbers and notes.
 
-[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/SyscallBrain/lazybw/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/SyscallBrain/lazybw/releases/tag/v1.0.0
