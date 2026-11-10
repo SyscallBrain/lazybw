@@ -11,7 +11,9 @@ pub fn edit_string(text: &mut String, cursor: &mut usize, key: Key) -> bool {
     if !line.edit_key(key) {
         return false;
     }
-    *text = line.text();
+    // The old text may be a password: wipe it rather than just drop it.
+    let old = std::mem::replace(text, line.text());
+    crate::app::form::wipe(old);
     *cursor = line.cursor;
     true
 }
@@ -33,6 +35,17 @@ pub struct Line {
     /// Insertion point, 0..=len.
     pub cursor: usize,
     undo: Vec<(Vec<char>, usize)>,
+}
+
+impl Drop for Line {
+    /// Lines hold master passwords, paths and form values: wipe them.
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.chars.zeroize();
+        for (chars, _) in &mut self.undo {
+            chars.zeroize();
+        }
+    }
 }
 
 impl Line {

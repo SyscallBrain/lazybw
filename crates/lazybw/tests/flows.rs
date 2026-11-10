@@ -376,17 +376,8 @@ async fn notes_open_in_edtui_and_save() {
     app.keys("ihello from edtui<Esc>").await;
     app.keys("<Tab>").await; // leave the notes field
     assert!(app.app.state.notes.is_none());
-    let row = app
-        .app
-        .state
-        .editor
-        .as_ref()
-        .unwrap()
-        .rows
-        .iter()
-        .find(|row| row.key == lazybw::app::state::FormKey::Notes)
-        .unwrap();
-    assert!(row.value.contains("hello from edtui"), "{}", row.value);
+    let notes = editor_row_value(&app, lazybw::app::state::FormKey::Notes).unwrap();
+    assert!(notes.contains("hello from edtui"), "{notes}");
     app.keys(":wq<CR>").await;
     app.wait_idle().await;
     let state = app.fake_state();
@@ -985,7 +976,8 @@ async fn go_to_folder_lists_the_no_folder_filter_first() {
 
 fn editor_row_value(app: &harness::TestApp, key: lazybw::app::state::FormKey) -> Option<String> {
     let editor = app.app.state.editor.as_ref()?;
-    editor.rows.iter().find(|row| row.key == key).map(|row| row.value.clone())
+    editor.rows.iter().find(|row| row.key == key)?;
+    Some(lazybw::app::form::value(&editor.item, key, &app.app.state.cache).to_owned())
 }
 
 #[tokio::test]

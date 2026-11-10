@@ -178,7 +178,6 @@ fn a_save_for_another_item_leaves_the_open_editor_alone() {
 
 #[test]
 fn edits_made_after_sending_a_save_survive_its_answer() {
-    use lazybw::app::state::FormKey;
     let mut s = state();
     keys(&mut s, "e");
     let id = request_id(&keys(&mut s, "Ifirst <Esc><C-s>"));
@@ -187,8 +186,7 @@ fn edits_made_after_sending_a_save_survive_its_answer() {
     written.name = "first a".into();
     event(&mut s, id, BwEvent::ItemWritten(Ok(written)));
     let editor = s.editor.as_ref().unwrap();
-    let name = editor.rows.iter().find(|r| r.key == FormKey::Name).unwrap();
-    assert_eq!(name.value, "first asecond", "the later edit was overwritten");
+    assert_eq!(editor.item.name, "first asecond", "the later edit was overwritten");
     assert!(editor.dirty);
 }
 
@@ -209,11 +207,10 @@ fn undoing_a_favourite_in_the_favourites_view_restores_that_item() {
 
 #[test]
 fn saving_from_the_editor_can_be_undone_in_the_vault() {
-    use lazybw::app::state::FormKey;
     let mut s = state();
     keys(&mut s, "e");
     let editor = s.editor.as_mut().unwrap();
-    editor.rows.iter_mut().find(|r| r.key == FormKey::Name).unwrap().value = "renamed".into();
+    editor.item.name = "renamed".into();
     editor.dirty = true;
     let id = request_id(&keys(&mut s, "<C-s>"));
     let mut written = item("a");
@@ -386,7 +383,7 @@ fn tab_in_insert_moves_to_the_next_field_and_keeps_typing() {
     keys(&mut s, "x<BS>");
     keys(&mut s, "<Tab>jane@example.com<S-Tab><Tab>");
     let editor = s.editor.as_ref().unwrap();
-    let value = |key| editor.rows.iter().find(|row| row.key == key).unwrap().value.clone();
+    let value = |key| lazybw::app::form::value(&editor.item, key, &s.cache).to_owned();
     assert_eq!(value(FormKey::Name), "Linear");
     assert_eq!(value(FormKey::Folder), "");
     assert_eq!(value(FormKey::Username), "jane@example.com");
@@ -938,7 +935,7 @@ fn reloading_from_the_server_replaces_the_form() {
     remote.name = "a-from-the-server".into();
     event(&mut state, request_id(&effects), BwEvent::Item(Ok(remote)));
     let editor = state.editor.as_ref().unwrap();
-    assert_eq!(editor.rows[0].value, "a-from-the-server");
+    assert_eq!(editor.item.name, "a-from-the-server");
     assert!(!editor.dirty);
 }
 
@@ -1015,7 +1012,8 @@ fn editing_a_detail_field_opens_the_editor_on_that_field() {
     let editor = state.editor.as_ref().unwrap();
     let row = &editor.rows[editor.row];
     assert_eq!(row.key, FormKey::Password);
-    assert!(editor.insert && row.value.is_empty(), "cc replaces the value");
+    let value = lazybw::app::form::value(&editor.item, row.key, &state.cache);
+    assert!(editor.insert && value.is_empty(), "cc replaces the value");
 }
 
 #[test]
@@ -1286,4 +1284,68 @@ fn go_to_folder_lists_a_shared_name_once() {
     };
     let work = picker.entries.iter().filter(|entry| entry.label == "Work").count();
     assert_eq!(work, 1);
+}
+
+#[test]
+fn the_editor_saves_what_it_shows() {
+    use lazybw::app::state::FormKey;
+    use lazybw::bw::service::CommandKind;
+    let mut s = state();
+    keys(&mut s, "e");
+    let go = |s: &mut AppState, key: FormKey| {
+        let editor = s.editor.as_mut().unwrap();
+        editor.row = editor.rows.iter().position(|row| row.key == key).unwrap();
+    };
+    keys(&mut s, "A-2<Esc>");
+    go(&mut s, FormKey::Username);
+    keys(&mut s, "ime<Esc>");
+    go(&mut s, FormKey::UriAdd);
+    keys(&mut s, "<CR>");
+    go(&mut s, FormKey::Uri(0));
+    keys(&mut s, "iexample.com<Esc>");
+    let shown = |s: &AppState, key| {
+        lazybw::app::form::value(&s.editor.as_ref().unwrap().item, key, &s.cache).to_owned()
+    };
+    assert_eq!(shown(&s, FormKey::Uri(0)), "example.com");
+    // Undo and redo move the item itself, so the form cannot drift from it.
+    keys(&mut s, "u");
+    assert_eq!(shown(&s, FormKey::Uri(0)), "");
+    keys(&mut s, "<C-r>");
+    assert_eq!(shown(&s, FormKey::Uri(0)), "example.com");
+
+    let effects = keys(&mut s, "<C-s>");
+    let saved = effects
+        .iter()
+        .find_map(|effect| match effect {
+            Effect::Backend { kind: CommandKind::PutItem { item, .. }, .. } => Some(item.clone()),
+            _ => None,
+        })
+        .expect("a save");
+    assert_eq!(saved.name, "a-2");
+    let login = saved.login.unwrap();
+    assert_eq!(login.username.unwrap().expose(), "me");
+    let uris: Vec<&str> = login.uris.as_deref().unwrap().iter().map(|u| u.uri_str()).collect();
+    assert_eq!(uris, vec!["example.com"]);
+}
+
+#[test]
+fn a_website_added_and_left_empty_is_not_saved() {
+    use lazybw::app::state::FormKey;
+    use lazybw::bw::service::CommandKind;
+    let mut s = state();
+    keys(&mut s, "e");
+    let editor = s.editor.as_mut().unwrap();
+    editor.row = editor.rows.iter().position(|row| row.key == FormKey::UriAdd).unwrap();
+    keys(&mut s, "<CR>");
+    let editor = s.editor.as_ref().unwrap();
+    assert!(editor.rows.iter().any(|row| row.key == FormKey::Uri(0)), "no row for the website");
+    let effects = keys(&mut s, "<C-s>");
+    let saved = effects
+        .iter()
+        .find_map(|effect| match effect {
+            Effect::Backend { kind: CommandKind::PutItem { item, .. }, .. } => Some(item.clone()),
+            _ => None,
+        })
+        .expect("a save");
+    assert!(saved.login.unwrap().uris.unwrap_or_default().is_empty());
 }

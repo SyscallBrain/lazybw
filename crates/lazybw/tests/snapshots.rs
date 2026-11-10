@@ -279,7 +279,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Name,
                 label: "Name".into(),
-                value: "GitHub".into(),
                 kind: FormKind::Text,
                 section: Some("CREDENTIALS"),
                 hint: None,
@@ -287,7 +286,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Folder,
                 label: "Folder".into(),
-                value: "Personal".into(),
                 kind: FormKind::Option(vec!["Personal".into()]),
                 section: None,
                 hint: Some("Enter pick".into()),
@@ -295,7 +293,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Username,
                 label: "Username".into(),
-                value: "dev-example".into(),
                 kind: FormKind::Text,
                 section: None,
                 hint: None,
@@ -303,7 +300,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Password,
                 label: "Password".into(),
-                value: "k7#Qm!vR2x@Lp9$Wn4eT".into(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: Some("Ctrl-g generate".into()),
@@ -311,7 +307,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Favorite,
                 label: "Favorite".into(),
-                value: "true".into(),
                 kind: FormKind::Bool,
                 section: Some("OPTIONS"),
                 hint: None,
@@ -319,7 +314,6 @@ fn editor_screen() {
             FormRow {
                 key: FormKey::Notes,
                 label: "Notes".into(),
-                value: "Recovery codes are in the safe, drawer 2.".into(),
                 kind: FormKind::Notes,
                 section: Some("NOTES"),
                 hint: Some("Ctrl-e $EDITOR".into()),
@@ -352,7 +346,6 @@ fn editor_normal_mode_screen() {
             FormRow {
                 key: FormKey::Name,
                 label: "Name".into(),
-                value: "GitHub".into(),
                 kind: FormKind::Text,
                 section: Some("CREDENTIALS"),
                 hint: None,
@@ -360,7 +353,6 @@ fn editor_normal_mode_screen() {
             FormRow {
                 key: FormKey::Username,
                 label: "Username".into(),
-                value: "dev-example".into(),
                 kind: FormKind::Text,
                 section: None,
                 hint: None,
@@ -368,7 +360,6 @@ fn editor_normal_mode_screen() {
             FormRow {
                 key: FormKey::Password,
                 label: "Password".into(),
-                value: "k7#Qm!vR2x@Lp9$Wn4eT".into(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: Some("Ctrl-g generate".into()),
@@ -376,7 +367,6 @@ fn editor_normal_mode_screen() {
             FormRow {
                 key: FormKey::Notes,
                 label: "Notes".into(),
-                value: "Recovery codes are in the safe, drawer 2.".into(),
                 kind: FormKind::Notes,
                 section: Some("NOTES"),
                 hint: Some("Ctrl-e $EDITOR".into()),

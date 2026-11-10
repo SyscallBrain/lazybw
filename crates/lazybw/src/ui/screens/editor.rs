@@ -109,6 +109,7 @@ pub(crate) fn draw_form(
         if active {
             active_line = lines.len();
         }
+        let value = crate::app::form::value(&editor.item, row.key, &state.cache);
         let row_style = if active { theme.active_row() } else { Style::default() };
         let mode = if editor.insert { "mode.insert" } else { "accent" };
         let label_style = if active { theme.bold(mode) } else { theme.style("fg.alt") };
@@ -129,8 +130,8 @@ pub(crate) fn draw_form(
         }
         let mut right = Vec::new();
         if row.key == FormKey::Totp
-            && !row.value.is_empty()
-            && let Ok(code) = crate::totp::current(&row.value, state.now.timestamp() as u64)
+            && !value.is_empty()
+            && let Ok(code) = crate::totp::current(value, state.now.timestamp() as u64)
         {
             right.push(Span::styled(
                 group_code(&code.code, code.digits as usize),
@@ -152,8 +153,8 @@ pub(crate) fn draw_form(
             let token = if error.contains("Luhn") { "warn" } else { "error" };
             lines.push(text_line(theme, token, format!("{}{error}", " ".repeat(label_width + 2))));
         }
-        if row.key == FormKey::Password && !row.value.is_empty() {
-            let strength = crate::vault::health::local_strength(&row.value);
+        if row.key == FormKey::Password && !value.is_empty() {
+            let strength = crate::vault::health::local_strength(value);
             let mut spans = vec![Span::raw(" ".repeat(label_width + 2))];
             spans.extend(meter_spans(theme, strength));
             spans.push(Span::styled(
@@ -163,7 +164,7 @@ pub(crate) fn draw_form(
             lines.push(Line::from(spans));
         }
         if row.key == FormKey::Notes {
-            let notes: Vec<&str> = row.value.lines().collect();
+            let notes: Vec<&str> = value.lines().collect();
             let shown = notes.len().clamp(1, 8);
             for (number, line) in notes.iter().take(shown).enumerate() {
                 lines.push(Line::from(vec![
@@ -217,6 +218,7 @@ pub(crate) fn form_value_spans(
     active: bool,
 ) -> Vec<Span<'static>> {
     let theme = &state.theme;
+    let value = crate::app::form::value(&editor.item, row.key, &state.cache);
     let cursor = |mut spans: Vec<Span<'static>>| {
         if active && editor.insert {
             spans.push(Span::styled("▏", theme.style("mode.insert")));
@@ -225,32 +227,32 @@ pub(crate) fn form_value_spans(
     };
     match &row.kind {
         FormKind::Secret => {
-            if row.value.is_empty() {
+            if value.is_empty() {
                 cursor(Vec::new())
             } else if editor.revealed && active {
-                cursor(password_spans(theme, &row.value, Style::default()))
+                cursor(password_spans(theme, value, Style::default()))
             } else {
                 cursor(vec![Span::styled(
-                    "•".repeat(row.value.chars().count().min(32)),
+                    "•".repeat(value.chars().count().min(32)),
                     theme.style("fg.alt"),
                 )])
             }
         }
-        FormKind::Bool => vec![if row.value == "true" {
+        FormKind::Bool => vec![if value == "true" {
             Span::styled("☑", theme.style("ok"))
         } else {
             Span::styled("☐", theme.style("fg.subtle"))
         }],
         FormKind::Option(_) => {
-            vec![Span::styled(format!("‹ {} ›", row.value), theme.style("type.note"))]
+            vec![Span::styled(format!("‹ {} ›", value), theme.style("type.note"))]
         }
         FormKind::Action => vec![Span::styled(
             format!("[ {} ]", row.label.trim_start_matches("  + ").trim()),
             theme.style("accent"),
         )],
-        FormKind::ReadOnly => vec![Span::styled(row.value.clone(), theme.style("fg.muted"))],
+        FormKind::ReadOnly => vec![Span::styled(value.to_owned(), theme.style("fg.muted"))],
         FormKind::Notes => {
-            let count = row.value.lines().count();
+            let count = value.lines().count();
             vec![Span::styled(
                 match count {
                     0 => "empty".to_owned(),
@@ -262,9 +264,9 @@ pub(crate) fn form_value_spans(
         }
         FormKind::Text => {
             if matches!(row.key, FormKey::FieldType(_)) {
-                vec![Span::styled(format!("[{}]", row.value), theme.style("fg.muted"))]
+                vec![Span::styled(format!("[{}]", value), theme.style("fg.muted"))]
             } else {
-                cursor(vec![Span::styled(row.value.clone(), theme.style("fg"))])
+                cursor(vec![Span::styled(value.to_owned(), theme.style("fg"))])
             }
         }
     }

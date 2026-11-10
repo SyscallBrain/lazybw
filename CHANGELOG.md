@@ -115,6 +115,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is, not the saved item.
 - A quick-open jump to an item hidden by the current search clears the
   search instead of landing on another item.
+- Renaming or deleting a folder changes every folder with that name.
+  Bitwarden allows two folders with the same name and the sidebar shows them
+  as one; only the first was renamed or deleted, and undo did the same. The
+  folder pickers list such a name once (ADR-025).
+- The editor saves what it shows. The form kept its own copy of every value
+  next to the item and copied it across at certain moments: a website added
+  and then left was dropped from the item at the next key, and a value set
+  from `$EDITOR` reached the item only when the form was next synced. The
+  item is now the form's only copy, and typing in a password field edits it
+  in place instead of copying it at every key.
 - `gt`, `?` and other screens no longer leave an editor with unsaved changes
   behind, where the next `e` replaced it; help, settings and messages return
   to the editor.

@@ -1,11 +1,10 @@
 //! The item editor form and the notes editor.
 
 use super::{
-    Action, AppState, BTreeMap, Card, CommandKind, ConfirmState, DetailState, EditorState,
-    EditorTarget, Effect, Field, FieldKind, FormKey, FormKind, FormRow, Identity, Item, ItemType,
-    Key, Login, LoginUri, MessageLevel, Pending, PickerEntry, PickerKind, PickerState,
-    PromptAction, PromptState, Screen, SshKey, SuspendTask, UriMatch, apply, current_folder_id,
-    generate, request,
+    Action, AppState, BTreeMap, CommandKind, ConfirmState, DetailState, EditorState, EditorTarget,
+    Effect, Field, FieldKind, FormKey, FormKind, FormRow, Item, ItemType, Key, LoginUri,
+    MessageLevel, Pending, PickerEntry, PickerKind, PickerState, PromptAction, PromptState, Screen,
+    SshKey, SuspendTask, apply, current_folder_id, generate, request,
 };
 use crate::app::actions::ActionId;
 
@@ -112,32 +111,28 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     rows.push(FormRow {
         key: FormKey::Name,
         label: "Name".to_owned(),
-        value: item.name.clone(),
         kind: FormKind::Text,
         section: Some("CREDENTIALS"),
         hint: None,
     });
-    let folder_name =
-        item.folder_id.as_ref().and_then(|id| state.cache.folder_path(id)).unwrap_or("").to_owned();
+    let mut folders: Vec<String> = vec!["No folder".to_owned()];
+    for folder in state.cache.folders() {
+        if !folders.contains(&folder.name) {
+            folders.push(folder.name.clone());
+        }
+    }
     rows.push(FormRow {
         key: FormKey::Folder,
         label: "Folder".to_owned(),
-        value: folder_name,
-        kind: FormKind::Option(
-            std::iter::once("No folder".to_owned())
-                .chain(state.cache.folders().iter().map(|f| f.name.clone()))
-                .collect(),
-        ),
+        kind: FormKind::Option(folders),
         section: None,
         hint: Some("Enter pick".to_owned()),
     });
     match item.kind {
         ItemType::Login => {
-            let login = item.login.clone().unwrap_or_default();
             rows.push(FormRow {
                 key: FormKey::Username,
                 label: "Username".to_owned(),
-                value: login.username.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Text,
                 section: None,
                 hint: None,
@@ -145,7 +140,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::Password,
                 label: "Password".to_owned(),
-                value: login.password.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: Some("Ctrl-g generate".to_owned()),
@@ -153,17 +147,15 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::Totp,
                 label: "Authenticator key".to_owned(),
-                value: login.totp.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: None,
             });
-            let uris = login.uris.clone().unwrap_or_default();
-            for (index, uri) in uris.iter().enumerate() {
+            let uris = item.login.as_ref().and_then(|l| l.uris.as_ref()).map_or(0, Vec::len);
+            for index in 0..uris {
                 rows.push(FormRow {
                     key: FormKey::Uri(index),
                     label: format!("Website {}", index + 1),
-                    value: uri.uri_str().to_owned(),
                     kind: FormKind::Text,
                     section: if index == 0 { Some("WEBSITES") } else { None },
                     hint: None,
@@ -171,7 +163,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
                 rows.push(FormRow {
                     key: FormKey::UriMatch(index),
                     label: "  match".to_owned(),
-                    value: uri.match_kind().label().to_owned(),
                     kind: FormKind::Option(
                         [
                             "Default",
@@ -193,18 +184,15 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::UriAdd,
                 label: "  + Add website".to_owned(),
-                value: String::new(),
                 kind: FormKind::Action,
-                section: if uris.is_empty() { Some("WEBSITES") } else { None },
+                section: if uris == 0 { Some("WEBSITES") } else { None },
                 hint: None,
             });
         }
         ItemType::Card => {
-            let card = item.card.clone().unwrap_or_default();
             rows.push(FormRow {
                 key: FormKey::Cardholder,
                 label: "Cardholder name".to_owned(),
-                value: card.cardholder_name.unwrap_or_default(),
                 kind: FormKind::Text,
                 section: None,
                 hint: None,
@@ -212,7 +200,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::CardNumber,
                 label: "Number".to_owned(),
-                value: card.number.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: None,
@@ -220,7 +207,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::CardBrand,
                 label: "Brand".to_owned(),
-                value: card.brand.unwrap_or_default(),
                 kind: FormKind::Option(
                     [
                         "Visa",
@@ -244,7 +230,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::ExpMonth,
                 label: "Expiration month".to_owned(),
-                value: card.exp_month.unwrap_or_default(),
                 kind: FormKind::Option((1..=12).map(|m| format!("{m:02}")).collect()),
                 section: None,
                 hint: None,
@@ -252,7 +237,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::ExpYear,
                 label: "Expiration year".to_owned(),
-                value: card.exp_year.unwrap_or_default(),
                 kind: FormKind::Text,
                 section: None,
                 hint: Some("Ctrl-a/Ctrl-x".to_owned()),
@@ -260,19 +244,16 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::CardCode,
                 label: "Security code".to_owned(),
-                value: card.code.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: None,
             });
         }
         ItemType::Identity => {
-            let identity = item.identity.clone().unwrap_or_default();
-            let rows_data: Vec<(FormKey, &str, Option<String>, FormKind)> = vec![
+            let rows_data: Vec<(FormKey, &str, FormKind)> = vec![
                 (
                     FormKey::IdTitle,
                     "Title",
-                    identity.title,
                     FormKind::Option(vec![
                         "Mr".into(),
                         "Mrs".into(),
@@ -281,44 +262,28 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
                         "Dr".into(),
                     ]),
                 ),
-                (FormKey::IdFirst, "First name", identity.first_name, FormKind::Text),
-                (FormKey::IdMiddle, "Middle name", identity.middle_name, FormKind::Text),
-                (FormKey::IdLast, "Last name", identity.last_name, FormKind::Text),
-                (FormKey::IdUsername, "Username", identity.username, FormKind::Text),
-                (FormKey::IdCompany, "Company", identity.company, FormKind::Text),
-                (FormKey::IdEmail, "Email", identity.email, FormKind::Text),
-                (FormKey::IdPhone, "Phone", identity.phone, FormKind::Text),
-                (FormKey::IdAddress1, "Address 1", identity.address1, FormKind::Text),
-                (FormKey::IdAddress2, "Address 2", identity.address2, FormKind::Text),
-                (FormKey::IdAddress3, "Address 3", identity.address3, FormKind::Text),
-                (FormKey::IdCity, "City", identity.city, FormKind::Text),
-                (FormKey::IdState, "State", identity.state, FormKind::Text),
-                (FormKey::IdPostal, "Postal code", identity.postal_code, FormKind::Text),
-                (FormKey::IdCountry, "Country", identity.country, FormKind::Text),
-                (
-                    FormKey::IdSsn,
-                    "SSN",
-                    identity.ssn.map(|s| s.expose().to_owned()),
-                    FormKind::Secret,
-                ),
-                (
-                    FormKey::IdPassport,
-                    "Passport number",
-                    identity.passport_number.map(|s| s.expose().to_owned()),
-                    FormKind::Secret,
-                ),
-                (
-                    FormKey::IdLicense,
-                    "Licence number",
-                    identity.license_number.map(|s| s.expose().to_owned()),
-                    FormKind::Secret,
-                ),
+                (FormKey::IdFirst, "First name", FormKind::Text),
+                (FormKey::IdMiddle, "Middle name", FormKind::Text),
+                (FormKey::IdLast, "Last name", FormKind::Text),
+                (FormKey::IdUsername, "Username", FormKind::Text),
+                (FormKey::IdCompany, "Company", FormKind::Text),
+                (FormKey::IdEmail, "Email", FormKind::Text),
+                (FormKey::IdPhone, "Phone", FormKind::Text),
+                (FormKey::IdAddress1, "Address 1", FormKind::Text),
+                (FormKey::IdAddress2, "Address 2", FormKind::Text),
+                (FormKey::IdAddress3, "Address 3", FormKind::Text),
+                (FormKey::IdCity, "City", FormKind::Text),
+                (FormKey::IdState, "State", FormKind::Text),
+                (FormKey::IdPostal, "Postal code", FormKind::Text),
+                (FormKey::IdCountry, "Country", FormKind::Text),
+                (FormKey::IdSsn, "SSN", FormKind::Secret),
+                (FormKey::IdPassport, "Passport number", FormKind::Secret),
+                (FormKey::IdLicense, "Licence number", FormKind::Secret),
             ];
-            for (index, (key, label, value, kind)) in rows_data.into_iter().enumerate() {
+            for (index, (key, label, kind)) in rows_data.into_iter().enumerate() {
                 rows.push(FormRow {
                     key,
                     label: label.to_owned(),
-                    value: value.unwrap_or_default(),
                     kind,
                     section: if index == 0 { Some("IDENTITY") } else { None },
                     hint: None,
@@ -327,11 +292,9 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
         }
         ItemType::SecureNote => {}
         ItemType::SshKey => {
-            let key = item.ssh_key.clone().unwrap_or_default();
             rows.push(FormRow {
                 key: FormKey::SshGenerate,
                 label: "Generate Ed25519 key".to_owned(),
-                value: String::new(),
                 kind: FormKind::Action,
                 section: Some("SSH KEY"),
                 hint: None,
@@ -339,7 +302,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::SshImport,
                 label: "Import from file…".to_owned(),
-                value: String::new(),
                 kind: FormKind::Action,
                 section: None,
                 hint: None,
@@ -347,7 +309,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::SshPublic,
                 label: "Public key".to_owned(),
-                value: key.public_key,
                 kind: FormKind::Text,
                 section: None,
                 hint: None,
@@ -355,7 +316,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::SshFingerprint,
                 label: "Fingerprint".to_owned(),
-                value: key.key_fingerprint,
                 kind: FormKind::ReadOnly,
                 section: None,
                 hint: None,
@@ -363,7 +323,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
             rows.push(FormRow {
                 key: FormKey::SshPrivate,
                 label: "Private key".to_owned(),
-                value: key.private_key.as_ref().map(|s| s.expose().to_owned()).unwrap_or_default(),
                 kind: FormKind::Secret,
                 section: None,
                 hint: None,
@@ -375,7 +334,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     rows.push(FormRow {
         key: FormKey::Favorite,
         label: "Favorite".to_owned(),
-        value: item.favorite.to_string(),
         kind: FormKind::Bool,
         section: Some("OPTIONS"),
         hint: None,
@@ -383,18 +341,16 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     rows.push(FormRow {
         key: FormKey::Reprompt,
         label: "Password re-prompt".to_owned(),
-        value: (item.reprompt == 1).to_string(),
         kind: FormKind::Bool,
         section: None,
         hint: None,
     });
     // Custom fields.
-    let fields = item.fields.clone().unwrap_or_default();
+    let fields = item.fields.as_deref().unwrap_or_default();
     for (index, field) in fields.iter().enumerate() {
         rows.push(FormRow {
             key: FormKey::FieldName(index),
             label: "Field name".to_owned(),
-            value: field.name_str().to_owned(),
             kind: FormKind::Text,
             section: if index == 0 { Some("CUSTOM FIELDS") } else { None },
             hint: None,
@@ -402,7 +358,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
         rows.push(FormRow {
             key: FormKey::FieldType(index),
             label: "  type".to_owned(),
-            value: field.kind().label().to_owned(),
             kind: FormKind::Option(vec![
                 "text".into(),
                 "hidden".into(),
@@ -415,7 +370,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
         rows.push(FormRow {
             key: FormKey::FieldValue(index),
             label: "  value".to_owned(),
-            value: field.value.as_ref().map(|v| v.expose().to_owned()).unwrap_or_default(),
             kind: match field.kind() {
                 FieldKind::Hidden => FormKind::Secret,
                 FieldKind::Boolean => FormKind::Bool,
@@ -429,7 +383,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     rows.push(FormRow {
         key: FormKey::FieldAdd,
         label: "  + Add custom field".to_owned(),
-        value: String::new(),
         kind: FormKind::Action,
         section: if fields.is_empty() { Some("CUSTOM FIELDS") } else { None },
         hint: None,
@@ -437,7 +390,6 @@ pub(crate) fn build_rows(state: &AppState, item: &Item) -> Vec<FormRow> {
     rows.push(FormRow {
         key: FormKey::Notes,
         label: "Notes".to_owned(),
-        value: item.notes.as_ref().map(|n| n.expose().to_owned()).unwrap_or_default(),
         kind: FormKind::Notes,
         section: Some("NOTES"),
         hint: Some("Ctrl-e $EDITOR".to_owned()),
@@ -508,15 +460,14 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
                 editor.insert = false;
                 editor.cursor = editor.cursor.saturating_sub(1);
             }
-            sync_editor(state);
             return Vec::new();
         }
         ActionId::EditorInsert
         | ActionId::EditorAppend
         | ActionId::EditorInsertStart
         | ActionId::EditorAppendEnd => {
+            let len = current_len(state);
             let Some(editor) = &mut state.editor else { return Vec::new() };
-            let len = editor.rows.get(editor.row).map(|r| r.value.chars().count()).unwrap_or(0);
             editor.insert = true;
             editor.cursor = match action.id {
                 ActionId::EditorInsert => editor.cursor.min(len),
@@ -528,10 +479,11 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
         }
         ActionId::EditorChangeField => {
             let Some(editor) = &mut state.editor else { return Vec::new() };
-            if let Some(row) = editor.rows.get_mut(editor.row)
-                && matches!(row.kind, FormKind::Text | FormKind::Secret | FormKind::Notes)
+            if let Some(row) = editor.rows.get(editor.row)
+                && takes_text(&row.kind)
             {
-                row.value.clear();
+                let key = row.key;
+                crate::app::form::set(&mut editor.item, key, "", &state.cache);
                 editor.cursor = 0;
                 editor.insert = true;
             }
@@ -555,8 +507,8 @@ pub(crate) fn editor_action(state: &mut AppState, action: Action) -> Vec<Effect>
                     ActionId::EditorFirstField => 0,
                     _ => editor.rows.len() - 1,
                 };
-                editor.cursor = editor.rows[editor.row].value.chars().count();
             }
+            state_cursor_to_end(state);
             return Vec::new();
         }
         ActionId::EditorRowAddBelow | ActionId::EditorRowAddAbove => {
@@ -674,36 +626,47 @@ pub(crate) fn editor_insert_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     }
 }
 
+/// The length, in characters, of the value under the editor's cursor.
+fn current_len(state: &AppState) -> usize {
+    let Some(editor) = &state.editor else { return 0 };
+    editor.rows.get(editor.row).map_or(0, |row| {
+        crate::app::form::value(&editor.item, row.key, &state.cache).chars().count()
+    })
+}
+
+/// Puts the editor's cursor at the end of the value under it.
+pub(crate) fn state_cursor_to_end(state: &mut AppState) {
+    let len = current_len(state);
+    if let Some(editor) = &mut state.editor {
+        editor.cursor = len;
+    }
+}
+
 /// Moves the cursor or deletes in the value under the cursor (arrows,
-/// `Home`, `End`, `Backspace`, `Delete`, `Ctrl-w`, `Ctrl-u`).
+/// `Home`, `End`, `Backspace`, `Delete`, `Ctrl-w`, `Ctrl-u`). The value is
+/// edited in the item, in place.
 fn editor_value_edit(state: &mut AppState, key: Key) {
     use crate::config::keymap::Code;
     let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row) else { return };
+    let Some(row) = editor.rows.get(editor.row) else { return };
+    let row_key = row.key;
     let moves = matches!(key.code, Code::Left | Code::Right | Code::Home | Code::End);
-    if !moves && !takes_text(&row.kind) {
+    if !takes_text(&row.kind) {
         return;
     }
-    let mut value = row.value.clone();
+    let Some(value) = crate::app::form::text_mut(&mut editor.item, row_key) else { return };
+    let before = value.len();
     let mut cursor = editor.cursor;
-    if !crate::input::line::edit_string(&mut value, &mut cursor, key) {
-        zeroize_string(value);
+    if !crate::input::line::edit_string(value, &mut cursor, key) {
+        crate::app::form::settle(&mut editor.item, row_key);
         return;
     }
+    let changed = !moves && value.len() != before;
     editor.cursor = cursor;
-    if value == row.value {
-        zeroize_string(value);
-        return;
+    crate::app::form::settle(&mut editor.item, row_key);
+    if changed {
+        editor.dirty = true;
     }
-    zeroize_string(std::mem::replace(&mut row.value, value));
-    editor.dirty = true;
-    sync_editor(state);
-}
-
-/// Wipes a value the form no longer uses (it may be a password).
-fn zeroize_string(mut text: String) {
-    use zeroize::Zeroize;
-    text.zeroize();
 }
 
 /// Whether typing in INSERT changes this row. Choices, checkboxes and
@@ -714,44 +677,44 @@ fn takes_text(kind: &FormKind) -> bool {
 
 pub(crate) fn editor_value_insert(state: &mut AppState, text: &str) {
     let Some(editor) = &mut state.editor else { return };
-    let Some(row) = editor.rows.get_mut(editor.row).filter(|row| takes_text(&row.kind)) else {
+    let Some(row) = editor.rows.get(editor.row).filter(|row| takes_text(&row.kind)) else {
         return;
     };
-    let mut chars: Vec<char> = row.value.chars().collect();
-    let at = editor.cursor.min(chars.len());
-    for (offset, ch) in text.chars().enumerate() {
-        chars.insert(at + offset, ch);
-    }
+    let key = row.key;
+    let Some(value) = crate::app::form::text_mut(&mut editor.item, key) else { return };
+    let at = editor.cursor.min(value.chars().count());
+    crate::app::form::insert(value, at, text);
     editor.cursor = at + text.chars().count();
-    zeroize_string(std::mem::replace(&mut row.value, chars.into_iter().collect()));
+    crate::app::form::settle(&mut editor.item, key);
     editor.dirty = true;
-    sync_editor(state);
 }
 
 pub(crate) fn editor_cycle(state: &mut AppState, forward: bool) -> Vec<Effect> {
     let Some(editor) = &mut state.editor else { return Vec::new() };
-    let Some(row) = editor.rows.get_mut(editor.row) else { return Vec::new() };
-    match &row.kind {
-        FormKind::Option(options) => {
-            if options.is_empty() {
-                return Vec::new();
-            }
-            let index = options.iter().position(|o| o == &row.value).unwrap_or(0);
+    let Some(row) = editor.rows.get(editor.row) else { return Vec::new() };
+    let current = crate::app::form::value(&editor.item, row.key, &state.cache);
+    let next = match &row.kind {
+        FormKind::Option(options) if !options.is_empty() => {
+            let index = options.iter().position(|o| o == current).unwrap_or(0);
             let next = if forward {
                 (index + 1) % options.len()
             } else {
                 (index + options.len() - 1) % options.len()
             };
-            row.value = options[next].clone();
-            editor.dirty = true;
+            options[next].clone()
         }
-        FormKind::Bool => {
-            row.value = if row.value == "true" { "false".to_owned() } else { "true".to_owned() };
-            editor.dirty = true;
-        }
-        _ => {}
+        FormKind::Bool => if current == "true" { "false" } else { "true" }.to_owned(),
+        _ => return Vec::new(),
+    };
+    let key = row.key;
+    if crate::app::form::set(&mut editor.item, key, &next, &state.cache) {
+        editor.dirty = true;
     }
-    sync_editor(state);
+    // A field that became a checkbox (or stopped being one) is drawn and
+    // edited differently.
+    if matches!(key, FormKey::FieldType(_)) {
+        rebuild_rows(state);
+    }
     Vec::new()
 }
 
@@ -801,8 +764,8 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
                     .position(|r| r.key == FormKey::Uri(index))
                     .unwrap_or(editor.row);
                 editor.insert = true;
-                editor.cursor = editor.rows[editor.row].value.chars().count();
             }
+            state_cursor_to_end(state);
             Vec::new()
         }
         FormKey::UriMatch(index) => {
@@ -914,8 +877,8 @@ pub(crate) fn editor_activate(state: &mut AppState) -> Vec<Effect> {
         FormKey::Name | FormKey::Username | FormKey::Password | FormKey::Totp => {
             if let Some(editor) = &mut state.editor {
                 editor.insert = true;
-                editor.cursor = editor.rows[editor.row].value.chars().count();
             }
+            state_cursor_to_end(state);
             Vec::new()
         }
         _ => {
@@ -983,12 +946,13 @@ pub(crate) fn editor_delete_row(state: &mut AppState) -> Vec<Effect> {
         _ => {
             // Clear the field.
             if let Some(editor) = &mut state.editor
-                && let Some(row) = editor.rows.get_mut(editor.row)
+                && let Some(row) = editor.rows.get(editor.row)
             {
-                row.value.clear();
-                editor.dirty = true;
+                let key = row.key;
+                if crate::app::form::set(&mut editor.item, key, "", &state.cache) {
+                    editor.dirty = true;
+                }
             }
-            sync_editor(state);
         }
     }
     rebuild_rows(state);
@@ -1004,12 +968,10 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         state.message(MessageLevel::Info, "Still creating the item…");
         return Vec::new();
     }
-    if editor.rows.iter().any(|r| r.key == FormKey::Name && r.value.trim().is_empty()) {
+    if editor.item.name.trim().is_empty() {
         state.message(MessageLevel::Error, "The name cannot be empty.");
         return Vec::new();
     }
-    let stale = editor.item.clone();
-    sync_editor(state);
     let errors = validate_editor(state);
     if !errors.is_empty() {
         if let Some(editor) = &mut state.editor {
@@ -1026,19 +988,13 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
     let Some(editor) = &state.editor else { return Vec::new() };
     // A card number that fails the Luhn check is most likely mistyped; it is
     // still saved (test cards and some store cards fail it on purpose).
-    let mistyped_card = editor.rows.iter().any(|row| {
-        row.key == FormKey::CardNumber
-            && !row.value.trim().is_empty()
-            && !crate::util::luhn_valid(&row.value)
-    });
-    let item = editor.item.clone();
+    let number = crate::app::form::value(&editor.item, FormKey::CardNumber, &state.cache);
+    let mistyped_card = editor.item.kind == ItemType::Card
+        && !number.trim().is_empty()
+        && !crate::util::luhn_valid(number);
+    let item = crate::app::form::for_saving(editor.item.clone());
     let id = item.id.clone();
-    // The generator popup and the folder picker change only the form rows;
-    // the sync above carries that into the item, and the undo history counts
-    // it as one more change once this key is handled. Send the revision the
-    // form will have then, or the answer looks like a later edit and the
-    // saved item stays marked as changed.
-    let revision = editor.history.revision + u64::from(item != stale);
+    let revision = editor.history.revision;
     let request_effect = request(
         state,
         if id.is_some() {
@@ -1061,13 +1017,14 @@ pub(crate) fn validate_editor(state: &mut AppState) -> Vec<(Option<usize>, Strin
     let Some(editor) = &state.editor else { return Vec::new() };
     let mut errors = Vec::new();
     for (index, row) in editor.rows.iter().enumerate() {
+        let value = crate::app::form::value(&editor.item, row.key, &state.cache);
         match row.key {
-            FormKey::Totp if !row.value.trim().is_empty() && !crate::totp::is_valid(&row.value) => {
+            FormKey::Totp if !value.trim().is_empty() && !crate::totp::is_valid(value) => {
                 errors.push((Some(index), "Not a valid authenticator key".to_owned()));
             }
             FormKey::ExpMonth
-                if !row.value.trim().is_empty()
-                    && !(1..=12).contains(&row.value.parse::<u8>().unwrap_or(0)) =>
+                if !value.trim().is_empty()
+                    && !(1..=12).contains(&value.parse::<u8>().unwrap_or(0)) =>
             {
                 errors.push((Some(index), "Expiration month must be 1–12".to_owned()));
             }
@@ -1075,217 +1032,6 @@ pub(crate) fn validate_editor(state: &mut AppState) -> Vec<(Option<usize>, Strin
         }
     }
     errors
-}
-
-pub(crate) fn sync_editor(state: &mut AppState) {
-    let Some(editor) = &mut state.editor else { return };
-    // Name and simple fields.
-    for row in &editor.rows {
-        let value = row.value.clone();
-        match row.key {
-            FormKey::Name => editor.item.name = value,
-            FormKey::Notes => {
-                editor.item.notes = if value.is_empty() {
-                    None
-                } else {
-                    Some(crate::bw::sensitive::Sensitive::new(value))
-                };
-            }
-            FormKey::Folder => {
-                let path =
-                    if value == "No folder" || value.is_empty() { String::new() } else { value };
-                editor.item.folder_id = if path.is_empty() {
-                    None
-                } else {
-                    state.cache.folders().iter().find(|f| f.name == path).and_then(|f| f.id.clone())
-                };
-            }
-            FormKey::Favorite => editor.item.favorite = value == "true",
-            FormKey::Reprompt => editor.item.reprompt = u8::from(value == "true"),
-            _ => {}
-        }
-    }
-    // Type-specific.
-    match editor.item.kind {
-        ItemType::Login => {
-            if editor.item.login.is_none() {
-                editor.item.login = Some(Login::default());
-            }
-            let mut username = None;
-            let mut password = None;
-            let mut totp = None;
-            for row in &editor.rows {
-                match row.key {
-                    FormKey::Username => username = Some(row.value.clone()),
-                    FormKey::Password => password = Some(row.value.clone()),
-                    FormKey::Totp => totp = Some(row.value.clone()),
-                    _ => {}
-                }
-            }
-            if let Some(login) = editor.item.login.as_mut() {
-                login.username =
-                    username.and_then(non_empty).map(crate::bw::sensitive::Sensitive::new);
-                login.password =
-                    password.and_then(non_empty).map(crate::bw::sensitive::Sensitive::new);
-                login.totp = totp.and_then(non_empty).map(crate::bw::sensitive::Sensitive::new);
-                let uris = login.uris.get_or_insert_with(Vec::new);
-                for row in &editor.rows {
-                    match row.key {
-                        FormKey::Uri(index) => {
-                            while uris.len() <= index {
-                                uris.push(LoginUri::new(""));
-                            }
-                            if row.value.is_empty() {
-                                uris[index].uri = None;
-                            } else {
-                                uris[index].uri = Some(row.value.clone());
-                            }
-                        }
-                        FormKey::UriMatch(index) => {
-                            while uris.len() <= index {
-                                uris.push(LoginUri::new(""));
-                            }
-                            let kind = match row.value.as_str() {
-                                "Base domain" => UriMatch::BaseDomain,
-                                "Host" => UriMatch::Host,
-                                "Starts with" => UriMatch::StartsWith,
-                                "Exact" => UriMatch::Exact,
-                                "Regular expression" => UriMatch::Regex,
-                                "Never" => UriMatch::Never,
-                                _ => UriMatch::Default,
-                            };
-                            uris[index].set_match_kind(kind);
-                        }
-                        _ => {}
-                    }
-                }
-                uris.retain(|uri| uri.uri.is_some());
-            }
-        }
-        ItemType::Card => {
-            let card = editor.item.card.get_or_insert_with(Card::default);
-            for row in &editor.rows {
-                let v = row.value.clone();
-                match row.key {
-                    FormKey::Cardholder => card.cardholder_name = non_empty(v),
-                    FormKey::CardNumber => {
-                        card.number =
-                            non_empty(v.clone()).map(crate::bw::sensitive::Sensitive::new);
-                        if card.brand.is_none() || card.brand.as_deref() == Some("") {
-                            card.brand = crate::util::card_brand(&v).map(str::to_owned);
-                        }
-                    }
-                    FormKey::CardBrand => card.brand = non_empty(v),
-                    FormKey::ExpMonth => card.exp_month = non_empty(v),
-                    FormKey::ExpYear => card.exp_year = non_empty(v),
-                    FormKey::CardCode => {
-                        card.code = non_empty(v).map(crate::bw::sensitive::Sensitive::new)
-                    }
-                    _ => {}
-                }
-            }
-        }
-        ItemType::Identity => {
-            let identity = editor.item.identity.get_or_insert_with(Identity::default);
-            for row in &editor.rows {
-                let v = row.value.clone();
-                match row.key {
-                    FormKey::IdTitle => identity.title = non_empty(v),
-                    FormKey::IdFirst => identity.first_name = non_empty(v),
-                    FormKey::IdMiddle => identity.middle_name = non_empty(v),
-                    FormKey::IdLast => identity.last_name = non_empty(v),
-                    FormKey::IdUsername => identity.username = non_empty(v),
-                    FormKey::IdCompany => identity.company = non_empty(v),
-                    FormKey::IdEmail => identity.email = non_empty(v),
-                    FormKey::IdPhone => identity.phone = non_empty(v),
-                    FormKey::IdAddress1 => identity.address1 = non_empty(v),
-                    FormKey::IdAddress2 => identity.address2 = non_empty(v),
-                    FormKey::IdAddress3 => identity.address3 = non_empty(v),
-                    FormKey::IdCity => identity.city = non_empty(v),
-                    FormKey::IdState => identity.state = non_empty(v),
-                    FormKey::IdPostal => identity.postal_code = non_empty(v),
-                    FormKey::IdCountry => identity.country = non_empty(v),
-                    FormKey::IdSsn => {
-                        identity.ssn = non_empty(v).map(crate::bw::sensitive::Sensitive::new)
-                    }
-                    FormKey::IdPassport => {
-                        identity.passport_number =
-                            non_empty(v).map(crate::bw::sensitive::Sensitive::new)
-                    }
-                    FormKey::IdLicense => {
-                        identity.license_number =
-                            non_empty(v).map(crate::bw::sensitive::Sensitive::new)
-                    }
-                    _ => {}
-                }
-            }
-        }
-        ItemType::SshKey => {
-            let key = editor.item.ssh_key.get_or_insert_with(SshKey::default);
-            for row in &editor.rows {
-                match row.key {
-                    FormKey::SshPublic => key.public_key = row.value.clone(),
-                    FormKey::SshFingerprint => key.key_fingerprint = row.value.clone(),
-                    FormKey::SshPrivate => {
-                        key.private_key =
-                            non_empty(row.value.clone()).map(crate::bw::sensitive::Sensitive::new)
-                    }
-                    _ => {}
-                }
-            }
-        }
-        ItemType::SecureNote => {
-            if editor.item.secure_note.is_none() {
-                editor.item.secure_note = Some(crate::bw::models::SecureNote::default());
-            }
-        }
-        ItemType::Other(_) => {}
-    }
-    // Custom fields.
-    let field_rows: Vec<(usize, FormKey, String)> = editor
-        .rows
-        .iter()
-        .filter_map(|row| match row.key {
-            FormKey::FieldName(i) | FormKey::FieldValue(i) | FormKey::FieldType(i) => {
-                Some((i, row.key, row.value.clone()))
-            }
-            _ => None,
-        })
-        .collect();
-    if !field_rows.is_empty() {
-        let mut fields = editor.item.fields.take().unwrap_or_default();
-        for (index, key, value) in field_rows {
-            while fields.len() <= index {
-                fields.push(Field::default());
-            }
-            let field = &mut fields[index];
-            match key {
-                FormKey::FieldName(_) => field.name = non_empty(value),
-                FormKey::FieldType(_) => {
-                    field.kind = FieldKind::from_code(match value.as_str() {
-                        "hidden" => 1,
-                        "boolean" => 2,
-                        "linked" => 3,
-                        _ => 0,
-                    })
-                    .code();
-                }
-                FormKey::FieldValue(_) => {
-                    field.value = if value.is_empty() {
-                        None
-                    } else {
-                        Some(crate::bw::sensitive::Sensitive::new(value))
-                    };
-                }
-                _ => {}
-            }
-        }
-        editor.item.fields = Some(fields);
-    }
-}
-
-pub(crate) fn non_empty(value: String) -> Option<String> {
-    if value.trim().is_empty() { None } else { Some(value) }
 }
 
 /// Copies the text of the notes editor into the form, which keeps it open.
@@ -1303,11 +1049,8 @@ pub(crate) fn sync_notes(state: &mut AppState) {
     let Some(editor) = &mut state.editor else { return };
     let current = editor.item.notes.as_ref().map(|n| n.expose()).unwrap_or("");
     if current == text {
-        zeroize_string(text);
+        crate::app::form::wipe(text);
         return;
-    }
-    if let Some(row) = editor.rows.iter_mut().find(|row| row.key == FormKey::Notes) {
-        zeroize_string(std::mem::replace(&mut row.value, text.clone()));
     }
     editor.item.notes =
         if text.is_empty() { None } else { Some(crate::bw::sensitive::Sensitive::new(text)) };

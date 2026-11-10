@@ -76,13 +76,15 @@ pub(crate) fn generator_action(state: &mut AppState, action: Action) -> Vec<Effe
             if state.generator.popup {
                 let value = state.generator.output.clone();
                 if let Some(editor) = &mut state.editor
-                    && let Some(row) = editor.rows.get_mut(editor.row)
+                    && let Some(row) = editor.rows.get(editor.row)
                     && matches!(row.kind, FormKind::Secret)
                 {
-                    row.value = value;
+                    let key = row.key;
+                    crate::app::form::set(&mut editor.item, key, &value, &state.cache);
                     editor.dirty = true;
                     editor.revealed = true;
                 }
+                crate::app::form::wipe(value);
                 state.generator.popup = false;
                 state.screen = Screen::Editor;
             } else {

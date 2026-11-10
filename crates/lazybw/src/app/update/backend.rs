@@ -586,13 +586,16 @@ pub(crate) fn on_suspended(state: &mut AppState, result: Suspended) -> Vec<Effec
                 notes.borrow_mut().editor =
                     edtui::EditorState::new(edtui::Lines::from(text.expose()));
             }
-            if let Some(editor) = &mut state.editor
-                && let Some(row) = editor.rows.iter_mut().find(|r| r.key == FormKey::Notes)
-            {
+            if let Some(editor) = &mut state.editor {
                 // An editor closed without changes leaves the item clean.
-                let before = row.value.trim_end_matches('\n').to_owned();
-                if text.expose().trim_end_matches('\n') != before {
-                    row.value = text.expose().to_owned();
+                let before = editor.item.notes.as_ref().map_or("", |n| n.expose());
+                if text.expose().trim_end_matches('\n') != before.trim_end_matches('\n') {
+                    crate::app::form::set(
+                        &mut editor.item,
+                        FormKey::Notes,
+                        text.expose(),
+                        &state.cache,
+                    );
                     editor.dirty = true;
                 }
             }

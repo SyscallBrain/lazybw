@@ -40,9 +40,7 @@ use crate::app::state::{
     PromptAction, PromptState, QuickOpenState, RepromptState, Screen, SessionPhase, SettingKind,
     SettingRow, Tab, UnlockState, WhichKeyState,
 };
-use crate::bw::models::{
-    Card, Field, FieldKind, Identity, Item, ItemType, Login, LoginUri, SshKey, UriMatch,
-};
+use crate::bw::models::{Field, FieldKind, Item, ItemType, LoginUri, SshKey};
 use crate::bw::service::{CommandKind, ExportFormat, ImportRequest};
 use crate::config::keymap::{Key, Keymap, Source, display_keys, parse_keys};
 use crate::config::{Density, IconMode, SortOrder};
@@ -130,9 +128,8 @@ fn record_editor_change(
         return;
     }
     let Some((before, was_insert)) = before else { return };
-    let changed = before.item != editor.item
-        || before.rows.len() != editor.rows.len()
-        || before.rows.iter().zip(&editor.rows).any(|(a, b)| a.value != b.value);
+    // The item is all there is to the form: the rows only describe it.
+    let changed = before.item != editor.item;
     if changed {
         editor.history.revision += 1;
     }

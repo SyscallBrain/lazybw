@@ -686,24 +686,12 @@ pub struct FormRow {
     pub key: FormKey,
     /// Label.
     pub label: String,
-    /// Current value as text.
-    pub value: String,
     /// How it is edited.
     pub kind: FormKind,
     /// Section label shown above (only on the first row of a section).
     pub section: Option<&'static str>,
     /// Right-aligned hint.
     pub hint: Option<String>,
-}
-
-impl Drop for FormRow {
-    /// A row's value can be a password, a card number or a private key, in
-    /// a plain string: wipe it when the row goes (the undo history and every
-    /// rebuild of the form drop rows all the time).
-    fn drop(&mut self) {
-        use zeroize::Zeroize;
-        self.value.zeroize();
-    }
 }
 
 /// The value kind of a form row.
@@ -875,7 +863,7 @@ pub struct EditorState {
 pub struct EditorSnapshot {
     /// The item.
     pub item: Item,
-    /// The rows (they hold the values being typed).
+    /// The rows (the item's shape when the snapshot was taken).
     pub rows: Vec<FormRow>,
     /// The selected row.
     pub row: usize,

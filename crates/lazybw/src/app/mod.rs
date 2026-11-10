@@ -7,6 +7,7 @@ pub mod actions;
 pub mod clock;
 pub mod commands;
 pub mod effect;
+pub mod form;
 pub mod msg;
 pub mod state;
 pub mod update;

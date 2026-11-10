@@ -2,12 +2,12 @@
 //! screens.
 
 use super::{
-    Action, AppState, CommandKind, Deferred, Effect, FieldKind, Filter, FormKey, ItemType, Key,
-    LoginMethod, LoginServer, MessageLevel, Overlay, Pending, PickerKind, PromptAction,
-    PromptState, Query, Screen, SecretString, SessionPhase, SuspendTask, UriMatch, accept_prompt,
-    apply, cancel, copy_value, ctrl_np_as_arrows, field_label, field_value, move_items, next_id,
-    open_new_editor, overlay_binding, rebuild_rows, reprompt_for, reprompt_required, request, run,
-    select_item_by_id, sidebar_entries, sync_editor,
+    Action, AppState, CommandKind, Deferred, Effect, Filter, FormKey, ItemType, Key, LoginMethod,
+    LoginServer, MessageLevel, Overlay, Pending, PickerKind, PromptAction, PromptState, Query,
+    Screen, SecretString, SessionPhase, SuspendTask, accept_prompt, apply, cancel, copy_value,
+    ctrl_np_as_arrows, field_label, field_value, move_items, next_id, open_new_editor,
+    overlay_binding, rebuild_rows, reprompt_for, reprompt_required, request, run,
+    select_item_by_id, sidebar_entries,
 };
 use crate::app::actions::ActionId;
 
@@ -110,10 +110,9 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
                 state.open(PromptState::new("New folder", "", PromptAction::NewFolder));
             } else if picker.from_editor {
                 if let Some(editor) = &mut state.editor
-                    && let Some(row) = editor.rows.get_mut(editor.row)
-                    && row.key == FormKey::Folder
+                    && editor.rows.get(editor.row).is_some_and(|row| row.key == FormKey::Folder)
                 {
-                    row.value = value.to_owned();
+                    crate::app::form::set(&mut editor.item, FormKey::Folder, value, &state.cache);
                     editor.dirty = true;
                 }
             } else {
@@ -126,57 +125,34 @@ pub(crate) fn picker_accept_value(state: &mut AppState, value: &str) -> Vec<Effe
         PickerKind::Theme => return super::apply_setting(state, "ui.theme", value),
         PickerKind::FieldType => {
             if let Some(editor) = &mut state.editor
-                && let Some(row) = editor.rows.get_mut(editor.row)
-                && let FormKey::FieldType(index) = row.key
+                && let Some(row) = editor.rows.get(editor.row)
+                && let FormKey::FieldType(_) = row.key
             {
-                if let Some(fields) = editor.item.fields.as_mut()
-                    && let Some(field) = fields.get_mut(index)
-                {
-                    field.kind = FieldKind::from_code(match value {
-                        "hidden" => 1,
-                        "boolean" => 2,
-                        "linked" => 3,
-                        _ => 0,
-                    })
-                    .code();
-                }
-                row.value = value.to_owned();
+                let key = row.key;
+                crate::app::form::set(&mut editor.item, key, value, &state.cache);
                 editor.dirty = true;
             }
             rebuild_rows(state);
         }
         PickerKind::UriMatch => {
             if let Some(editor) = &mut state.editor
-                && let Some(row) = editor.rows.get_mut(editor.row)
-                && let FormKey::UriMatch(index) = row.key
+                && let Some(row) = editor.rows.get(editor.row)
+                && let FormKey::UriMatch(_) = row.key
             {
-                if let Some(uris) = editor.item.login.as_mut().and_then(|l| l.uris.as_mut())
-                    && let Some(uri) = uris.get_mut(index)
-                {
-                    let kind = match value {
-                        "Base domain" => UriMatch::BaseDomain,
-                        "Host" => UriMatch::Host,
-                        "Starts with" => UriMatch::StartsWith,
-                        "Exact" => UriMatch::Exact,
-                        "Regular expression" => UriMatch::Regex,
-                        "Never" => UriMatch::Never,
-                        _ => UriMatch::Default,
-                    };
-                    uri.set_match_kind(kind);
-                }
-                row.value = value.to_owned();
+                let key = row.key;
+                crate::app::form::set(&mut editor.item, key, value, &state.cache);
                 editor.dirty = true;
             }
-            rebuild_rows(state);
         }
         PickerKind::IdentityTitle | PickerKind::CardBrand | PickerKind::ExpMonth => {
             if let Some(editor) = &mut state.editor
-                && let Some(row) = editor.rows.get_mut(editor.row)
+                && let Some(row) = editor.rows.get(editor.row)
             {
-                row.value = value.to_owned();
-                editor.dirty = true;
+                let key = row.key;
+                if crate::app::form::set(&mut editor.item, key, value, &state.cache) {
+                    editor.dirty = true;
+                }
             }
-            sync_editor(state);
         }
     }
     Vec::new()

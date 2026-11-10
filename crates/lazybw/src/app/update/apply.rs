@@ -542,22 +542,22 @@ Deferred::EmptyTrash,
                     {
                         editor.row = index;
                     }
-                    let row = &mut editor.rows[editor.row];
+                    let row = &editor.rows[editor.row];
                     if matches!(row.kind, FormKind::Text | FormKind::Secret) {
                         if id == ActionId::ItemChangeField {
-                            row.value.clear();
+                            let key = row.key;
+                            crate::app::form::set(&mut editor.item, key, "", &state.cache);
                         }
                         editor.insert = true;
-                        editor.cursor = row.value.chars().count();
                     }
                 }
+                super::state_cursor_to_end(state);
             }
             Vec::new()
         }
         ActionId::ItemEditJson => {
             // In the editor, the form as it is now; in the list, the item.
             let current = if state.screen == Screen::Editor && state.editor.is_some() {
-                super::sync_editor(state);
                 state.editor.as_ref().map(|editor| editor.item.clone())
             } else {
                 state.selected_item().cloned()
