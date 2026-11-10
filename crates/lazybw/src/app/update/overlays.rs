@@ -613,8 +613,42 @@ pub(crate) fn login_key(state: &mut AppState, key: Key) -> Vec<Effect> {
     Vec::new()
 }
 
-/// Runs the login method chosen on the method list.
+/// Tells `bw` which server to use, remembering the URL so the answer can
+/// record it (`ServerConfigured` in `update/backend.rs`).
+fn configure_server(state: &mut AppState, url: String) -> Vec<Effect> {
+    state.login.configuring_server = Some(url.clone());
+    vec![request(state, CommandKind::ConfigServer(url), Pending::ConfigServer)]
+}
+
+/// Logs in with the chosen method, on the chosen server.
+///
+/// `bw login` goes to whatever server `bw` has configured, which while
+/// logged out is not known and need not be the one highlighted here (an
+/// earlier self-hosted setup, say). So the server is set first, and the
+/// login starts when `bw` has accepted it.
 pub(crate) fn login_submit(state: &mut AppState) -> Vec<Effect> {
+    state.login.error = None;
+    if state.login.method == LoginMethod::ApiKey
+        && (state.login.client_id.is_empty() || state.login.client_secret.is_empty())
+    {
+        state.login.error = Some("Enter the client id and secret.".to_owned());
+        return Vec::new();
+    }
+    if state.login.server_needs_configuring() {
+        let url = state.login.server_url().to_owned();
+        if url.is_empty() {
+            state.login.error = Some("Enter the server URL.".to_owned());
+            state.login.focus = crate::app::state::LoginFocus::ServerUrl;
+            return Vec::new();
+        }
+        state.login.login_after_server = true;
+        return configure_server(state, url);
+    }
+    start_login(state)
+}
+
+/// Runs the login method chosen on the method list; the server is set.
+pub(crate) fn start_login(state: &mut AppState) -> Vec<Effect> {
     state.login.error = None;
     match state.login.method {
         LoginMethod::Password => vec![Effect::Suspend(SuspendTask::Login { sso: false })],
@@ -656,9 +690,9 @@ pub(crate) fn login_action(state: &mut AppState, action: Action) -> Vec<Effect> 
         ("login.submit", ServerUrl) => {
             login.focus = Server;
             login.server = LoginServer::SelfHosted;
-            let url = login.server_input.clone();
+            let url = login.server_input.trim().to_owned();
             if !url.is_empty() {
-                return vec![request(state, CommandKind::ConfigServer(url), Pending::ConfigServer)];
+                return configure_server(state, url);
             }
         }
         ("login.submit", Method) if login.method == LoginMethod::ApiKey => login.focus = ClientId,

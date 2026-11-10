@@ -3,7 +3,7 @@
 use super::{
     AppState, CommandKind, Effect, Filter, FormKey, Instant, Item, MessageLevel, Overlay, Pending,
     Screen, SessionPhase, SortOrder, Suspended, UnlockState, animate, apply, drive_folder_restore,
-    next_id, ordered_import_formats, rebuild_rows, request, show_backend_error,
+    next_id, ordered_import_formats, rebuild_rows, request, show_backend_error, start_login,
 };
 
 pub(crate) fn on_backend(
@@ -518,10 +518,22 @@ pub(crate) fn on_backend(
             }
             Err(err) => show_backend_error(state, &err),
         },
-        BwEvent::ServerConfigured(result) => match result {
-            Ok(()) => state.message(MessageLevel::Ok, "Server saved."),
-            Err(err) => state.login.error = Some(err.to_string()),
-        },
+        BwEvent::ServerConfigured(result) => {
+            let url = state.login.configuring_server.take();
+            let login = std::mem::take(&mut state.login.login_after_server);
+            match result {
+                Ok(()) => {
+                    state.login.configured_server = url;
+                    if login {
+                        // Enter on the method list was waiting for this.
+                        effects.extend(start_login(state));
+                    } else {
+                        state.message(MessageLevel::Ok, "Server saved.");
+                    }
+                }
+                Err(err) => state.login.error = Some(err.to_string()),
+            }
+        }
         BwEvent::Fatal(message) => {
             state.backend_alive = false;
             // Leaving Ready forgets the vault: a retry starts a new CLI that

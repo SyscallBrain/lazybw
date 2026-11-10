@@ -640,3 +640,61 @@ fn quit_with_changes_queued_can_be_forced_or_cancelled_and_stays_on_a_failure() 
     let effects = keys(&mut state, "q");
     assert!(state.quit && effects.iter().any(|e| matches!(e, Effect::Quit)));
 }
+
+fn server_request(effects: &[Effect]) -> Option<(u64, String)> {
+    use lazybw::bw::service::CommandKind;
+    effects.iter().find_map(|effect| match effect {
+        Effect::Backend { id, kind: CommandKind::ConfigServer(url) } => Some((*id, url.clone())),
+        _ => None,
+    })
+}
+
+#[test]
+fn login_sets_the_chosen_server_before_it_starts() {
+    use lazybw::app::msg::SuspendTask;
+    let mut state = state();
+    state.enter_session(SessionPhase::LoggedOut);
+
+    // bitwarden.eu, then Enter twice: on the server, then on "Email and
+    // password". bw must hear about the server before `bw login` runs.
+    keys(&mut state, "j");
+    keys(&mut state, "<CR>");
+    let effects = keys(&mut state, "<CR>");
+    let (id, url) = server_request(&effects).expect("bw config server");
+    assert_eq!(url, "https://vault.bitwarden.eu");
+    assert!(!effects.iter().any(|e| matches!(e, Effect::Suspend(_))), "login before the server");
+
+    let effects = event(&mut state, id, BwEvent::ServerConfigured(Ok(())));
+    assert!(
+        effects.iter().any(|e| matches!(e, Effect::Suspend(SuspendTask::Login { sso: false }))),
+        "{effects:?}"
+    );
+
+    // Again on the same server (a mistyped password): no second round trip.
+    let effects = keys(&mut state, "<CR>");
+    assert!(server_request(&effects).is_none());
+    assert!(effects.iter().any(|e| matches!(e, Effect::Suspend(_))));
+
+    // The default choice is set too: bw may still point at another server.
+    let mut state = self::state();
+    state.enter_session(SessionPhase::LoggedOut);
+    keys(&mut state, "<Tab>");
+    let effects = keys(&mut state, "<CR>");
+    assert_eq!(
+        server_request(&effects).map(|(_, url)| url).as_deref(),
+        Some("https://vault.bitwarden.com")
+    );
+}
+
+#[test]
+fn a_server_bw_refuses_stops_the_login() {
+    let mut state = state();
+    state.enter_session(SessionPhase::LoggedOut);
+    keys(&mut state, "<Tab>");
+    let effects = keys(&mut state, "<CR>");
+    let (id, _) = server_request(&effects).expect("bw config server");
+    let effects =
+        event(&mut state, id, BwEvent::ServerConfigured(Err(lazybw::bw::BwError::LogoutRequired)));
+    assert!(effects.is_empty(), "{effects:?}");
+    assert_eq!(state.login.error.as_deref(), Some("Logout required before server config update."));
+}

@@ -442,9 +442,22 @@ pub struct LoginState {
     pub client_secret: crate::input::secret::SecretInput,
     /// Error message.
     pub error: Option<String>,
+    /// The server URL `bw` was last told to use from this screen. `None`
+    /// until then: what `bw` has configured is not known while logged out.
+    pub configured_server: Option<String>,
+    /// The server URL being sent to `bw` right now.
+    pub configuring_server: Option<String>,
+    /// Start the chosen login method once `bw` has accepted the server.
+    pub login_after_server: bool,
 }
 
 impl LoginState {
+    /// True when `bw` still has to be told about the chosen server.
+    #[must_use]
+    pub fn server_needs_configuring(&self) -> bool {
+        self.configured_server.as_deref() != Some(self.server_url())
+    }
+
     /// The chosen server URL.
     #[must_use]
     pub fn server_url(&self) -> &str {

@@ -1416,3 +1416,15 @@ async fn an_action_on_hundreds_of_items_reaches_the_backend_without_hanging() {
     assert_eq!(trashed, ITEMS);
     assert_eq!(app.app.state.cache.count(&Filter::Trash), ITEMS);
 }
+
+/// The server highlighted on the login screen is the one `bw` logs in to.
+#[tokio::test]
+async fn logging_in_sets_the_chosen_server_first() {
+    let mut app = harness::TestApp::boot_with_status("unauthenticated").await;
+    app.wait_screen(Screen::Login).await;
+    assert!(app.fake_state()["serverUrl"].is_null());
+    // bitwarden.eu, then the API key method (the one that needs no terminal).
+    app.keys("j<CR>jj<CR>id<Tab>secret<CR>").await;
+    app.wait_screen(Screen::Unlock).await;
+    assert_eq!(app.fake_state()["serverUrl"], "https://vault.bitwarden.eu");
+}
