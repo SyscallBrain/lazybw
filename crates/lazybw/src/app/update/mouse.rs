@@ -7,6 +7,13 @@ use super::{
 
 pub(crate) fn on_mouse(state: &mut AppState, event: crossterm::event::MouseEvent) -> Vec<Effect> {
     use crossterm::event::{MouseButton, MouseEventKind};
+    // A popup takes every key, and the mouse with them: a click on the list
+    // behind "Delete permanently?" would change what `y` deletes. The same
+    // goes for the screens that are not the vault's (locked, logging in).
+    if state.overlay_open() || state.notes.is_some() || state.screen.is_session_screen() {
+        state.drag = None;
+        return Vec::new();
+    }
     let area = ratatui::layout::Rect::new(0, 0, state.size.0, state.size.1);
     let plan = crate::ui::layout::LayoutPlan::compute_sized(
         area,
@@ -17,7 +24,7 @@ pub(crate) fn on_mouse(state: &mut AppState, event: crossterm::event::MouseEvent
     let point = ratatui::layout::Position::new(event.column, event.row);
     match event.kind {
         MouseEventKind::Down(MouseButton::Left) => {
-            if !plan.topbar.contains(point) {
+            if !plan.topbar.contains(point) && state.screen == Screen::Vault {
                 if plan.sidebar.width > 0 && near_right_edge(plan.sidebar, event.column) {
                     state.drag = Some(crate::app::state::DragTarget::Sidebar);
                     return Vec::new();
@@ -77,6 +84,11 @@ pub(crate) fn click(
 ) -> Vec<Effect> {
     let point = ratatui::layout::Position::new(x, y);
     if plan.topbar.contains(point) {
+        // Leaving the editor goes through its own keys, which ask about
+        // unsaved changes; a tab click would walk away from them.
+        if state.screen == Screen::Editor || !state.session.is_ready() {
+            return Vec::new();
+        }
         // Tabs: " ◆ lazybw " then " 1 Vault " and so on.
         let mut cursor = plan.topbar.x + 11;
         for tab in [Tab::Vault, Tab::Generator, Tab::Health] {
@@ -86,6 +98,11 @@ pub(crate) fn click(
             }
             cursor += width;
         }
+        return Vec::new();
+    }
+    // The panes are only on screen in the vault; under the editor, the
+    // settings or the help a click would move a cursor nobody can see.
+    if state.screen != Screen::Vault {
         return Vec::new();
     }
     if plan.sidebar.width > 0 && plan.sidebar.contains(point) {

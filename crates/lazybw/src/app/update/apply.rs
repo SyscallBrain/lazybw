@@ -695,16 +695,19 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     also_subfolders: false,
                     subfolder_count: 0,
                     on_deny: None,
-                    on_confirm: Action::with("item.trash.confirm", &[]).counted(count),
+                    // The dialog acts on the items it counted, whatever the
+                    // selection is by the time it is answered.
+                    on_confirm: Action {
+                        id: "item.trash.confirm".to_owned(),
+                        args: ids,
+                        count: None,
+                    },
                 });
                 return Vec::new();
             }
             trash_items(state, ids)
         }
-        "item.trash.confirm" => {
-            let ids = state.target_ids(count);
-            trash_items(state, ids)
-        }
+        "item.trash.confirm" => trash_items(state, args),
         "item.delete" => {
             if state.screen == Screen::Vault
                 && state.focus == crate::app::state::Focus::Detail
@@ -724,7 +727,12 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     also_subfolders: false,
                     subfolder_count: 0,
                     on_deny: None,
-                    on_confirm: Action::new("item.remove_passkey"),
+                    // Straight to the removal: `item.remove_passkey` would
+                    // ask the same question a second time.
+                    on_confirm: Action::with(
+                        "item.remove_passkey.confirm",
+                        &[&state.selected_id().unwrap_or_default()],
+                    ),
                 });
                 return Vec::new();
             }
@@ -744,9 +752,16 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 .and_then(|id| state.cache.item(id))
                 .map(|i| i.name.clone())
                 .unwrap_or_default();
+            let message = match ids.len() {
+                1 => format!("“{name}” will be deleted for good. This cannot be undone."),
+                count => format!(
+                    "{count} items (“{name}” and {}) will be deleted for good. This cannot be undone.",
+                    if count == 2 { "1 other".to_owned() } else { format!("{} others", count - 1) }
+                ),
+            };
             state.open(ConfirmState {
                 title: "Delete permanently?".to_owned(),
-                message: format!("“{name}” will be deleted for good. This cannot be undone."),
+                message,
                 confirm_label: "Delete".to_owned(),
                 danger: true,
                 requires_word: None,
@@ -754,12 +769,15 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                 also_subfolders: false,
                 subfolder_count: 0,
                 on_deny: None,
-                on_confirm: Action::new("item.delete.confirm"),
+                // The dialog deletes the items it named and counted, whatever
+                // the selection is by the time it is answered.
+                on_confirm: Action { id: "item.delete.confirm".to_owned(), args: ids, count: None },
             });
             Vec::new()
         }
         "item.delete.confirm" => {
-            let ids = state.target_ids(count);
+            let ids = args;
+            state.clear_selection();
             let mut effects = Vec::new();
             for id in ids {
                 effects.push(request(
@@ -775,6 +793,7 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             if !ids.is_empty() {
                 state.undo.push(crate::app::state::UndoOp::Restore { ids: ids.clone() });
             }
+            state.clear_selection();
             let mut effects = Vec::new();
             for id in ids {
                 effects.push(request(
@@ -1031,7 +1050,10 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
                     also_subfolders: false,
                     subfolder_count: 0,
                     on_deny: None,
-                    on_confirm: Action::new("item.remove_passkey.confirm"),
+                    on_confirm: Action::with(
+                        "item.remove_passkey.confirm",
+                        &[&state.selected_id().unwrap_or_default()],
+                    ),
                 });
             } else {
                 state.message(
@@ -1042,11 +1064,12 @@ pub(crate) fn apply(state: &mut AppState, action: Action) -> Vec<Effect> {
             Vec::new()
         }
         "item.remove_passkey.confirm" => {
-            if let Some(item) = state.selected_item().cloned()
+            // The item the dialog named, not whatever is selected by now.
+            if let Some(item) = args.first().and_then(|id| state.cache.item(id).cloned())
                 && let Some(id) = item.id.clone()
             {
                 if reprompt_required(state, &item) {
-                    return reprompt(state, action);
+                    return reprompt_for(state, &item, action);
                 }
                 let mut updated = item.clone();
                 if let Some(login) = updated.login.as_mut()

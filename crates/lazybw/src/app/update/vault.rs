@@ -566,6 +566,7 @@ pub(crate) fn trash_items(state: &mut AppState, ids: Vec<String>) -> Vec<Effect>
         let name = state.cache.item(id).map(|i| i.name.clone()).unwrap_or_default();
         toast(state, MessageLevel::Ok, format!("Moved “{name}” to Trash. Press u to undo."));
     }
+    state.clear_selection();
     state.clamp_selection();
     effects
 }
@@ -595,6 +596,8 @@ pub(crate) fn favorite_action(state: &mut AppState, count: Option<u32>) -> Vec<E
         // view the un-favourited items have already left the list.
         state.undo.push(crate::app::state::UndoOp::Favorite { ids: changed, before, after });
     }
+    state.clear_selection();
+    state.clamp_selection();
     effects
 }
 
@@ -658,6 +661,8 @@ pub(crate) fn move_items(state: &mut AppState, folder: &str, count: Option<u32>)
         let label = if folder_path.is_empty() { "No folder".to_owned() } else { folder_path };
         state.toast(MessageLevel::Ok, format!("Moved {} item(s) to {label}.", moved.len()));
     }
+    state.clear_selection();
+    state.clamp_selection();
     effects
 }
 

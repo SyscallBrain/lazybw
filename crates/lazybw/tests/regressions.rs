@@ -414,3 +414,139 @@ fn which_key_opens_at_its_delay_not_at_the_next_tick() {
     assert!(s.which_key.is_none());
     assert_eq!(s.key_deadline(), None);
 }
+
+// ---------------------------------------------------------------------------
+// Review of 2026-11-10: actions that hit the wrong items, a quit that lost
+// changes, a login that ignored the chosen server.
+// ---------------------------------------------------------------------------
+
+fn deletes(effects: &[Effect]) -> Vec<(String, bool)> {
+    use lazybw::bw::service::CommandKind;
+    effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::Backend { kind: CommandKind::DeleteItem { id, permanent }, .. } => {
+                Some((id.clone(), *permanent))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn five_items() -> AppState {
+    let mut state = state();
+    state.cache.load(
+        ["a", "b", "c", "d", "e"].into_iter().map(item).collect(),
+        vec![lazybw::bw::models::Folder {
+            id: Some("f-social".into()),
+            name: "Social media".into(),
+            ..Default::default()
+        }],
+        vec![],
+        vec![],
+    );
+    state.list_row = 0;
+    state
+}
+
+#[test]
+fn a_trash_clears_the_marks_so_the_next_one_acts_on_the_cursor() {
+    let mut state = five_items();
+    keys(&mut state, "x");
+    assert_eq!(deletes(&keys(&mut state, "dd")), vec![("a".to_owned(), false)]);
+    assert!(state.marks.is_empty(), "the marks outlived the action that used them");
+    let under_cursor = state.selected_id().expect("an item under the cursor");
+    assert_ne!(under_cursor, "a");
+    assert_eq!(deletes(&keys(&mut state, "dd")), vec![(under_cursor, false)]);
+}
+
+#[test]
+fn an_action_on_a_visual_selection_ends_it_and_a_shorter_list_cannot_panic() {
+    let mut state = five_items();
+    keys(&mut state, "G");
+    keys(&mut state, "V");
+    keys(&mut state, "k");
+    let trashed = deletes(&keys(&mut state, "dd"));
+    assert_eq!(trashed, vec![("d".to_owned(), false), ("e".to_owned(), false)]);
+    assert_eq!(state.visual_anchor, None, "visual mode outlived its operator");
+    // One more: used to read rows 3..=4 of a three-row list and panic.
+    assert_eq!(deletes(&keys(&mut state, "dd")), vec![("c".to_owned(), false)]);
+
+    // A selection whose far end is past a list that shrank under it (a sync
+    // that removed items) is pulled back in.
+    let mut state = five_items();
+    keys(&mut state, "G");
+    keys(&mut state, "V");
+    keys(&mut state, "gg");
+    state.cache.load(vec![item("a"), item("b")], vec![], vec![], vec![]);
+    state.clamp_selection();
+    assert_eq!(state.visual_anchor, Some(1));
+    assert_eq!(state.target_ids(None), vec!["a".to_owned(), "b".to_owned()]);
+    state.cache.load(vec![], vec![], vec![], vec![]);
+    assert!(state.target_ids(None).is_empty());
+}
+
+#[test]
+fn the_delete_dialog_counts_its_items_and_deletes_exactly_those() {
+    let mut state = five_items();
+    keys(&mut state, "x");
+    keys(&mut state, "j");
+    keys(&mut state, "x");
+    keys(&mut state, "D");
+    let message = state.confirm().map(|c| c.message.clone()).unwrap_or_default();
+    assert!(message.starts_with("2 items (“a” and 1 other)"), "{message}");
+
+    // The selection changes while the dialog is open (an answer from bw, a
+    // reload): the dialog still deletes what it named.
+    state.marks.clear();
+    state.list_row = 4;
+    let effects = keys(&mut state, "y");
+    assert_eq!(deletes(&effects), vec![("a".to_owned(), true), ("b".to_owned(), true)]);
+}
+
+#[test]
+fn the_mouse_does_not_reach_behind_a_dialog_or_the_editor() {
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    let mut state = five_items();
+    state.size = (160, 45);
+    let plan = lazybw::ui::layout::LayoutPlan::compute(
+        ratatui::layout::Rect::new(0, 0, state.size.0, state.size.1),
+        state.sidebar_visible,
+    );
+    let click = |state: &mut AppState, column: u16, row: u16| {
+        update(
+            state,
+            Msg::Mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column,
+                row,
+                modifiers: KeyModifiers::NONE,
+            }),
+        )
+    };
+    // Rows are two lines tall at this size: the third starts four lines
+    // below the pane's border.
+    let third_row = (plan.list.x + 4, plan.list.y + 1 + 4);
+
+    // In the vault a click selects the row.
+    click(&mut state, third_row.0, third_row.1);
+    assert_eq!(state.list_row, 2);
+
+    // Behind "Delete permanently?" it does nothing.
+    state.list_row = 0;
+    keys(&mut state, "D");
+    click(&mut state, third_row.0, third_row.1);
+    assert_eq!(state.list_row, 0);
+    assert_eq!(deletes(&keys(&mut state, "y")), vec![("a".to_owned(), true)]);
+
+    // Nor under the editor: not on the list, and not on a tab, which would
+    // walk away from unsaved changes.
+    state.list_row = 0;
+    keys(&mut state, "e");
+    assert_eq!(state.screen, Screen::Editor);
+    click(&mut state, third_row.0, third_row.1);
+    assert_eq!(state.list_row, 0);
+    let effects = click(&mut state, plan.topbar.x + 22, plan.topbar.y);
+    assert_eq!(state.screen, Screen::Editor);
+    assert!(effects.is_empty());
+}

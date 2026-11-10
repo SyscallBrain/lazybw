@@ -2178,13 +2178,16 @@ impl AppState {
         self.dirty = true;
     }
 
-    /// Keeps the list cursor inside the visible rows.
+    /// Keeps the list cursor, and the other end of a visual selection,
+    /// inside the visible rows.
     pub fn clamp_selection(&mut self) {
         let len = self.visible_rows().len();
         if len == 0 {
             self.list_row = 0;
-        } else if self.list_row >= len {
-            self.list_row = len - 1;
+            self.visual_anchor = None;
+        } else {
+            self.list_row = self.list_row.min(len - 1);
+            self.visual_anchor = self.visual_anchor.map(|anchor| anchor.min(len - 1));
         }
     }
 
@@ -2314,7 +2317,7 @@ impl AppState {
         // next load (it holds ids only).
         self.collapsed.clear();
         self.folds_restored = false;
-        self.selection_clear();
+        self.clear_selection();
         self.clipboard.clear_now();
         // Answers to requests sent before the lock carry vault data; forget
         // the requests so those answers are dropped when they arrive. Only
@@ -2334,7 +2337,11 @@ impl AppState {
         self.dirty = true;
     }
 
-    fn selection_clear(&mut self) {
+    /// Forgets the marks and leaves visual mode. An action that used the
+    /// selection ends it, as an operator does in Vim: marks left behind would
+    /// make the next `dd` act on the old items instead of the one under the
+    /// cursor.
+    pub fn clear_selection(&mut self) {
         self.marks.clear();
         self.visual_anchor = None;
     }
@@ -2346,8 +2353,16 @@ impl AppState {
             return self.marks.iter().cloned().collect();
         }
         if let Some((start, end)) = self.visual_range() {
+            // The list can shrink under a selection (a sync, a change made
+            // elsewhere); never read past its end.
             let rows = self.visible_rows();
-            return rows[start..=end].iter().map(|r| r.id.clone()).collect();
+            let end = end.min(rows.len().saturating_sub(1));
+            return rows
+                .get(start..=end)
+                .unwrap_or_default()
+                .iter()
+                .map(|r| r.id.clone())
+                .collect();
         }
         let rows = self.visible_rows();
         if rows.is_empty() {
