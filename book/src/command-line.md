@@ -15,7 +15,7 @@ The most useful commands:
 | `:new login` | new item of a type (`login`, `note`, `card`, `identity`, `ssh`) |
 | `:edit json` | edit the item as JSON in `$EDITOR` |
 | `:copy password` | copy a field of the selected item |
-| `:move Work` | move the selected item to a folder |
+| `:move Work`, `:move Social media` | move the selected item to a folder |
 | `:folder new Taxes` | create a folder (also `rename` and `delete`) |
 | `:gen 32`, `:gen phrase 6` | generate a password or passphrase and copy it |
 | `:sort modified`, `:sort name!` | change the sort order (`!` reverses it) |
@@ -27,6 +27,10 @@ The most useful commands:
 | `:health`, `:trash`, `:empty-trash` | open the health tab, the trash, empty the trash |
 | `:12` | go to the twelfth item |
 | `:doctor` | show the same diagnostics as `lazybw doctor` |
+
+`:q` (and `q`) wait when a change is still on its way to Bitwarden: the
+message line says how many are left, and lazybw quits when the last one is
+answered. `Esc` takes the quit back, and `:q!` leaves at once.
 
 The [default keybindings](reference/keymap.md#command-line) page has the
 complete list.

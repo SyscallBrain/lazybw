@@ -26,6 +26,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An SSH private key with a passphrase is refused with "private key is
   encrypted" when it is imported or pasted into an SSH key item. It used to
   be stored still encrypted, where nothing could use it.
+- An action on many items at once (a few hundred marked or selected, or a
+  large trash being emptied) no longer freezes lazybw; past roughly 800 items
+  it used to hang for good, with only part of the change sent.
+- `q` waits for changes that are still on their way to Bitwarden. Pressed
+  right after trashing, moving or saving, it used to stop the CLI before the
+  change was sent, although the list already showed it as done. The message
+  line says how many changes are left; `Esc` takes the quit back and `:q!`
+  leaves at once.
+- Marks and the visual selection end with the action that used them. Marks
+  used to stay, so the next `dd` acted on the old items again instead of the
+  one under the cursor, and a second action after trashing a visual selection
+  at the end of the list crashed lazybw.
+- "Delete permanently?" says how many items it will delete, and deletes
+  exactly those: it used to name the first one only, and to delete whatever
+  was selected by the time it was answered. Removing a passkey asks once, not
+  twice.
+- The mouse does nothing behind a dialog, on the lock and login screens, or
+  under the editor. A click on the list behind "Delete permanently?" used to
+  change what `y` deleted.
+- `:move` to a folder that does not exist says so and moves nothing; it used
+  to take the item out of its folder. Folder names, field names and paths
+  with spaces work on the command line (`:move Social media`,
+  `:folder new Side projects`, `:copy field Recovery codes`), and `Tab`
+  completes them.
+- The server chosen on the login screen is the one lazybw logs in to.
+  Choosing bitwarden.com or bitwarden.eu used to change nothing: the login
+  went to whichever server `bw` had been set to before.
+- After `$EDITOR` or `bw login`, pasted text is a paste again (it arrived as
+  typed keys and ran as commands) and `hide_on_focus_lost` works again.
+- A crash gives the terminal back whole. Mouse reporting, bracketed paste and
+  the keyboard protocol used to stay on in the shell afterwards.
 
 ## [1.1.0] - 2026-11-09
 

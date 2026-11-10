@@ -35,7 +35,8 @@ old password back, but Bitwarden's password history keeps the newer one.
 There are two ways to act on more than one item.
 
 `x` marks or unmarks the item under the cursor. Mark as many as you like,
-anywhere in the list, and the next action applies to all of them.
+anywhere in the list, and the next action applies to all of them. The marks
+are cleared once it has run, and visual mode ends the same way.
 
 `V` starts visual mode, as in Vim. Moving with `j`, `k`, `G` and the rest
 extends the selection. Then:
