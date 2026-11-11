@@ -195,21 +195,19 @@ pub(crate) fn on_backend(
         BwEvent::ItemWritten(result) => match result {
             Ok(item) => {
                 let name = item.name.clone();
-                let (sent_id, close, sent_revision) = match &pending {
+                let (sent_id, close, sent_editor) = match &pending {
                     Some(Pending::Save { id, close, editor }) => (id.clone(), *close, *editor),
                     _ => (None, false, None),
                 };
                 let was_new = sent_id.is_none();
                 // Only a save sent by the editor may touch the editor, and
-                // only while it still shows that item.
-                let editor_is_target = sent_revision.is_some()
-                    && state.editor.as_ref().is_some_and(|editor| {
-                        if was_new {
-                            editor.is_new && editor.item.id.is_none()
-                        } else {
-                            editor.item.id == item.id
-                        }
-                    });
+                // only while that same editor instance is open.
+                let editor_is_target = sent_editor.is_some_and(|sent| {
+                    state
+                        .editor
+                        .as_ref()
+                        .is_some_and(|editor| editor.instance_id == sent.instance_id)
+                });
                 let before = if editor_is_target && !was_new {
                     state.editor.as_ref().map(|editor| editor.original_item.clone())
                 } else {
@@ -217,7 +215,8 @@ pub(crate) fn on_backend(
                 };
                 state.cache.upsert(item.clone());
                 if editor_is_target && let Some(editor) = &mut state.editor {
-                    let unchanged = Some(editor.history.revision) == sent_revision;
+                    let unchanged =
+                        sent_editor.is_some_and(|sent| editor.history.revision == sent.revision);
                     if unchanged {
                         if close {
                             state.editor = None;
@@ -368,9 +367,9 @@ pub(crate) fn on_backend(
         },
         BwEvent::Generated(result) => match result {
             Ok(password) => {
-                let (record, copy) = match pending {
-                    Some(Pending::Generate { record, copy }) => (record, copy),
-                    _ => (true, false),
+                let (record, copy, target) = match pending {
+                    Some(Pending::Generate { record, copy, target }) => (record, copy, target),
+                    _ => (true, false, None),
                 };
                 state.generator.output = password.clone();
                 state.generator.error = None;
@@ -386,7 +385,7 @@ pub(crate) fn on_backend(
                         "the generator",
                     ));
                 }
-                if let Some(id) = state.pending_generate_target.take()
+                if let Some(id) = target
                     && let Some(item) = state.cache.item(&id).cloned()
                 {
                     let mut updated = item.clone();

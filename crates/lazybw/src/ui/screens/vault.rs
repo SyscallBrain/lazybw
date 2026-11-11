@@ -607,7 +607,9 @@ pub(crate) fn detail_content(state: &AppState, item: &Item, width: usize) -> Det
             }
             if login.has_totp() && state.config.security.totp {
                 view.label(theme, "VERIFICATION CODE");
-                if let Ok(code) = crate::totp::current(
+                if reprompt && !revealed("totp") {
+                    view.value("totp", hidden(6));
+                } else if let Ok(code) = crate::totp::current(
                     login.totp.as_ref().map(|s| s.expose()).unwrap_or(""),
                     state.now.timestamp() as u64,
                 ) {

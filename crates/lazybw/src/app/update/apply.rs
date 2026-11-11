@@ -1095,8 +1095,7 @@ pub(crate) fn run(state: &mut AppState, deferred: Deferred) -> Vec<Effect> {
             confirm_generate(state, &item)
         }
         Deferred::GeneratePassword(id) => {
-            state.pending_generate_target = Some(id);
-            vec![super::generate(state, true, false)]
+            vec![super::generate_for(state, true, false, Some(id))]
         }
         Deferred::ConfirmUseGenerated(id) => {
             let Some(item) = state.cache.item(&id).cloned() else { return Vec::new() };

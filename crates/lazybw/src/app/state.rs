@@ -828,6 +828,8 @@ impl FormKey {
 /// The editor state.
 #[derive(Debug, Clone)]
 pub struct EditorState {
+    /// Identifies this opening of the editor, including unsaved drafts.
+    pub instance_id: u64,
     /// The item being edited.
     pub item: Item,
     /// True for a new item.
@@ -856,6 +858,15 @@ pub struct EditorState {
     pub remote_change: bool,
     /// Undo and redo for the form (`u`, `Ctrl-r`).
     pub history: EditorHistory,
+}
+
+/// The editor instance and revision associated with an in-flight save.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorSave {
+    /// The opening of the editor that sent the save.
+    pub instance_id: u64,
+    /// Form revision when the save was sent.
+    pub revision: u64,
 }
 
 /// A copy of the form, for undo.
@@ -1586,10 +1597,10 @@ pub enum Pending {
         id: Option<String>,
         /// Close the editor on success.
         close: bool,
-        /// For a save from the editor, the form revision that was sent; the
-        /// answer only touches the editor if it still shows that item.
+        /// For a save from the editor, its instance and form revision;
+        /// the answer only touches the editor instance that sent it.
         /// `None` for favourites, moves, undo and other background writes.
-        editor: Option<u64>,
+        editor: Option<EditorSave>,
     },
     /// Deleting an item.
     Delete {
@@ -1611,6 +1622,8 @@ pub enum Pending {
         record: bool,
         /// Copy it when it arrives.
         copy: bool,
+        /// Replace this item's password when this request succeeds.
+        target: Option<String>,
     },
     /// Loading an item.
     GetItem,
@@ -1881,8 +1894,6 @@ pub struct AppState {
     pub detail_item: Option<String>,
     /// (imported, skipped) for the message after the running import.
     pub last_import: Option<(usize, usize)>,
-    /// Item id waiting for a generated password.
-    pub pending_generate_target: Option<String>,
     /// Animation manager.
     pub fx: std::cell::RefCell<crate::ui::fx::Fx>,
     /// Scroll offsets the renderer settled on, per view, so scrolling is
@@ -2031,7 +2042,6 @@ impl AppState {
             reprompt_once: None,
             reprompt_passed: None,
             detail_item: None,
-            pending_generate_target: None,
             help_chain: Vec::new(),
             last_import: None,
             ui_scroll: std::cell::RefCell::new(BTreeMap::new()),
@@ -2483,12 +2493,11 @@ impl AppState {
                         | Pending::Delete { .. }
                         | Pending::Restore { .. }
                         | Pending::Folder
+                        | Pending::Generate { target: Some(_), .. }
                 )
             })
             .count();
-        requests
-            + usize::from(self.folder_restore.is_some())
-            + usize::from(self.pending_generate_target.is_some())
+        requests + usize::from(self.folder_restore.is_some())
     }
 
     /// The master password is being checked.
@@ -2546,7 +2555,6 @@ impl AppState {
         self.reprompt_once = None;
         self.reprompt_passed = None;
         self.yanked_item = None;
-        self.pending_generate_target = None;
         self.search = SearchState::default();
         self.health = HealthState::default();
         self.last_totp_code = None;

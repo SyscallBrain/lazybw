@@ -12,6 +12,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
+mod async_tests;
+mod worker;
+
 /// A clipboard implementation.
 pub trait ClipboardBackend: Send + Sync + std::fmt::Debug {
     /// Writes text.
@@ -57,19 +61,7 @@ impl SystemClipboard {
     }
 
     fn tool(&self, program: &str, args: &[&str], text: &str) -> Result<(), String> {
-        use std::process::{Command, Stdio};
-        let mut child = Command::new(program)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        if let Some(stdin) = child.stdin.as_mut() {
-            stdin.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
-        }
-        let status = child.wait().map_err(|e| e.to_string())?;
-        if status.success() { Ok(()) } else { Err(format!("{program} exited with {status}")) }
+        run_tool(program, args, Some(text.as_bytes()), false).map(|_| ())
     }
 }
 
@@ -103,10 +95,8 @@ impl ClipboardBackend for SystemClipboard {
             ("xclip", &["-selection", "clipboard", "-o"][..]),
             ("xsel", &["--clipboard", "--output"][..]),
         ] {
-            if let Ok(output) = std::process::Command::new(program).args(args).output()
-                && output.status.success()
-            {
-                return Ok(Some(String::from_utf8_lossy(&output.stdout).into_owned()));
+            if let Ok(output) = run_tool(program, args, None, true) {
+                return Ok(Some(String::from_utf8_lossy(&output).into_owned()));
             }
         }
         Ok(None)
@@ -125,6 +115,96 @@ impl ClipboardBackend for SystemClipboard {
     fn name(&self) -> &'static str {
         "arboard/wl-copy/xclip/osc52"
     }
+}
+
+/// Bounded pipe I/O as well as a bounded wait: a clipboard owner may never
+/// answer a read, and a hung copy helper may never read its standard input.
+fn run_tool(
+    program: &str,
+    args: &[&str],
+    input: Option<&[u8]>,
+    capture: bool,
+) -> Result<Vec<u8>, String> {
+    use std::io::{ErrorKind, Read};
+    use std::os::unix::process::CommandExt;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new(program)
+        .args(args)
+        .process_group(0)
+        .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
+        .stdout(if capture { Stdio::piped() } else { Stdio::null() })
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let result = (|| -> Result<Vec<u8>, String> {
+        fn nonblocking(fd: &impl std::os::fd::AsFd) -> Result<(), String> {
+            let flags = rustix::fs::fcntl_getfl(fd).map_err(|e| e.to_string())?;
+            rustix::fs::fcntl_setfl(fd, flags | rustix::fs::OFlags::NONBLOCK)
+                .map_err(|e| e.to_string())
+        }
+        if let Some(stdin) = &child.stdin {
+            nonblocking(stdin)?;
+        }
+        if let Some(stdout) = &child.stdout {
+            nonblocking(stdout)?;
+        }
+        let deadline = Instant::now() + Duration::from_secs(1);
+        let mut remaining = input.unwrap_or_default();
+        let mut output = Vec::new();
+        let mut eof = !capture;
+        loop {
+            if Instant::now() >= deadline {
+                return Err(format!("{program} timed out"));
+            }
+            if let Some(stdin) = &mut child.stdin {
+                if !remaining.is_empty() {
+                    match stdin.write(remaining) {
+                        Ok(0) => return Err(format!("{program} stopped reading input")),
+                        Ok(n) => remaining = &remaining[n..],
+                        Err(e)
+                            if matches!(
+                                e.kind(),
+                                ErrorKind::WouldBlock | ErrorKind::Interrupted
+                            ) => {}
+                        Err(e) => return Err(e.to_string()),
+                    }
+                }
+                if remaining.is_empty() {
+                    child.stdin.take();
+                }
+            }
+            if let Some(stdout) = &mut child.stdout {
+                let mut buffer = [0u8; 8192];
+                match stdout.read(&mut buffer) {
+                    Ok(0) => eof = true,
+                    Ok(n) => output.extend_from_slice(&buffer[..n]),
+                    Err(e)
+                        if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::Interrupted) => {}
+                    Err(e) => return Err(e.to_string()),
+                }
+            }
+            if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+                if !status.success() {
+                    return Err(format!("{program} exited with {status}"));
+                }
+                if eof && child.stdin.is_none() {
+                    return Ok(output);
+                }
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    })();
+    if result.is_err() {
+        // Kill the helper's process group too: a shell or forked helper must
+        // not complete a stale clipboard write after its parent times out.
+        #[expect(unsafe_code, reason = "kill the private process group created for this child")]
+        unsafe {
+            libc::kill(-(child.id() as i32), libc::SIGKILL);
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    result
 }
 
 /// An in-memory clipboard for tests.
@@ -183,13 +263,14 @@ pub struct Clipboard {
     pending: Option<PendingClear>,
     last_copied: Option<zeroize::Zeroizing<String>>,
     enabled: bool,
+    worker: Option<worker::Worker>,
 }
 
 impl Clipboard {
     /// The system clipboard.
     #[must_use]
     pub fn system() -> Self {
-        Self::with_backend(Arc::new(SystemClipboard::default()))
+        Self::with_background_backend(Arc::new(SystemClipboard::default()))
     }
 
     /// An in-memory clipboard for tests.
@@ -201,7 +282,32 @@ impl Clipboard {
     /// A clipboard with a custom backend.
     #[must_use]
     pub fn with_backend(backend: Arc<dyn ClipboardBackend>) -> Self {
-        Self { backend, pending: None, last_copied: None, enabled: true }
+        Self { backend, pending: None, last_copied: None, enabled: true, worker: None }
+    }
+
+    /// Runs a blocking backend on an ordered worker, keeping the caller responsive.
+    /// Copies report their completion through [`Self::take_copy_result`] after a tick.
+    #[must_use]
+    pub fn with_background_backend(backend: Arc<dyn ClipboardBackend>) -> Self {
+        Self { worker: Some(worker::Worker::new()), ..Self::with_backend(backend) }
+    }
+
+    /// Whether an asynchronous copy is still in progress.
+    #[must_use]
+    pub fn copying(&self) -> bool {
+        self.worker.as_ref().is_some_and(worker::Worker::copying)
+    }
+
+    /// Takes the latest asynchronous copy result; cancelled requests are discarded.
+    pub fn take_copy_result(&mut self) -> Option<Result<(), String>> {
+        self.worker.as_mut().and_then(worker::Worker::take_result)
+    }
+
+    /// Finishes queued clipboard cleanup at process exit, with a bounded wait.
+    pub fn finish(&mut self) {
+        if let Some(worker) = &mut self.worker {
+            worker.finish();
+        }
     }
 
     /// Disables writes (used when `NO_COLOR`-style restrictions apply).
@@ -225,6 +331,9 @@ impl Clipboard {
         if !self.enabled {
             return Err("the clipboard is disabled".to_owned());
         }
+        if let Some(worker) = &mut self.worker {
+            return worker.copy(Arc::clone(&self.backend), text, timeout);
+        }
         self.backend.set(text)?;
         self.last_copied = Some(zeroize::Zeroizing::new(text.to_owned()));
         self.pending = timeout.map(|timeout| PendingClear {
@@ -242,6 +351,10 @@ impl Clipboard {
     /// it is cleared anyway: losing an unrelated copy is the lesser risk.
     /// A failed clear is retried a few times instead of being forgotten.
     pub fn clear_if_ours(&mut self, now: Instant) -> Result<bool, String> {
+        if let Some(worker) = &mut self.worker {
+            worker.clear(false);
+            return Ok(false);
+        }
         let Some(mut expected) = self.pending.take() else {
             return Ok(false);
         };
@@ -273,6 +386,9 @@ impl Clipboard {
 
     /// Called once per tick; returns true when the clipboard was cleared.
     pub fn tick(&mut self, now: Instant) -> bool {
+        if let Some(worker) = &mut self.worker {
+            return worker.tick();
+        }
         match &self.pending {
             Some(pending) if now >= pending.deadline => self.clear_if_ours(now).unwrap_or(false),
             _ => false,
@@ -282,6 +398,11 @@ impl Clipboard {
     /// Seconds left before the auto-clear.
     #[must_use]
     pub fn countdown(&self, now: Instant) -> Option<u64> {
+        if let Some(worker) = &self.worker {
+            return worker
+                .deadline()
+                .map(|deadline| deadline.saturating_duration_since(now).as_secs());
+        }
         self.pending
             .as_ref()
             .map(|pending| pending.deadline.saturating_duration_since(now).as_secs())
@@ -291,6 +412,7 @@ impl Clipboard {
     #[must_use]
     pub fn has_pending(&self) -> bool {
         self.pending.is_some()
+            || self.worker.as_ref().is_some_and(|worker| worker.deadline().is_some())
     }
 
     /// Clears what lazybw copied, on lock and on exit, unless the clipboard
@@ -298,6 +420,10 @@ impl Clipboard {
     /// the browser. A clipboard that cannot be read back is cleared anyway,
     /// as [`Clipboard::clear_if_ours`] does.
     pub fn clear_ours(&mut self) {
+        if let Some(worker) = &mut self.worker {
+            worker.clear(false);
+            return;
+        }
         let Some(copied) = self.last_copied.take() else {
             self.pending = None;
             return;
@@ -314,6 +440,14 @@ impl Clipboard {
 
     /// Clears unconditionally (`:clear`-style requests and tests).
     pub fn clear_now(&mut self) {
+        if let Some(worker) = &mut self.worker {
+            // Start even before the first copy for an explicit unconditional clear.
+            // Usually the worker already exists; a normal lock never starts one.
+            if worker.start(Arc::clone(&self.backend)).is_ok() {
+                worker.clear(true);
+            }
+            return;
+        }
         let _ = self.backend.clear();
         self.pending = None;
         self.last_copied = None;
@@ -386,6 +520,19 @@ pub fn base64(input: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_stalled_clipboard_tool_is_terminated_within_the_deadline() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("clipboard");
+        std::fs::write(&script, "#!/bin/sh\nsleep 2\n").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let start = Instant::now();
+        let result = SystemClipboard::default().tool(script.to_str().unwrap(), &[], "secret");
+        assert!(start.elapsed() < Duration::from_millis(1500), "clipboard child was not bounded");
+        assert!(result.is_err(), "a timed-out copy must not report success");
+    }
 
     #[test]
     fn memory_clipboard_round_trip() {

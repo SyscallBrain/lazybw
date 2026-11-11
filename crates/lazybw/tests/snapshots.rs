@@ -272,6 +272,7 @@ fn editor_screen() {
     state.screen = Screen::Editor;
     let item = state.cache.item("id-github").unwrap().clone();
     state.editor = Some(EditorState {
+        instance_id: 1,
         item: item.clone(),
         is_new: false,
         original_item: item,
@@ -339,6 +340,7 @@ fn editor_normal_mode_screen() {
     state.screen = Screen::Editor;
     let item = state.cache.item("id-github").unwrap().clone();
     state.editor = Some(EditorState {
+        instance_id: 1,
         item: item.clone(),
         is_new: false,
         original_item: item,

@@ -631,6 +631,11 @@ impl Service {
                     Ok(session) => session,
                     Err(err) => return Some(BwEvent::Health(Err(err))),
                 };
+                // Older supported CLIs have no report command. Empty entries
+                // let the app build its local weakness/reuse/age checks.
+                if !self.config.capabilities.password_health {
+                    return Some(BwEvent::Health(Ok(Vec::new())));
+                }
                 let bw = self.config.bw_path.clone();
                 self.spawn_background(id, true, async move {
                     BwEvent::Health(subprocess::report_health(&bw, &session, check_exposed).await)

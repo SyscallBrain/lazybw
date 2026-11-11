@@ -582,6 +582,7 @@ async fn run_tui_async() -> color_eyre::Result<()> {
     if config.security.clear_clipboard_on_exit {
         app.state.clipboard.clear_ours();
     }
+    app.state.clipboard.finish();
     // Close the clipboard (and the backend) while stderr is still silenced.
     drop(app);
     let _ = &mut result;
@@ -643,7 +644,13 @@ async fn handle_suspended_effects(
                         _ = clock.tick() => {
                             app.state.clipboard.tick(std::time::Instant::now());
                         }
-                        _ = lock_signal.recv() => lock_requested = true,
+                        _ = lock_signal.recv() => {
+                            lock_requested = true;
+                            // Clear decrypted state and send the backend lock
+                            // while the external task still owns the terminal.
+                            let effects = app.handle(Msg::LockSignal).await;
+                            let _ = app.run_effects(effects).await;
+                        }
                     }
                 };
                 *terminal = ratatui::init();
@@ -671,7 +678,7 @@ async fn handle_suspended_effects(
                 };
                 let effects = app.handle(msg).await;
                 if discarded {
-                    app.state.message(
+                    app.state.toast(
                         crate::app::state::MessageLevel::Warn,
                         "The vault was locked while the editor was open; those changes were discarded.",
                     );

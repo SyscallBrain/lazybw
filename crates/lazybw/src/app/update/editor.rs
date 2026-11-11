@@ -11,6 +11,7 @@ use crate::app::actions::ActionId;
 pub(crate) fn open_editor(state: &mut AppState, item: Item, is_new: bool) {
     let rows = build_rows(state, &item);
     state.editor = Some(EditorState {
+        instance_id: super::next_id(state),
         item: item.clone(),
         is_new,
         original_item: item,
@@ -963,7 +964,10 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
     let Some(editor) = &state.editor else { return Vec::new() };
     // A new item has no id until the first save is answered: a second
     // `Ctrl-s` meanwhile would create it twice.
-    let creating = state.awaiting(|p| matches!(p, Pending::Save { id: None, editor: Some(_), .. }));
+    let creating = state.awaiting(|p| {
+        matches!(p, Pending::Save { id: None, editor: Some(sent), .. }
+            if sent.instance_id == editor.instance_id)
+    });
     if editor.is_new && creating {
         state.message(MessageLevel::Info, "Still creating the item…");
         return Vec::new();
@@ -994,7 +998,10 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         && !crate::util::luhn_valid(number);
     let item = crate::app::form::for_saving(editor.item.clone());
     let id = item.id.clone();
-    let revision = editor.history.revision;
+    let sent = crate::app::state::EditorSave {
+        instance_id: editor.instance_id,
+        revision: editor.history.revision,
+    };
     let request_effect = request(
         state,
         if id.is_some() {
@@ -1002,7 +1009,7 @@ pub(crate) fn editor_save(state: &mut AppState, close: bool) -> Vec<Effect> {
         } else {
             CommandKind::CreateItem(Box::new(item))
         },
-        Pending::Save { id, close, editor: Some(revision) },
+        Pending::Save { id, close, editor: Some(sent) },
     );
     if mistyped_card {
         state.message(

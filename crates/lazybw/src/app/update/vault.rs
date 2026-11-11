@@ -462,7 +462,11 @@ pub fn detail_fields(state: &AppState) -> Vec<(String, String, bool)> {
                 out.push(("username".to_owned(), "USERNAME".to_owned(), false));
                 out.push(("password".to_owned(), "PASSWORD".to_owned(), true));
                 if login.has_totp() && state.config.security.totp {
-                    out.push(("totp".to_owned(), "VERIFICATION CODE".to_owned(), false));
+                    out.push((
+                        "totp".to_owned(),
+                        "VERIFICATION CODE".to_owned(),
+                        item.wants_reprompt(),
+                    ));
                 }
                 if let Some(uris) = &login.uris {
                     for (i, uri) in uris.iter().enumerate() {

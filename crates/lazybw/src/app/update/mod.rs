@@ -219,10 +219,16 @@ fn request(state: &mut AppState, kind: CommandKind, pending: Pending) -> Effect 
 /// the result in the session history (an explicit `r`, not each option
 /// change); `copy` copies it when it arrives (`:gen 32`).
 fn generate(state: &mut AppState, record: bool, copy: bool) -> Effect {
+    generate_for(state, record, copy, None)
+}
+
+/// An item replacement keeps its target on the request, so simultaneous
+/// generation responses cannot consume another request's destination.
+fn generate_for(state: &mut AppState, record: bool, copy: bool, target: Option<String>) -> Effect {
     request(
         state,
         CommandKind::Generate(state.generator.request.clone()),
-        Pending::Generate { record, copy },
+        Pending::Generate { record, copy, target },
     )
 }
 
@@ -238,6 +244,10 @@ fn copy_value(state: &mut AppState, text: &str, label: &str, item_name: &str) ->
     match state.clipboard.copy(text, timeout, Instant::now()) {
         Ok(()) => {
             state.clipboard_label = Some(label.to_owned());
+            if state.clipboard.copying() {
+                toast(state, MessageLevel::Info, format!("Copying {label}…"));
+                return Vec::new();
+            }
             animate(state, crate::ui::fx::FxKind::Flash);
             let seconds = timeout.map(|d| d.as_secs()).unwrap_or(0);
             let message = if timeout.is_some() {
@@ -293,6 +303,23 @@ fn on_tick(state: &mut AppState) -> Vec<Effect> {
     state.expire(Instant::now());
     if state.clipboard.tick(Instant::now()) {
         state.message(MessageLevel::Info, "Clipboard cleared.");
+    }
+    if let Some(result) = state.clipboard.take_copy_result() {
+        match result {
+            Ok(()) => {
+                let label = state.clipboard_label.as_deref().unwrap_or("value");
+                let message = match state.clipboard.countdown(Instant::now()) {
+                    Some(seconds) => format!("Copied {label}. Clipboard clears in {seconds}s."),
+                    None => format!("Copied {label}."),
+                };
+                state.toast(MessageLevel::Ok, message);
+                animate(state, crate::ui::fx::FxKind::Flash);
+            }
+            Err(error) => {
+                state.clipboard_label = None;
+                state.toast_with(MessageLevel::Error, "Couldn't copy.", error);
+            }
+        }
     }
     effects.extend(on_key_timers(state));
     // Auto-lock.
