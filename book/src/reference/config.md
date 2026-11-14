@@ -4,4 +4,72 @@ This is the configuration lazybw uses when `~/.config/lazybw/config.toml`
 does not set an option. `lazybw config --print-default` prints the same file.
 See [Configuration](../configuration.md) for how to change it.
 
-{{#include ../../../docs/configuration.md:default}}
+```toml
+# lazybw configuration
+# Location: $XDG_CONFIG_HOME/lazybw/config.toml (usually ~/.config/lazybw/config.toml)
+# Durations: "500ms", "30s", "15m", "2h", "365d", or "never" where allowed.
+
+[bw]
+path = ""                       # path to the Bitwarden CLI; empty = $LAZYBW_BW, then $PATH
+transport = "fd"                # "fd" (private socket, recommended) or "unix" (socket in $XDG_RUNTIME_DIR)
+inherit_session = false         # reuse BW_SESSION from the environment if it is set
+
+[ui]
+theme = "tokyonight-night"
+transparent = false
+icons = "nerdfont"              # nerdfont | unicode | ascii
+animations = true
+list_density = "comfortable"    # comfortable | compact
+statusline_separator = "arrow"  # arrow | round | slant | none
+show_hints = true               # key hints next to the active field
+date_format = "relative"        # relative | iso
+mouse = true
+
+[security]
+clipboard_timeout = "30s"       # "never" keeps copied values
+clear_clipboard_on_exit = true
+auto_lock = "15m"               # "never" disables
+reveal_timeout = "20s"
+hide_on_focus_lost = true
+reprompt_grace = "0s"           # how long a master password re-prompt stays valid
+totp = true                     # show verification codes computed from authenticator keys
+
+[vault]
+sync_interval = "10m"           # "never" disables background sync
+sort = "name"                   # name | modified | created | type
+search_notes = false
+show_empty_types = false
+confirm_trash = false           # dd asks before moving to trash (it can always be undone with u)
+
+[generator]
+type = "password"               # password | passphrase
+length = 24
+uppercase = true
+lowercase = true
+numbers = true
+special = true
+min_numbers = 1
+min_special = 1
+avoid_ambiguous = false
+words = 5
+separator = "-"
+capitalize = true
+include_number = true
+
+[health]
+check_exposed = true            # Have I Been Pwned (k-anonymity) through bw report
+old_password_age = "365d"
+
+[editor]
+command = ""                    # empty = $VISUAL, then $EDITOR, then vi
+
+[keys]
+leader = "<Space>"
+timeoutlen = "1000ms"
+which_key_delay = "300ms"
+defaults = true
+# Per-context overrides, e.g.:
+# [keys.list]
+# "<Del>" = "item.trash"
+# "dd" = "noop"
+```

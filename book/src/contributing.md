@@ -54,5 +54,4 @@ cargo install mdbook
 mdbook serve book --open
 ```
 
-The screenshots in it come from `cargo run -p lazybw --example screenshots`,
-and the logo from `python3 scripts/make-logo.py`.
+The screenshots in it come from `cargo run -p lazybw --example screenshots`.

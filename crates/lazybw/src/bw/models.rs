@@ -1,6 +1,6 @@
 //! Data models mirroring the JSON exchanged with the Bitwarden CLI.
 //!
-//! Field names and enums follow `docs/bw-integration.md` §7. Every struct
+//! Field names and enums follow the CLI's JSON output. Every struct
 //! keeps a flattened `extra` map so unknown fields — including fields added
 //! by future CLI versions — survive a read-modify-write cycle unchanged.
 //! Dates stay `String`: they are parsed lazily for display and never

@@ -149,7 +149,7 @@ impl Focus {
     }
 }
 
-/// The session lifecycle (`docs/bw-integration.md` §3).
+/// The session lifecycle.
 ///
 /// ```text
 /// Starting ──▶ LoggedOut ──login──▶ Locked ──unlock──▶ Loading ──vault──▶ Ready

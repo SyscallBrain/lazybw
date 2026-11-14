@@ -66,8 +66,8 @@ A few rules come with them:
 
 - Each session phase has its own screen, and leaving Loading or Ready
   forgets the decrypted vault. A test fails if code outside `state.rs`
-  assigns `state.session` or a session screen directly. The machine is the
-  one drawn in `docs/bw-integration.md` §3.
+  assigns `state.session` or a session screen directly. The machine is
+  drawn in the doc comment of `Session` in `app/state.rs`.
 - At most one overlay is open. It receives every key, leads the keymap
   context chain, closes on `Esc`, and takes a paste or drops it; nothing
   reaches the screen behind it.
@@ -111,8 +111,3 @@ keymap editor (`KeymapEditorState::capture`).
 - `tests/snapshots.rs` renders every screen with `TestBackend` (insta).
 - `tests/security.rs` and `tests/logs.rs` check that secrets stay out of
   arguments, logs and the clipboard.
-
-## Decisions
-
-The reasons behind the main choices are recorded in
-[docs/decisions.md](docs/decisions.md).

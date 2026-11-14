@@ -1,8 +1,8 @@
 # Release checklist
 
 1. `scripts/check.sh` is green (fmt, clippy `-D warnings`, every test).
-2. `docs/design.md`, `docs/keymap.md` and `docs/bw-integration.md` match the
-   implementation; `docs/configuration.md` is regenerated from
+2. `docs/design.md` and `book/src/reference/keymap.md` match the
+   implementation; `book/src/reference/config.md` contains
    `crates/lazybw/assets/default-config.toml` (`tests/docs.rs` enforces it).
 3. `CHANGELOG.md` has the release section with the date.
 4. The new version is in the workspace `Cargo.toml` (and `Cargo.lock`), in
@@ -19,7 +19,7 @@
    the GitHub release; the Docker workflow publishes
    `ghcr.io/syscallbrain/lazybw:X.Y.Z` and `:latest`. `scripts/dist.sh`
    builds the same files locally.
-8. Run `scripts/verify-real-bw.md` against a real account (the only step the
+8. Try the release by hand with a real `bw` and account (the only step the
    automated suite cannot do).
 9. Publish the AUR packages (below) once the GitHub release exists.
 

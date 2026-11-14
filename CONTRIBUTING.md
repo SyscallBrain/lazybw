@@ -26,8 +26,8 @@ scripts/check.sh     # format, lints and every test, as CI runs them
    review them with `cargo insta review` (or run the tests with
    `INSTA_UPDATE=always` and check the diff).
 4. If you change a key binding, an option or a command, update
-   `docs/keymap.md` or `docs/configuration.md` (tests check they match) and
-   the relevant chapter in `book/src/`.
+   `book/src/reference/keymap.md` or `book/src/reference/config.md` (tests
+   check the default config matches) and the relevant chapter in `book/src/`.
 5. Run `scripts/check.sh` before pushing.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org)
@@ -41,7 +41,7 @@ An action is anything a key can do.
    the contexts where it applies.
 2. Handle it in `crates/lazybw/src/app/update/` (the file for its area).
 3. Give it a default key in `crates/lazybw/src/config/keymap.rs`, if it
-   should have one, and list it in `docs/keymap.md`.
+   should have one, and list it in `book/src/reference/keymap.md`.
 4. Test it through the harness in `crates/lazybw/tests/` (`app.keys("…")`).
 
 ## Performance

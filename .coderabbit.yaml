@@ -58,14 +58,13 @@ reviews:
     - path: "book/src/**/*.md"
       instructions: |
         This is the mdBook user guide. Check that keys, commands and options
-        match the code and docs/keymap.md, that relative links resolve, and
+        match the code and book/src/reference/, that relative links resolve, and
         that descriptions match tested behaviour rather than intentions.
         Prose is plain and direct, without filler.
-    - path: "docs/**"
+    - path: "book/src/reference/**"
       instructions: |
-        docs/keymap.md and docs/configuration.md are included in the book and
-        kept in sync with the code by tests; flag changes to bindings or
-        defaults that are not reflected there.
+        The default keymap and configuration are kept in sync with the code;
+        flag changes to bindings or defaults that are not reflected there.
     - path: ".github/workflows/**"
       instructions: |
         Third-party actions are pinned by full commit SHA with a version

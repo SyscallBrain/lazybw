@@ -1,5 +1,5 @@
 //! The search query language: free text with qualifiers, fuzzy ranking and
-//! negation (docs/keymap.md §9).
+//! negation (book/src/reference/keymap.md, "Search language").
 
 use crate::bw::models::{Item, ItemType};
 use crate::vault::health::HealthFlags;

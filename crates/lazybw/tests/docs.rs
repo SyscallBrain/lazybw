@@ -3,10 +3,10 @@
 #[test]
 fn configuration_doc_contains_the_default_config() {
     let config = include_str!("../assets/default-config.toml");
-    let doc = include_str!("../../../docs/configuration.md");
+    let doc = include_str!("../../../book/src/reference/config.md");
     assert!(
         doc.contains(config),
-        "docs/configuration.md is out of date: copy assets/default-config.toml into it"
+        "book/src/reference/config.md is out of date: copy assets/default-config.toml into it"
     );
 }
 
@@ -58,7 +58,6 @@ fn release_artifacts_exist() {
     assert!(binary.contains(&version), "packaging/aur/lazybw-bin: {version} expected");
     let checklist = include_str!("../../../docs/release.md");
     assert!(checklist.contains("cargo package"));
-    assert!(checklist.contains("verify-real-bw.md"));
 }
 
 #[test]

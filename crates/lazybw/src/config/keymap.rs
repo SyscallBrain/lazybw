@@ -526,7 +526,7 @@ impl Trie {
     }
 }
 
-/// Which-key group labels from `docs/keymap.md` §5.
+/// Which-key group labels.
 const DEFAULT_LABELS: &[(&str, &str)] = &[
     ("<leader>f", "+folders"),
     ("<leader>s", "+sort"),
@@ -713,7 +713,7 @@ impl Keymap {
         Vec::new()
     }
 
-    /// Runs all validation checks from `docs/keymap.md` §6.4.
+    /// Runs all validation checks on the keymap.
     #[must_use]
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut out = Vec::new();
@@ -913,7 +913,7 @@ pub fn chain(contexts: &[&str]) -> Vec<String> {
     out
 }
 
-/// The default bindings from `docs/keymap.md` §4.
+/// The default bindings (listed in `book/src/reference/keymap.md`).
 #[must_use]
 pub fn default_bindings() -> Vec<(&'static str, &'static str, &'static str)> {
     let mut out = Vec::new();

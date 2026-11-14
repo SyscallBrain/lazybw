@@ -1,7 +1,6 @@
 # lazybw — Visual Design Specification
 
-The colour reference is `docs/mockups.html` (open it in a browser; it switches between all built-in
-themes). This document is the authoritative spec: layout, components, every screen, icons, themes,
+This document is the authoritative spec: layout, components, every screen, icons, themes,
 motion and copy. Mockups below are drawn with Unicode icons; the app uses Nerd Font icons by default
 (§5). Mockup widths are illustrative; the proportions in §2 are what you implement.
 
@@ -149,7 +148,7 @@ could not be read), **config error** (path, line and column, message, `e` opens 
 ```
 
 - "Self-hosted…" opens a one-line input (`https://vault.example.com`).
-- "Email and password" / "Single sign-on" suspend the TUI (bw-integration.md §8.2); the terminal shows:
+- "Email and password" / "Single sign-on" suspend the TUI; the terminal shows:
 
 ```
 lazybw › Running "bw login". Follow the prompts; lazybw resumes when it finishes.
@@ -344,7 +343,7 @@ values hidden if the key contains `number`, `code`, `pin`, `ssn`, `iban`, `accou
     decrypt and are stored decrypted, with a warning), read-only Public key and Fingerprint, Private key
     (masked); Custom fields; Notes; options.
 - Custom field rows: name, type chip, value. `Enter` on the type chip opens `Text / Hidden / Boolean /
-  Linked`; Linked opens the list of linkable fields for the item type (bw-integration.md §7).
+  Linked`; Linked opens the list of linkable fields for the item type.
 
 **New item type picker** (`a`):
 
