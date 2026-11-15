@@ -73,10 +73,11 @@ login and settings between runs, and copying goes through your terminal
 docker run -it --rm -v lazybw:/home/lazybw ghcr.io/syscallbrain/lazybw
 ```
 
-To build from source you need Rust 1.88 or newer:
+To build from source you need Rust 1.88 or newer. lazybw is on
+[crates.io](https://crates.io/crates/lazybw):
 
 ```sh
-cargo install --git https://github.com/SyscallBrain/lazybw --tag v1.2.0 --locked lazybw
+cargo install --locked lazybw
 ```
 
 Android (Termux) and the other options are covered in the

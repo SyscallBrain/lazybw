@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-15
+
+### Added
+
+- lazybw is on [crates.io](https://crates.io/crates/lazybw):
+  `cargo install --locked lazybw`.
+
+### Security
+
+- Items that ask for the master password again hide their verification code
+  until it is revealed, like the password.
+- A lock that arrives while `$EDITOR` or another program has the terminal
+  clears the decrypted vault and locks the CLI at once, instead of waiting
+  for lazybw to take the terminal back.
+- Clipboard helpers run on their own thread with time limits. One that hangs
+  is killed together with its process group, so it cannot write an old value
+  after lazybw gave up on it, and a lock drops copies that were still queued.
+- An answer from Bitwarden only reaches the request that sent it. A save
+  updates only the editor that sent it, so reopening the item or starting a
+  new draft no longer picks up an older save, and when several passwords are
+  generated at once each one goes to its own item.
+
+### Fixed
+
+- A slow clipboard helper no longer freezes the interface while it copies.
+- With a `bw` too old for the password report, vault health still runs its
+  own checks for weak, reused and old passwords.
+
 ## [1.2.0] - 2026-11-10
 
 ### Added
@@ -294,7 +322,8 @@ First public release.
 - Drawing an item, listing cards and building the health report borrow the
   vault data instead of copying passwords, card numbers and notes.
 
-[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/SyscallBrain/lazybw/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SyscallBrain/lazybw/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/SyscallBrain/lazybw/releases/tag/v1.0.0
