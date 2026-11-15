@@ -91,6 +91,14 @@ install -Dm755 lazybw-1.2.2-x86_64-unknown-linux-musl/lazybw ~/.local/bin/lazybw
 Every release also has a `SHA256SUMS` file. Check your download with
 `sha256sum --check --ignore-missing SHA256SUMS`.
 
+Releases after 1.2.2 also carry signed build provenance, which proves a file
+was built by this repository's release workflow. With the
+[GitHub CLI](https://cli.github.com) you can check it:
+
+```sh
+gh attestation verify lazybw_*_amd64.deb --repo SyscallBrain/lazybw
+```
+
 ### Android (Termux)
 
 The aarch64 binary runs in [Termux](https://termux.dev):
