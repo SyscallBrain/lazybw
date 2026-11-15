@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-15
+
+### Fixed
+
+- The README on crates.io shows the logo, the demo and the screenshots. Its
+  links were relative, and crates.io resolved them inside `crates/lazybw`,
+  where those files do not exist.
+
 ## [1.2.1] - 2026-11-15
 
 ### Added
@@ -322,7 +330,8 @@ First public release.
 - Drawing an item, listing cards and building the health report borrow the
   vault data instead of copying passwords, card numbers and notes.
 
-[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/SyscallBrain/lazybw/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/SyscallBrain/lazybw/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/SyscallBrain/lazybw/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SyscallBrain/lazybw/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/SyscallBrain/lazybw/compare/v1.0.0...v1.1.0
