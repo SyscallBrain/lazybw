@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="book/src/images/logo-wordmark.svg" alt="lazybw" width="420">
+  <img src="https://raw.githubusercontent.com/SyscallBrain/lazybw/main/book/src/images/logo-wordmark.svg" alt="lazybw" width="420">
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <a href="https://github.com/SyscallBrain/lazybw/actions/workflows/ci.yml"><img src="https://github.com/SyscallBrain/lazybw/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/SyscallBrain/lazybw/releases/latest"><img src="https://img.shields.io/github/v/release/SyscallBrain/lazybw?color=7aa2f7" alt="Latest release"></a>
   <a href="https://syscallbrain.github.io/lazybw/"><img src="https://img.shields.io/badge/docs-user%20guide-9ece6a" alt="User guide"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-bb9af7" alt="MIT licence"></a>
+  <a href="https://github.com/SyscallBrain/lazybw/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-bb9af7" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/platform-linux%20x86__64%20%7C%20aarch64-c0caf5" alt="Linux x86_64 and aarch64">
 </p>
 
@@ -18,10 +18,10 @@
   <a href="https://syscallbrain.github.io/lazybw/">Documentation</a> ·
   <a href="#install">Install</a> ·
   <a href="#screenshots">Screenshots</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/SyscallBrain/lazybw/blob/main/CHANGELOG.md">Changelog</a>
 </p>
 
-![lazybw in action: unlocking, moving around, copying, search and quick open, the editor and generator, undo, the leader menu, vault health and themes](book/src/images/demo.gif)
+![lazybw in action: unlocking, moving around, copying, search and quick open, the editor and generator, undo, the leader menu, vault health and themes](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/book/src/images/demo.gif)
 
 lazybw lets you browse, search, copy and edit your Bitwarden items without
 leaving the terminal, with Vim-style keys. It runs the official Bitwarden
@@ -110,11 +110,11 @@ The demo and the screenshots use a sample vault with fictional data.
 
 | | |
 |---|---|
-| ![The item editor](crates/lazybw/assets/screenshots/editor.svg) | ![Quick open](crates/lazybw/assets/screenshots/quick-open.svg) |
+| ![The item editor](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/editor.svg) | ![Quick open](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/quick-open.svg) |
 | The editor, with Vim modes and two columns | `Ctrl-p` finds and copies from anywhere |
-| ![The leader menu](crates/lazybw/assets/screenshots/which-key.svg) | ![The password generator](crates/lazybw/assets/screenshots/generator.svg) |
+| ![The leader menu](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/which-key.svg) | ![The password generator](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/generator.svg) |
 | `Space` shows every command that can follow | Passwords and passphrases, with history |
-| ![Vault health](crates/lazybw/assets/screenshots/health.svg) | ![A light theme](crates/lazybw/assets/screenshots/light-theme.svg) |
+| ![Vault health](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/health.svg) | ![A light theme](https://raw.githubusercontent.com/SyscallBrain/lazybw/main/crates/lazybw/assets/screenshots/light-theme.svg) |
 | Exposed, reused, weak and old passwords | Ten built-in themes, light and dark |
 
 ## Security
@@ -127,12 +127,12 @@ decrypted vault data while the vault is unlocked; the
 describes how it protects that data and where the limits are.
 
 To report a vulnerability, follow the private reporting instructions in
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](https://github.com/SyscallBrain/lazybw/blob/main/SECURITY.md).
 
 ## Contributing
 
 Bug reports, feature suggestions and pull requests are welcome. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for setup and [ARCHITECTURE.md](ARCHITECTURE.md)
+[CONTRIBUTING.md](https://github.com/SyscallBrain/lazybw/blob/main/CONTRIBUTING.md) for setup and [ARCHITECTURE.md](https://github.com/SyscallBrain/lazybw/blob/main/ARCHITECTURE.md)
 for how the code is organised. From the root of a clone:
 
 ```sh
@@ -144,7 +144,7 @@ never touch a real vault.
 
 ## License
 
-[MIT](LICENSE) © Tiago Correia
+[MIT](https://github.com/SyscallBrain/lazybw/blob/main/LICENSE) © Tiago Correia
 
 lazybw is an independent project, not affiliated with or endorsed by
 Bitwarden, Inc.
