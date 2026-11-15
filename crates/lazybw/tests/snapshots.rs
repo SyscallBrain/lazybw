@@ -34,6 +34,9 @@ fn state(theme: &str) -> AppState {
     );
     state.clipboard = lazybw::clipboard::Clipboard::memory();
     state.config.ui.animations = false;
+    // Spinners take their frame from the time since `started`. A start in
+    // the future keeps `elapsed()` at zero, so a slow run cannot advance them.
+    state.started = std::time::Instant::now() + std::time::Duration::from_secs(3600);
     state.fx.borrow_mut().set_enabled(false);
     state.now = lazybw::util::time::test_now();
     state.size = (140, 40);
