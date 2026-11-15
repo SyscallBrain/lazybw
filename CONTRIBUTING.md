@@ -3,7 +3,8 @@
 Bug reports, ideas and pull requests are welcome. Questions go to
 [Discussions](https://github.com/SyscallBrain/lazybw/discussions). For
 security problems, please follow [SECURITY.md](SECURITY.md) instead of
-opening an issue.
+opening an issue. Everyone taking part is expected to follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Setting up
 
