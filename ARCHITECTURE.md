@@ -98,7 +98,7 @@ keymap editor (`KeymapEditorState::capture`).
 | `crates/lazybw/src/security.rs` | process hardening, private temporary files, shredding |
 | `crates/fake-bw/` | the test double for the Bitwarden CLI |
 | `book/` | the user guide (mdBook) |
-| `docs/` | design notes: `design.md`, `keymap.md`, `bw-integration.md`, `decisions.md` |
+| `docs/` | screen design (`design.md`) and the release checklist (`release.md`) |
 
 ## Testing
 

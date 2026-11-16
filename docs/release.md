@@ -6,22 +6,58 @@
    `crates/lazybw/assets/default-config.toml` (`tests/docs.rs` enforces it).
 3. `CHANGELOG.md` has the release section with the date.
 4. The new version is in the workspace `Cargo.toml` (and `Cargo.lock`), in
-   `packaging/aur/*/PKGBUILD`, in the `cargo install --tag` line of the README
-   and in the file names of `book/src/installation.md`.
-5. `cargo package -p lazybw --no-verify` succeeds and the tarball contains the
+   `packaging/aur/*/PKGBUILD` and in the file names of
+   `book/src/installation.md`. The README's crates.io installation command
+   stays `cargo install --locked lazybw`.
+5. `cargo publish -p lazybw --dry-run --locked` succeeds. Inspect
+   `cargo package -p lazybw --list` to confirm the tarball contains the
    embedded themes and default config.
 6. `cargo run -p lazybw --example screenshots` regenerates
    `crates/lazybw/assets/screenshots/*.svg` and the copies in the book; the
    README links resolve and `mdbook build book` shows no warnings.
-7. Write `.github/release-notes/vX.Y.Z.md`, tag `vX.Y.Z` and push the tag.
+7. Before publishing anything, build the candidate with `scripts/dist.sh`
+   and try it by hand with a real `bw` and a dedicated test account. Check
+   login/unlock, both private transports, sync, create/edit/trash/restore,
+   clipboard clearing and locking. Record the lazybw revision, `bw` version
+   and results in the release PR. Use sample items, never a personal vault.
+   The automated compatibility check below does not cover these operations.
+8. Write `.github/release-notes/vX.Y.Z.md`, tag `vX.Y.Z` and push the tag.
    The Release workflow builds static binaries for x86_64 and aarch64, the
    `.tar.gz`, `.deb`, `.rpm` and Arch packages, smoke-tests them and publishes
    the GitHub release; the Docker workflow publishes
    `ghcr.io/syscallbrain/lazybw:X.Y.Z` and `:latest`. `scripts/dist.sh`
    builds the same files locally.
-8. Try the release by hand with a real `bw` and account (the only step the
-   automated suite cannot do).
-9. Publish the AUR packages (below) once the GitHub release exists.
+9. After the GitHub release succeeds, publish with
+   `cargo publish -p lazybw --locked`. Confirm the crates.io version and
+   install it into a temporary prefix with
+   `cargo install --locked --version X.Y.Z --root /tmp/lazybw-X.Y.Z lazybw`;
+   check `/tmp/lazybw-X.Y.Z/bin/lazybw --version`.
+10. Publish the AUR packages (below) once the GitHub release exists.
+
+## Official Bitwarden CLI compatibility
+
+CI and the release workflow both require checks against official npm
+`@bitwarden/cli` versions 2025.9.0 (minimum) and 2026.10.1 (the Docker pin).
+Keep the compatibility matrix and Docker pin aligned when updating `bw`.
+For a local run with an already installed official CLI:
+
+```sh
+python3 scripts/check-bw.py /absolute/path/to/bw 2026.10.1
+```
+
+The runner builds the opt-in `real_bw` test and then runs it in a disposable
+HOME, XDG directories and `BITWARDENCLI_APPDATA_DIR`, with no inherited
+Bitwarden credentials or lazybw settings. It checks the exact version,
+parses a successful logged-out `bw status` through lazybw's subprocess
+client, and checks that both `bw serve` transports produce the expected
+`NotLoggedIn` error. Any other error or timeout fails the check. Both
+versions refuse to start the HTTP server without an account, so this does
+not verify HTTP requests over an authenticated connection, live login,
+sync or vault CRUD. Those remain the pre-release manual check above.
+
+`python3 -m unittest discover -s scripts -p test_check_bw.py` checks that the
+runner isolates inherited credentials and cleans up even when its child
+fails. The regular test suite continues to use `fake-bw`.
 
 ## AUR
 
