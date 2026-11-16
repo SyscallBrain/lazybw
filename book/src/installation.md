@@ -48,10 +48,16 @@ distribution.
 sudo apt install ./lazybw_1.2.2-1_amd64.deb     # or _arm64.deb
 ```
 
-### Fedora, openSUSE and RHEL
+### Fedora and RHEL
 
 ```sh
 sudo dnf install ./lazybw-1.2.2-1.x86_64.rpm    # or .aarch64.rpm
+```
+
+### openSUSE
+
+```sh
+sudo zypper install ./lazybw-1.2.2-1.x86_64.rpm # or .aarch64.rpm
 ```
 
 ### Arch Linux

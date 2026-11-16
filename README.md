@@ -61,7 +61,8 @@ or `aarch64`. `SHA256SUMS` lists the checksum of every file.
 | System | Install the downloaded file |
 |---|---|
 | Debian, Ubuntu | `sudo apt install ./lazybw_*_amd64.deb` |
-| Fedora, openSUSE, RHEL | `sudo dnf install ./lazybw-*.x86_64.rpm` |
+| Fedora, RHEL | `sudo dnf install ./lazybw-*.x86_64.rpm` |
+| openSUSE | `sudo zypper install ./lazybw-*.x86_64.rpm` |
 | Arch Linux | `paru -S lazybw-bin` from the AUR, or `sudo pacman -U lazybw-*-x86_64.pkg.tar.zst` |
 | Any other Linux | unpack the `.tar.gz` and put `lazybw` on your `PATH` |
 

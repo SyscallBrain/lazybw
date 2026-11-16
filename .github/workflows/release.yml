@@ -15,8 +15,12 @@ env:
   CARGO_GENERATE_RPM_VERSION: 0.21.1
 
 jobs:
+  bw-compatibility:
+    uses: ./.github/workflows/bw-compatibility.yml
+
   # A static (musl) binary per architecture, each built natively.
   build:
+    needs: bw-compatibility
     strategy:
       matrix:
         include:

@@ -41,9 +41,9 @@ Drawing reads the state and changes nothing.
 | `crates/lazybw/src/config/` | configuration, keymap and settings |
 | `crates/lazybw/src/theme/` | themes and colour handling |
 
-The `docs/` folder has the longer design notes: `design.md` for the screens,
-`keymap.md` for the keymap model, `bw-integration.md` for everything about
-talking to `bw`, and `decisions.md` for the reasons behind the main choices.
+The `docs/` folder has the screen design in `design.md` and the release
+checklist in `release.md`. [ARCHITECTURE.md](https://github.com/SyscallBrain/lazybw/blob/main/ARCHITECTURE.md)
+describes the backend, state machines and where the code lives.
 
 ## This book
 

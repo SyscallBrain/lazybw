@@ -18,10 +18,19 @@ env:
   RUST_VERSION: 1.99.1
 
 jobs:
+  bw-compatibility:
+    uses: ./.github/workflows/bw-compatibility.yml
+
   check:
+    needs: bw-compatibility
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - name: Require official CLI compatibility
+        env:
+          COMPATIBILITY_RESULT: ${{ needs.bw-compatibility.result }}
+        run: test "$COMPATIBILITY_RESULT" = success
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
