@@ -1,9 +1,11 @@
 //! Process hardening and secure temporary files.
 //!
-//! Called once at startup: make the process non-dumpable, disable core
-//! dumps and set a restrictive umask so anything lazybw writes is private by
-//! default. The secure temp directory lives in `$XDG_RUNTIME_DIR/lazybw`
-//! (mode 0700) with `/dev/shm/lazybw-$UID` as the fallback.
+//! Called once at startup: make the process non-dumpable (Linux) or deny
+//! debugger attachment (macOS), disable core dumps and set a restrictive
+//! umask so anything lazybw writes is private by default. The secure temp
+//! directory lives in `$XDG_RUNTIME_DIR/lazybw` (mode 0700) with
+//! `/dev/shm/lazybw-$UID` as the fallback, then `$TMPDIR/lazybw-$UID`
+//! (per-user on macOS).
 
 use std::fs::{self, File, OpenOptions};
 use std::io;
@@ -12,13 +14,18 @@ use std::path::{Path, PathBuf};
 
 /// Applies the process-wide hardening rules. Safe to call more than once.
 pub fn harden_process() {
-    // SAFETY: signal(2), prctl(PR_SET_DUMPABLE) and setrlimit are plain
-    // syscalls with constant arguments; they are async-signal-safe and have no
-    // memory safety implications.
+    // SAFETY: signal(2), prctl(PR_SET_DUMPABLE), ptrace(PT_DENY_ATTACH) and
+    // setrlimit are plain syscalls with constant arguments; they are
+    // async-signal-safe and have no memory safety implications.
     #[expect(unsafe_code, reason = "process hardening is libc calls with constant arguments")]
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+        #[cfg(target_os = "linux")]
         libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0);
+        // macOS has no PR_SET_DUMPABLE; PT_DENY_ATTACH is its counterpart
+        // against a debugger of the same user reading the decrypted vault.
+        #[cfg(target_os = "macos")]
+        libc::ptrace(libc::PT_DENY_ATTACH, 0, std::ptr::null_mut(), 0);
         let limit = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
         libc::setrlimit(libc::RLIMIT_CORE, &limit);
         libc::umask(0o077);
@@ -107,7 +114,7 @@ pub fn sweep_stale_temp_files() -> usize {
     for entry in entries.flatten() {
         let name = entry.file_name();
         let Some(pid) = name.to_str().and_then(owner_pid) else { continue };
-        let alive = pid == std::process::id() || Path::new(&format!("/proc/{pid}")).exists();
+        let alive = pid == std::process::id() || process_alive(pid);
         let path = entry.path();
         let is_file = fs::symlink_metadata(&path).is_ok_and(|meta| meta.is_file());
         if !alive && is_file && shred_and_remove(&path).is_ok() {
@@ -115,6 +122,17 @@ pub fn sweep_stale_temp_files() -> usize {
         }
     }
     removed
+}
+
+/// Whether a process with this id exists. `kill(pid, 0)` sends nothing; it
+/// works where there is no `/proc` (macOS). `EPERM` means it exists but
+/// belongs to another user.
+pub fn process_alive(pid: u32) -> bool {
+    let Ok(pid) = libc::pid_t::try_from(pid) else { return false };
+    // SAFETY: kill(2) with signal 0 only checks that the process exists.
+    #[expect(unsafe_code, reason = "kill(2) with signal 0 is an existence probe")]
+    let rc = unsafe { libc::kill(pid, 0) };
+    rc == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
 /// The process id in a temporary file name (`edit-1234-…`, `export-1234-…`).
@@ -183,6 +201,12 @@ mod tests {
         sweep_stale_temp_files();
         assert!(!dead.exists(), "a dead process's file was kept");
         assert!(ours.exists(), "a live process's file was removed");
+        // pid 1 (init, launchd) is alive and is not us: its file must stay.
+        let other = dir.join("export-1-1.json");
+        fs::write(&other, b"another process's export").unwrap();
+        sweep_stale_temp_files();
+        assert!(other.exists(), "another live process's file was removed");
+        let _ = fs::remove_file(other);
         let _ = fs::remove_file(ours);
     }
 

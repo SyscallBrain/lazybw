@@ -83,10 +83,7 @@ async fn roundtrip(transport: Transport) {
     serve.shutdown().await;
     // The child exits when the socket closes (Unix) or is terminated.
     if let Some(pid) = pid {
-        assert!(
-            !std::path::Path::new(&format!("/proc/{pid}")).exists(),
-            "fake-bw serve ({pid}) is still running"
-        );
+        assert!(!lazybw::security::process_alive(pid), "fake-bw serve ({pid}) is still running");
     }
 }
 

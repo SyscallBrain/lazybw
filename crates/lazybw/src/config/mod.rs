@@ -8,6 +8,7 @@ pub mod duration;
 pub mod keymap;
 pub mod persist;
 pub mod watch;
+mod xdg;
 
 use crate::config::duration::DurationSpec;
 use serde::{Deserialize, Serialize};
@@ -688,25 +689,17 @@ pub struct Paths {
 
 impl Paths {
     /// Resolves the paths, falling back to `~/.config` and `~/.local/state`.
+    ///
+    /// The XDG variables are read directly, on every platform: on macOS the
+    /// platform convention would be `~/Library/Application Support`, which
+    /// ignores `$XDG_CONFIG_HOME` and differs from what the book documents.
     #[must_use]
     pub fn resolve() -> Self {
-        let base = directories::BaseDirs::new();
-        let config_dir = base
-            .as_ref()
-            .map(|b| b.config_dir().to_path_buf())
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-            .unwrap_or_else(|| PathBuf::from(".config"))
-            .join("lazybw");
-        let state_dir = base
-            .as_ref()
-            .map(|b| {
-                b.state_dir()
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or_else(|| b.home_dir().join(".local/state"))
-            })
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
-            .unwrap_or_else(|| PathBuf::from(".local/state"))
-            .join("lazybw");
+        let home = directories::BaseDirs::new()
+            .map(|b| b.home_dir().to_path_buf())
+            .or_else(|| std::env::var_os("HOME").map(PathBuf::from));
+        let config_dir = xdg::dir("XDG_CONFIG_HOME", home.as_deref(), ".config").join("lazybw");
+        let state_dir = xdg::dir("XDG_STATE_HOME", home.as_deref(), ".local/state").join("lazybw");
         Self { config_dir, state_dir }
     }
 

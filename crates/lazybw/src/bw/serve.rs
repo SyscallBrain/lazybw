@@ -238,6 +238,9 @@ fn configure_child(command: &mut Command, options: &ServeOptions) -> Result<(), 
     }
     // SAFETY: the closure only calls prctl, which is async-signal-safe and
     // cannot allocate.
+    // macOS has no parent-death signal: there the child is stopped by
+    // `kill_on_drop` and `shutdown`, but survives a SIGKILL of lazybw.
+    #[cfg(target_os = "linux")]
     #[expect(unsafe_code, reason = "pre_exec is unsafe by definition, see SAFETY above")]
     unsafe {
         command.pre_exec(|| {
