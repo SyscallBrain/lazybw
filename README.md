@@ -11,7 +11,7 @@
   <a href="https://github.com/SyscallBrain/lazybw/releases/latest"><img src="https://img.shields.io/github/v/release/SyscallBrain/lazybw?color=7aa2f7" alt="Latest release"></a>
   <a href="https://syscallbrain.github.io/lazybw/"><img src="https://img.shields.io/badge/docs-user%20guide-9ece6a" alt="User guide"></a>
   <a href="https://github.com/SyscallBrain/lazybw/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-bb9af7" alt="MIT licence"></a>
-  <img src="https://img.shields.io/badge/platform-linux%20x86__64%20%7C%20aarch64-c0caf5" alt="Linux x86_64 and aarch64">
+  <img src="https://img.shields.io/badge/platform-linux%20%7C%20macOS-c0caf5" alt="Linux and macOS">
 </p>
 
 <p align="center">
@@ -47,7 +47,7 @@ CLI in the background and leaves all vault cryptography to it.
 
 ## Install
 
-You need Linux on x86_64 or aarch64 and the official
+You need Linux (x86_64 or aarch64) or macOS and the official
 [Bitwarden CLI](https://bitwarden.com/help/cli/) (`bw`) 2025.9.0 or newer
 on your `PATH`. A few features need a newer `bw`; the
 [installation guide](https://syscallbrain.github.io/lazybw/installation.html)
@@ -65,6 +65,7 @@ or `aarch64`. `SHA256SUMS` lists the checksum of every file.
 | openSUSE | `sudo zypper install ./lazybw-*.x86_64.rpm` |
 | Arch Linux | `paru -S lazybw-bin` from the AUR, or `sudo pacman -U lazybw-*-x86_64.pkg.tar.zst` |
 | Any other Linux | unpack the `.tar.gz` and put `lazybw` on your `PATH` |
+| macOS | no release file yet: `cargo install --locked lazybw` |
 
 There is also a container image with `bw` included. The volume keeps your
 login and settings between runs, and copying goes through your terminal

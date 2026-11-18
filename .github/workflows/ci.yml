@@ -44,6 +44,24 @@ jobs:
       - name: Build the release binary
         run: cargo build --release --locked -p lazybw
 
+  # The same gate on macOS, so platform-specific code keeps building there.
+  check-macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt --component clippy
+          rustup default "$RUST_VERSION"
+      - name: Format, lints and tests (against fake-bw, never a real vault)
+        env:
+          TZ: UTC
+        run: scripts/check.sh
+
   # Licences, advisories, banned crates and sources (deny.toml).
   supply-chain:
     runs-on: ubuntu-24.04
