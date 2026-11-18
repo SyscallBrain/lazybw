@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::net::UnixStream;
 use tokio::process::{Child, Command};
+use tokio::task::JoinHandle;
 
 /// How the child was attached.
 #[derive(Debug, Clone)]
@@ -42,7 +43,14 @@ pub struct Serve {
     pub stderr: Arc<Mutex<VecDeque<String>>>,
     /// The resolved executable path, for logs.
     pub path: PathBuf,
+    /// The stderr and stdout reader tasks, awaited before an exit is
+    /// classified so their last lines are in `stderr`.
+    readers: Vec<JoinHandle<()>>,
 }
+
+/// How long an exit waits for the readers to reach end of file. A grandchild
+/// that keeps the pipes open must not hold the error screen back.
+const READER_DRAIN: Duration = Duration::from_secs(2);
 
 /// Parameters for spawning the child.
 #[derive(Debug, Clone)]
@@ -87,14 +95,21 @@ impl Serve {
         let mut child = command
             .spawn()
             .map_err(|e| BwError::InvalidResponse(format!("could not start bw serve: {e}")))?;
+        let mut readers = Vec::with_capacity(2);
         if let Some(pipe) = child.stderr.take() {
-            pipe_reader(pipe, Arc::clone(&stderr), "bw serve stderr");
+            readers.push(pipe_reader(pipe, Arc::clone(&stderr), "bw serve stderr"));
         }
         if let Some(pipe) = child.stdout.take() {
-            pipe_reader(pipe, Arc::clone(&stderr), "bw serve stdout");
+            readers.push(pipe_reader(pipe, Arc::clone(&stderr), "bw serve stdout"));
         }
-        let serve =
-            Self { child, transport: transport_state, stream, stderr, path: options.path.clone() };
+        let serve = Self {
+            child,
+            transport: transport_state,
+            stream,
+            stderr,
+            path: options.path.clone(),
+            readers,
+        };
         if let Some(path) = socket_path {
             tracing::debug!(path = %path.display(), "spawned bw serve over unix socket");
         }
@@ -113,7 +128,7 @@ impl Serve {
                         Ok(stream) => break stream,
                         Err(err) if Instant::now() < deadline => {
                             if let Ok(Some(status)) = self.child.try_wait() {
-                                return Err(self.exit_error(status));
+                                return Err(self.exit_error(status).await);
                             }
                             let _ = err;
                             tokio::time::sleep(delay).await;
@@ -141,7 +156,7 @@ impl Serve {
                 }
                 Err(err) => {
                     if let Ok(Some(status)) = self.child.try_wait() {
-                        return Err(self.exit_error(status));
+                        return Err(self.exit_error(status).await);
                     }
                     if Instant::now() >= deadline {
                         return Err(err);
@@ -159,7 +174,13 @@ impl Serve {
     /// in it exits printing "You are not logged in." (bw-integration.md §2);
     /// that message maps to [`BwError::NotLoggedIn`] like any other, so the
     /// app shows the login screen. Anything else reports the stderr tail.
-    fn exit_error(&self, status: std::process::ExitStatus) -> BwError {
+    ///
+    /// The child can exit before the reader tasks have stored its last
+    /// lines, so they are drained first.
+    async fn exit_error(&mut self, status: std::process::ExitStatus) -> BwError {
+        for reader in self.readers.drain(..) {
+            let _ = tokio::time::timeout(READER_DRAIN, reader).await;
+        }
         let not_logged_in = {
             let guard = self.stderr.lock().unwrap_or_else(|e| e.into_inner());
             guard.iter().any(|line| {
@@ -256,7 +277,11 @@ fn terminate_child(pid: u32) {
     }
 }
 
-fn pipe_reader<R>(pipe: R, sink: Arc<Mutex<VecDeque<String>>>, label: &'static str)
+fn pipe_reader<R>(
+    pipe: R,
+    sink: Arc<Mutex<VecDeque<String>>>,
+    label: &'static str,
+) -> JoinHandle<()>
 where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
@@ -275,7 +300,7 @@ where
                 guard.pop_front();
             }
         }
-    });
+    })
 }
 
 /// Removes anything that could be a secret from a log line.
@@ -305,5 +330,32 @@ mod tests {
         assert!(!redacted.contains("abcdef"));
         assert!(redacted.contains("***"));
         assert_eq!(redact("normal warning"), "normal warning");
+    }
+
+    /// `bw serve` can exit before the reader task has stored its last stderr
+    /// line. The exit must still map to `NotLoggedIn`, as it did in CI with
+    /// the official CLI. Here a background process holds stderr open and
+    /// writes the message after the parent has already exited.
+    #[tokio::test]
+    async fn late_stderr_still_maps_to_not_logged_in() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("bw");
+        std::fs::write(
+            &script,
+            "#!/bin/sh\n(/bin/sleep 0.3; echo 'You are not logged in.' >&2) &\nexit 1\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let mut serve = Serve::spawn(&ServeOptions {
+            path: script,
+            session_key: None,
+            transport: Transport::Unix,
+            runtime_dir: dir.path().to_path_buf(),
+        })
+        .unwrap();
+        let result = serve.connect().await;
+        assert!(matches!(result, Err(BwError::NotLoggedIn)), "got {result:?}");
+        serve.shutdown().await;
     }
 }
