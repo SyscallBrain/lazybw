@@ -5,10 +5,12 @@
 # Start it (from Termux, or anywhere with gh):
 #   gh workflow run phone-build.yml -R SyscallBrain/lazybw --ref <branch>
 #   gh workflow run phone-build.yml -R SyscallBrain/lazybw --ref <branch> -f checks=false
-# Follow it and fetch the binary (artifacts are zips, which drop the
-# executable bit):
-#   gh run watch -R SyscallBrain/lazybw --exit-status
-#   gh run download -R SyscallBrain/lazybw --pattern 'lazybw-*'
+# Follow it and fetch the binary from that same run (the newest run of this
+# workflow; gh run download without a run id would ask which run):
+#   run=$(gh run list -R SyscallBrain/lazybw -w phone-build.yml -L 1 --json databaseId -q '.[0].databaseId')
+#   gh run watch "$run" -R SyscallBrain/lazybw --exit-status
+#   gh run download "$run" -R SyscallBrain/lazybw
+# Artifacts are zips, which drop the executable bit, so then:
 #   chmod +x lazybw-*/lazybw
 name: Phone build (manual)
 
