@@ -63,6 +63,7 @@ async fn clipboard_auto_clears() {
 }
 
 /// Helper process for the PDEATHSIG test. Run normally, it does nothing.
+#[cfg(target_os = "linux")]
 #[test]
 fn pdeathsig_helper() {
     if std::env::var("LAZYBW_PDEATHSIG_HELPER").is_err() {
@@ -100,6 +101,8 @@ fn pdeathsig_helper() {
     });
 }
 
+// Linux only: macOS has no PR_SET_PDEATHSIG.
+#[cfg(target_os = "linux")]
 #[test]
 fn sigkill_of_the_parent_terminates_the_serve_child() {
     use std::io::BufRead;

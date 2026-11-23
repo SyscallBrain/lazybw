@@ -2,8 +2,9 @@
 
 ## Requirements
 
-- Linux. lazybw works in any terminal emulator, under X11 or Wayland, and over
-  SSH.
+- Linux or macOS. lazybw works in any terminal emulator, under X11 or
+  Wayland, and over SSH. There are no release files for macOS yet: build it
+  [from source](#from-source).
 - The official Bitwarden CLI, `bw`, version 2025.9.0 or newer.
 - A recent Rust toolchain (1.88 or newer) to build lazybw.
 - A [Nerd Font](https://www.nerdfonts.com) in your terminal, for the icons.
@@ -15,6 +16,12 @@ Use your distribution's package if it has one. On Arch Linux:
 
 ```sh
 sudo pacman -S bitwarden-cli
+```
+
+On macOS with Homebrew:
+
+```sh
+brew install bitwarden-cli
 ```
 
 Anywhere else with Node.js installed:
@@ -169,7 +176,8 @@ state and log files. Run it first whenever something does not work.
 | Configuration | `~/.config/lazybw/config.toml` |
 | Your themes | `~/.config/lazybw/themes/*.toml` |
 | Log, command history, folder state | `~/.local/state/lazybw/` |
-| Temporary files (exports, `$EDITOR` buffers) | `$XDG_RUNTIME_DIR/lazybw/` |
+| Temporary files (exports, `$EDITOR` buffers) | `$XDG_RUNTIME_DIR/lazybw/` (`$TMPDIR/lazybw-<uid>/` on macOS) |
 
 lazybw follows the XDG variables, so `$XDG_CONFIG_HOME` and `$XDG_STATE_HOME`
-move these if you set them. Your vault itself stays where `bw` keeps it.
+move these if you set them. The same paths apply on macOS, not
+`~/Library/Application Support`. Your vault itself stays where `bw` keeps it.

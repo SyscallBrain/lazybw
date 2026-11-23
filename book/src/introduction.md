@@ -31,7 +31,7 @@ lazybw is for people who already live in a terminal and use Bitwarden. If you
 like Vim motions, you will feel at home within minutes. If you don't, the
 arrow keys work too, and `?` shows the keys for the screen you are on.
 
-It runs on Linux, locally or over SSH, under X11 or Wayland.
+It runs on Linux, locally or over SSH, under X11 or Wayland, and on macOS.
 
 ## How this book is organised
 

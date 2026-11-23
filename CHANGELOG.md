@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS support. lazybw builds and runs on macOS; install it with
+  `cargo install --locked lazybw`. It denies debugger attachment
+  (`PT_DENY_ATTACH`) where Linux makes the process non-dumpable. macOS has no
+  parent-death signal, so a `bw serve` child outlives a `kill -9` of lazybw
+  there; a normal exit or a panic still stops it.
+
+### Fixed
+
+- The temp-file sweep no longer relies on `/proc` to tell whether the owner
+  of a file is still running, so it cannot shred the edit buffer of another
+  lazybw where `/proc` is missing.
+- `$XDG_CONFIG_HOME` and `$XDG_STATE_HOME` are honoured on every platform,
+  as documented.
+
 ## [1.2.2] - 2026-11-15
 
 ### Fixed
